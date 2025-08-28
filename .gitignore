@@ -1,0 +1,23 @@
+# macOS system files
+.DS_Store
+
+# Python
+__pycache__/
+
+# Virtual environments
+.venv/
+
+# Linting and formatting
+.ruff_cache/
+
+# IDE
+.vscode/
+
+# Environment variables
+.env
+
+#company_data
+company_data/
+
+# uv
+uv.lock
