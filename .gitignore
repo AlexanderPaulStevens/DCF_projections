@@ -21,3 +21,18 @@ company_data/
 
 # uv
 uv.lock
+
+# software development best practices
+SOFTWARE_DEVELOPMENT_BEST_PRACTICES.md
+
+#streamlit
+src/ui.py
+
+#htmlcov
+htmlcov/
+
+#pytest cache
+.pytest_cache/
+
+#coverage
+.coverage

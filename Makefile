@@ -23,7 +23,7 @@ help:
 
 # Installation
 install:
-	pip install -r requirements.txt
+	uv sync
 
 setup: install
 	pre-commit install
@@ -40,13 +40,13 @@ test:
 
 # Example runs
 run-demo:
-	python main.py --ticker AAPL --overview --chart
+	python src/main.py --ticker AAPL --overview
 
 run-dcf:
-	python main.py --ticker AAPL --dcf --y 3 --eg 0.15 --steps 2 --s 0.10
+	python src/main.py --ticker AAPL --dcf --y 3 --eg 0.15 --steps 2 --s 0.10
 
 run-sensitivity:
-	python main.py --ticker AAPL --sensitivity --plot-sensitivity
+	python src/main.py --ticker AAPL --sensitivity --sensitivity-steps 11
 
 # Cleanup
 clean:

@@ -1,6 +1,3 @@
-from app.features.sensitivity_analysis import SensitivityAnalyzer
-
-
 class DCFCalculator:
     """
     Discounted Cash Flow calculator for financial projections.
@@ -15,15 +12,18 @@ class DCFCalculator:
             financial_data (dict): Historical financial data by year
             base_year (int): Base year for projections (defaults to latest year)
         """
+        from config.settings import Settings
+
         self.ticker = ticker
         self.financial_data = financial_data
         self.base_year = base_year or max(financial_data.keys())
 
-        # DCF assumptions (can be customized)
-        self.tax_rate = 0.25  # 25% corporate tax rate
-        self.terminal_growth_rate = 0.025  # 2.5% terminal growth
-        self.wacc = 0.10  # 10% weighted average cost of capital
-        self.projection_years = 5
+        # DCF assumptions from configuration (can be customized)
+        defaults = Settings.get_dcf_defaults()
+        self.tax_rate = defaults["tax_rate"]
+        self.terminal_growth_rate = defaults["terminal_growth_rate"]
+        self.wacc = defaults["wacc"]
+        self.projection_years = defaults["projection_years"]
 
     def get_historical_metrics(self, years_back=3):
         """
@@ -247,9 +247,10 @@ class DCFCalculator:
         """
         # Get shares outstanding from base year data (simplified assumption)
 
-        # Estimate shares outstanding (in millions) - this should be from actual data
-        # For now, using a rough estimate based on typical large cap companies
-        shares_outstanding = 15_400_000_000  # Apple's approximate shares outstanding
+        # Get shares outstanding from configuration
+        from config.settings import Settings
+
+        shares_outstanding = Settings.DEFAULT_SHARES_OUTSTANDING
 
         per_share_value = equity_value / shares_outstanding
         return per_share_value
@@ -304,5 +305,7 @@ class DCFCalculator:
         Returns:
             dict: Comprehensive sensitivity analysis results
         """
+        from app.features.sensitivity_analysis import SensitivityAnalyzer
+
         analyzer = SensitivityAnalyzer(self)
         return analyzer.run_comprehensive_sensitivity_analysis(steps=steps)

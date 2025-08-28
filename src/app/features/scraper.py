@@ -3,7 +3,7 @@ from datetime import datetime
 import json
 from pathlib import Path
 import re
-import BeautifulSoup
+from bs4 import BeautifulSoup
 
 
 class SP500Scraper:
@@ -32,6 +32,24 @@ class SP500Scraper:
 
         # S&P 500 companies with their CIKs
         self.sp500_companies = self._load_sp500_companies()
+
+    def get_sp500_companies(self):
+        """
+        Get list of S&P 500 companies.
+
+        Returns:
+            list: List of dictionaries with ticker and name
+        """
+        companies = []
+        for ticker, cik in self.sp500_companies.items():
+            companies.append(
+                {
+                    "ticker": ticker,
+                    "cik": cik,
+                    "name": ticker,  # For now, just use ticker as name
+                }
+            )
+        return companies
 
     def _load_sp500_companies(self):
         """
