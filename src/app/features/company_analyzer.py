@@ -1,6 +1,11 @@
-import matplotlib.pyplot as plt
+import matplotlib
 import yfinance as yf
-import tabulate
+from tabulate import tabulate
+from config.settings import Settings
+
+# Use non-interactive backend for testing and non-GUI environments
+matplotlib.use(Settings.MATPLOTLIB_BACKEND)
+import matplotlib.pyplot as plt
 
 
 class CompanyAnalyzer:

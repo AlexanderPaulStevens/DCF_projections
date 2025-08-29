@@ -305,7 +305,7 @@ class DCFCalculator:
         Returns:
             dict: Comprehensive sensitivity analysis results
         """
-        from app.features.sensitivity_analysis import SensitivityAnalyzer
+        from .sensitivity_analysis import SensitivityAnalyzer
 
         analyzer = SensitivityAnalyzer(self)
         return analyzer.run_comprehensive_sensitivity_analysis(steps=steps)

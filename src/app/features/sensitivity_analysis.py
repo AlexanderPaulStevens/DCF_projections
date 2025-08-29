@@ -1,10 +1,15 @@
 import enum
 import numpy as np
-import matplotlib.pyplot as plt
+import matplotlib
 import json
 from datetime import datetime
 from pathlib import Path
-from app.features.DCF_calculations import DCFCalculator
+from config.settings import Settings
+from .DCF_calculations import DCFCalculator
+
+# Use non-interactive backend for testing and non-GUI environments
+matplotlib.use(Settings.MATPLOTLIB_BACKEND)
+import matplotlib.pyplot as plt
 
 
 class SensitivityVariable(enum.Enum):

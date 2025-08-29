@@ -91,6 +91,50 @@ class TestSettings:
             else:
                 os.environ.pop("ENVIRONMENT", None)
 
+    def test_get_matplotlib_config(self):
+        """Test getting matplotlib configuration."""
+        config = Settings.get_matplotlib_config()
+
+        assert "backend" in config
+        assert config["backend"] == Settings.MATPLOTLIB_BACKEND
+        assert config["backend"] == "Agg"  # Should default to non-interactive
+
+    def test_matplotlib_backend_actually_set(self):
+        """Test that matplotlib backend is actually set to non-interactive."""
+        # Import company_analyzer to trigger matplotlib backend setting
+
+        # Check that matplotlib is using the Agg backend
+        import matplotlib
+
+        assert matplotlib.get_backend() == "Agg"
+
+    def test_matplotlib_backend_environment_override(self):
+        """Test matplotlib backend environment variable override."""
+        import os
+
+        # Test environment variable override
+        original_backend = os.getenv("MATPLOTLIB_BACKEND")
+
+        try:
+            # Set environment variable
+            os.environ["MATPLOTLIB_BACKEND"] = "TkAgg"
+
+            # Re-import to trigger the override
+            import importlib
+            import config.settings
+
+            importlib.reload(config.settings)
+
+            # Check if override was applied
+            assert config.settings.Settings.MATPLOTLIB_BACKEND == "TkAgg"
+
+        finally:
+            # Restore original environment
+            if original_backend:
+                os.environ["MATPLOTLIB_BACKEND"] = original_backend
+            else:
+                os.environ.pop("MATPLOTLIB_BACKEND", None)
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

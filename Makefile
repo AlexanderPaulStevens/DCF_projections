@@ -1,4 +1,4 @@
-.PHONY: help install setup test clean format lint run-demo run-dcf run-sensitivity
+.PHONY: help install setup test clean format lint run-demo run-dcf run-sensitivity run-ratios
 
 # Default target
 help:
@@ -17,6 +17,7 @@ help:
 	@echo "  run-demo    Run basic analysis for AAPL"
 	@echo "  run-dcf     Run DCF analysis for AAPL"
 	@echo "  run-sensitivity Run sensitivity analysis for AAPL"
+	@echo "  run-ratios  Run financial ratios analysis for AAPL"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  clean       Clean up generated files and caches"
@@ -40,13 +41,16 @@ test:
 
 # Example runs
 run-demo:
-	python src/main.py --ticker AAPL --overview
+	uv run python src/main.py --ticker AAPL --overview
 
 run-dcf:
-	python src/main.py --ticker AAPL --dcf --y 3 --eg 0.15 --steps 2 --s 0.10
+	uv run python src/main.py --ticker AAPL --dcf --y 3 --eg 0.15 --steps 2 --s 0.10
 
 run-sensitivity:
-	python src/main.py --ticker AAPL --sensitivity --sensitivity-steps 11
+	uv run python src/main.py --ticker AAPL --sensitivity --sensitivity-steps 11
+
+run-ratios:
+	uv run python src/main.py --ticker AAPL --ratios
 
 # Cleanup
 clean:
@@ -58,5 +62,4 @@ clean:
 	find . -type d -name ".pytest_cache" -exec rm -rf {} +
 	find . -type d -name ".ruff_cache" -exec rm -rf {} +
 	find . -type d -name ".mypy_cache" -exec rm -rf {} +
-	rm -rf build/ dist/ .eggs/
-	rm -rf charts/*.png company_data/*/charts/
+	rm -rf build/ dist/ .eggs/x

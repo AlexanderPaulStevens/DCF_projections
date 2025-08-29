@@ -36,6 +36,9 @@ class Settings:
     DATA_DIR = "company_data"
     CHARTS_DIR = "charts"
 
+    # Matplotlib Configuration
+    MATPLOTLIB_BACKEND = "Agg"  # Non-interactive backend for testing/CI
+
     @classmethod
     def get_dcf_defaults(cls) -> Dict[str, Any]:
         """Get DCF calculation default parameters."""
@@ -56,8 +59,19 @@ class Settings:
             "range": cls.DEFAULT_SENSITIVITY_RANGE,
         }
 
+    @classmethod
+    def get_matplotlib_config(cls) -> Dict[str, Any]:
+        """Get matplotlib configuration parameters."""
+        return {
+            "backend": cls.MATPLOTLIB_BACKEND,
+        }
+
 
 # Environment-specific overrides
 if os.getenv("ENVIRONMENT") == "production":
     Settings.REQUEST_DELAY = 2.0  # More conservative in production
     Settings.MAX_RETRIES = 5
+
+# Allow matplotlib backend override via environment variable
+if os.getenv("MATPLOTLIB_BACKEND"):
+    Settings.MATPLOTLIB_BACKEND = os.getenv("MATPLOTLIB_BACKEND")

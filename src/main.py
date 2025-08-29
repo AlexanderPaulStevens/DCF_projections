@@ -15,6 +15,7 @@ import argparse
 from app.services.dcf_service import DCFService
 from app.features.scraper import SP500Scraper
 from app.features.company_analyzer import CompanyAnalyzer
+from app.features.financial_ratios import FinancialRatiosAnalyzer
 
 
 # Configure logging
@@ -43,6 +44,8 @@ Examples:
   DCF analysis:         python main.py --ticker AAPL --dcf --y 3 --eg 0.15 --steps 2 --s 0.10
   Sensitivity analysis: python main.py --ticker AAPL --sensitivity --sensitivity-steps 11 --sensitivity-range 0.50
   Company overview:     python main.py --ticker AAPL --overview
+  Financial ratios:     python main.py --ticker AAPL --ratios
+  Save ratios to CSV:   python main.py --ticker AAPL --ratios --save-ratios default
   Share price chart:    python main.py --ticker AAPL --chart --period 5y
   Save chart:           python main.py --ticker AAPL --chart --save-chart charts/AAPL_price.png
             """,
@@ -115,6 +118,14 @@ Examples:
             "--overview", action="store_true", help="Show company overview"
         )
         parser.add_argument(
+            "--ratios", action="store_true", help="Show financial ratios"
+        )
+        parser.add_argument(
+            "--save-ratios",
+            type=str,
+            help="Save financial ratios to CSV file (specify filename or use default)",
+        )
+        parser.add_argument(
             "--chart", action="store_true", help="Display share price chart"
         )
         parser.add_argument(
@@ -171,24 +182,33 @@ Examples:
         """Analyze a specific company."""
         logger.info(f"Analyzing company: {ticker}")
 
-        # Fetch financial data
-        financial_data = self.scraper.scrape_company_data(ticker, years=self.args.y)
+        # Financial ratios (works independently of scraper)
+        if self.args.ratios:
+            self.show_financial_ratios(ticker)
 
-        if not financial_data:
-            logger.error(f"Could not fetch data for {ticker}")
-            return
-
-        # Company overview
+        # Company overview (requires financial data from scraper)
         if self.args.overview:
-            self.show_company_overview(ticker, financial_data)
+            financial_data = self.scraper.analyze_company(ticker)
+            if financial_data:
+                self.show_company_overview(ticker, financial_data)
+            else:
+                logger.error(f"Could not fetch data for {ticker}")
 
-        # DCF analysis
+        # DCF analysis (requires financial data from scraper)
         if self.args.dcf:
-            self.run_dcf_analysis(ticker, financial_data)
+            financial_data = self.scraper.analyze_company(ticker)
+            if financial_data:
+                self.run_dcf_analysis(ticker, financial_data)
+            else:
+                logger.error(f"Could not fetch data for {ticker}")
 
-        # Sensitivity analysis
+        # Sensitivity analysis (requires financial data from scraper)
         if self.args.sensitivity:
-            self.run_sensitivity_analysis(ticker, financial_data)
+            financial_data = self.scraper.analyze_company(ticker)
+            if financial_data:
+                self.run_sensitivity_analysis(ticker, financial_data)
+            else:
+                logger.error(f"Could not fetch data for {ticker}")
 
         # Chart
         if self.args.chart:
@@ -198,8 +218,27 @@ Examples:
         self, ticker: str, financial_data: Dict[int, Dict[str, Any]]
     ):
         """Display company overview."""
-        analyzer = CompanyAnalyzer(ticker, financial_data)
-        analyzer.print_company_overview()
+        if financial_data:
+            analyzer = CompanyAnalyzer(ticker, financial_data)
+            analyzer.print_company_overview()
+        else:
+            logger.error(f"No financial data available for {ticker}")
+
+    def show_financial_ratios(self, ticker: str):
+        """Display financial ratios."""
+        logger.info(f"Calculating financial ratios for {ticker}")
+
+        ratios_analyzer = FinancialRatiosAnalyzer(ticker)
+        ratios_analyzer.print_financial_ratios_table()
+
+        # Save to CSV if requested
+        if self.args.save_ratios:
+            if self.args.save_ratios == "default":
+                # Use default filename
+                ratios_analyzer.save_ratios_to_csv()
+            else:
+                # Use custom filename
+                ratios_analyzer.save_ratios_to_csv(self.args.save_ratios)
 
     def run_dcf_analysis(self, ticker: str, financial_data: Dict[int, Dict[str, Any]]):
         """Run DCF analysis."""
