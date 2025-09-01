@@ -28,8 +28,9 @@ class TestDCFService:
 
         assert result == mock_calculator
         # The constructor takes 3 arguments: ticker, financial_data, base_year (which defaults to None)
+        # Note: string keys get converted to integers in the service
         mock_dcf_calculator_class.assert_called_once_with(
-            "AAPL", {"2023": {"revenue": 1000000}}, None
+            "AAPL", {2023: {"revenue": 1000000}}, None
         )
 
     @patch("src.app.services.dcf_service.DCFCalculator")

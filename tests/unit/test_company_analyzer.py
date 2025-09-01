@@ -5,7 +5,7 @@ Unit tests for company analyzer functionality.
 
 from unittest.mock import Mock, patch
 import pandas as pd
-from src.app.features.company_analyzer import CompanyAnalyzer
+from src.app.core.company_analyzer import CompanyAnalyzer
 
 
 class TestCompanyAnalyzer:
@@ -17,7 +17,7 @@ class TestCompanyAnalyzer:
         assert analyzer.ticker == "AAPL"
         assert analyzer.yf_ticker is not None
 
-    @patch("src.app.features.company_analyzer.yf.Ticker")
+    @patch("src.app.core.company_analyzer.yf.Ticker")
     def test_get_share_price_data_success(self, mock_yf_ticker):
         """Test successful share price data retrieval."""
         # Mock historical data
@@ -41,7 +41,7 @@ class TestCompanyAnalyzer:
         assert "Close" in result.columns
         assert "Volume" in result.columns
 
-    @patch("src.app.features.company_analyzer.yf.Ticker")
+    @patch("src.app.core.company_analyzer.yf.Ticker")
     def test_get_share_price_data_empty(self, mock_yf_ticker):
         """Test share price data retrieval with empty data."""
         # Mock empty historical data
@@ -54,7 +54,7 @@ class TestCompanyAnalyzer:
 
         assert result is None
 
-    @patch("src.app.features.company_analyzer.yf.Ticker")
+    @patch("src.app.core.company_analyzer.yf.Ticker")
     def test_get_share_price_data_exception(self, mock_yf_ticker):
         """Test share price data retrieval with exception."""
         # Mock exception
@@ -67,7 +67,7 @@ class TestCompanyAnalyzer:
 
         assert result is None
 
-    @patch("src.app.features.company_analyzer.yf.Ticker")
+    @patch("src.app.core.company_analyzer.yf.Ticker")
     def test_plot_share_price_success(self, mock_yf_ticker):
         """Test successful share price plotting."""
         # Mock historical data
@@ -94,7 +94,7 @@ class TestCompanyAnalyzer:
             # If there's an error, it should be a reasonable one (not a mocking issue)
             assert "matplotlib" not in str(e).lower()
 
-    @patch("src.app.features.company_analyzer.yf.Ticker")
+    @patch("src.app.core.company_analyzer.yf.Ticker")
     def test_plot_share_price_with_save(self, mock_yf_ticker):
         """Test share price plotting with save functionality."""
         # Mock historical data
@@ -115,14 +115,16 @@ class TestCompanyAnalyzer:
 
         # Test that the method runs without error when saving
         try:
-            analyzer.plot_share_price("5y", save_path="test_chart.png")
+            # Use a temporary path that won't create actual files
+            test_save_path = "/tmp/test_chart_temp.png"
+            analyzer.plot_share_price("5y", save_path=test_save_path)
             # If we get here, the method ran successfully
             assert True
         except Exception as e:
             # If there's an error, it should be a reasonable one (not a mocking issue)
             assert "matplotlib" not in str(e).lower()
 
-    @patch("src.app.features.company_analyzer.yf.Ticker")
+    @patch("src.app.core.company_analyzer.yf.Ticker")
     def test_plot_share_price_no_data(self, mock_yf_ticker):
         """Test share price plotting when no data is available."""
         mock_ticker = Mock()
@@ -140,7 +142,7 @@ class TestCompanyAnalyzer:
             # Should not raise exceptions for missing data
             assert False, f"Should handle missing data gracefully: {e}"
 
-    @patch("src.app.features.company_analyzer.yf.Ticker")
+    @patch("src.app.core.company_analyzer.yf.Ticker")
     def test_plot_share_price_empty_data(self, mock_yf_ticker):
         """Test share price plotting with empty DataFrame."""
         # Mock empty DataFrame
@@ -161,7 +163,7 @@ class TestCompanyAnalyzer:
             # Should not raise exceptions for empty data
             assert False, f"Should handle empty data gracefully: {e}"
 
-    @patch("src.app.features.company_analyzer.yf.Ticker")
+    @patch("src.app.core.company_analyzer.yf.Ticker")
     def test_get_company_overview_success(self, mock_yf_ticker):
         """Test successful company overview retrieval."""
         # Mock company info
@@ -205,7 +207,7 @@ class TestCompanyAnalyzer:
         assert overview["Market Cap"] == 3000000000000
         assert overview["Current Price"] == 150.0
 
-    @patch("src.app.features.company_analyzer.yf.Ticker")
+    @patch("src.app.core.company_analyzer.yf.Ticker")
     def test_get_company_overview_exception(self, mock_yf_ticker):
         """Test company overview retrieval with exception."""
         # Mock exception by making the info attribute raise an exception when accessed
@@ -217,11 +219,14 @@ class TestCompanyAnalyzer:
         analyzer = CompanyAnalyzer("AAPL")
         overview = analyzer.get_company_overview()
 
-        # When there's an exception, it should return an empty dict
-        assert overview == {}
+        # When there's an exception, it should return a dict with error info
+        assert overview is not None
+        assert "Error" in overview
+        assert overview["Error"] == "API Error"
+        assert overview["Company Name"] == "AAPL Corporation"
 
-    @patch("src.app.features.company_analyzer.yf.Ticker")
-    @patch("src.app.features.company_analyzer.tabulate")
+    @patch("src.app.core.company_analyzer.yf.Ticker")
+    @patch("src.app.core.company_analyzer.tabulate")
     def test_print_company_overview_table_success(self, mock_tabulate, mock_yf_ticker):
         """Test successful company overview table printing."""
         # Mock company info
@@ -245,7 +250,7 @@ class TestCompanyAnalyzer:
         # Verify tabulate was called
         mock_tabulate.assert_called_once()
 
-    @patch("src.app.features.company_analyzer.yf.Ticker")
+    @patch("src.app.core.company_analyzer.yf.Ticker")
     def test_print_company_overview_table_empty(self, mock_yf_ticker):
         """Test company overview table printing with empty data."""
         # Mock empty company info
@@ -284,7 +289,7 @@ def test_company_analyzer_with_financial_data():
     # Note: financial_data parameter is not currently used in the class
 
 
-@patch("src.app.features.company_analyzer.yf.Ticker")
+@patch("src.app.core.company_analyzer.yf.Ticker")
 def test_company_analyzer_error_handling(mock_yf_ticker):
     """Test error handling in CompanyAnalyzer."""
     # Mock exception in yf.Ticker
@@ -302,7 +307,7 @@ def test_company_analyzer_error_handling(mock_yf_ticker):
     def test_matplotlib_backend_configuration():
         """Test that matplotlib backend is properly configured."""
         # Import should set matplotlib backend
-        from src.app.features.company_analyzer import CompanyAnalyzer
+        from src.app.core.company_analyzer import CompanyAnalyzer
 
         import matplotlib
 
@@ -314,9 +319,9 @@ def test_company_analyzer_error_handling(mock_yf_ticker):
         analyzer = CompanyAnalyzer("AAPL")
         assert analyzer is not None
 
-    @patch("src.app.features.company_analyzer.plt")
+    @patch("src.app.core.company_analyzer.plt")
     def test_plot_share_price_save_functionality(self, mock_plt):
-        """Test plot_share_price save functionality."""
+        """Test plot_share_price save functionality without actually saving files."""
         # Mock historical data
         mock_data = pd.DataFrame(
             {
@@ -342,17 +347,25 @@ def test_company_analyzer_error_handling(mock_yf_ticker):
         mock_plt.show.return_value = None
 
         # Mock yfinance
-        with patch("src.app.features.company_analyzer.yf.Ticker") as mock_yf_ticker:
+        with patch("src.app.core.company_analyzer.yf.Ticker") as mock_yf_ticker:
             mock_ticker = Mock()
             mock_ticker.history.return_value = mock_data
             mock_yf_ticker.return_value = mock_ticker
 
             analyzer = CompanyAnalyzer("AAPL")
 
-            # Test save functionality
-            analyzer.plot_share_price("5y", save_path="test_chart.png")
+            # Test save functionality with a test path that won't create real files
+            test_save_path = "/tmp/test_chart_temp.png"
+            analyzer.plot_share_price("5y", save_path=test_save_path)
 
-            # Verify savefig was called
+            # Verify savefig was called with the correct parameters
             mock_plt.savefig.assert_called_once_with(
-                "test_chart.png", dpi=300, bbox_inches="tight"
+                test_save_path, dpi=300, bbox_inches="tight"
+            )
+
+            # Verify that no actual file was created (this is just a mock test)
+            import os
+
+            assert not os.path.exists(test_save_path), (
+                "Test should not create actual files"
             )

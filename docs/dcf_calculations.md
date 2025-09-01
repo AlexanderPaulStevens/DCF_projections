@@ -72,24 +72,12 @@ make run-dcf
 
 ### Programmatic Usage
 
-```python
-from app.features.DCF_calculations import DCFCalculator
+The DCF calculations module provides the core discounted cash flow analysis engine. It allows you to:
 
-# Create calculator
-calculator = DCFCalculator("AAPL", financial_data)
-
-# Project financials
-projections = calculator.project_financials()
-
-# Calculate enterprise value
-enterprise_value = calculator.calculate_enterprise_value(projections)
-
-# Calculate equity value
-equity_value = calculator.calculate_equity_value(enterprise_value)
-
-# Calculate per-share value
-per_share_value = calculator.calculate_per_share_value(equity_value)
-```
+- Create DCF calculators for specific companies
+- Project financial statements into the future
+- Calculate enterprise value, equity value, and per-share value
+- Perform comprehensive DCF analysis
 
 ## Calculation Methodology
 
@@ -149,18 +137,12 @@ Valuation Status: Undervalued (-8.6%)
 
 Results can be exported programmatically for further analysis:
 
-```python
-# Get projections
-projections = calculator.project_financials()
+The module provides programmatic access to:
 
-# Get valuation summary
-summary = calculator.get_valuation_summary()
-
-# Access individual components
-enterprise_value = summary['enterprise_value']
-equity_value = summary['equity_value']
-per_share_value = summary['per_share_value']
-```
+- Financial projections data
+- Valuation summary information
+- Individual valuation components
+- Raw calculation data
 
 ## Integration
 

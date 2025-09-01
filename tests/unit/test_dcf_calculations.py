@@ -9,7 +9,7 @@ import os
 # Add src to Python path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../..", "src"))
 
-from app.features.DCF_calculations import DCFCalculator
+from app.core.DCF_calculations import DCFCalculator
 
 
 class TestDCFCalculator:

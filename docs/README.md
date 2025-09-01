@@ -1,291 +1,287 @@
 # DCF Projections Documentation
 
-Welcome to the comprehensive documentation for the DCF Projections system. This system provides advanced financial analysis capabilities for S&P 500 companies, including DCF calculations, sensitivity analysis, financial ratios, and SEC data scraping.
+## Overview
+DCF Projections is a comprehensive financial analysis application that provides company analysis, DCF calculations, financial ratios, and portfolio management. The application consists of a FastAPI backend API and a React frontend for a mobile-ready web interface.
 
-## System Overview
+## 🚀 Quick Start
 
-The DCF Projections system is a comprehensive financial analysis platform that combines multiple data sources and analytical tools to provide deep insights into company valuations and financial performance.
+### Prerequisites
+- **Python 3.8+** with `uv` package manager
+- **Node.js 16+** with npm
+- **Git** for cloning the repository
 
-### Key Features
-
-- **DCF Calculations**: Project future cash flows and calculate intrinsic values
-- **Sensitivity Analysis**: Test valuation robustness across parameter variations
-- **Financial Ratios**: Calculate and analyze key financial metrics
-- **SEC Data Scraping**: Extract financial data from SEC filings
-- **Company Analysis**: Comprehensive company overviews and visualizations
-
-## Documentation Structure
-
-### Core Features
-
-#### [DCF Calculations](dcf_calculations.md)
-Comprehensive Discounted Cash Flow analysis for company valuation
-- Financial projections and forecasting
-- Enterprise value and equity value calculations
-- Growth scenario modeling
-- Terminal value calculations
-
-#### [Sensitivity Analysis](sensitivity_analysis.md)
-Robust testing of DCF model parameters and assumptions
-- Parameter sensitivity testing
-- Range analysis and threshold identification
-- Visualization and chart generation
-- Export capabilities for further analysis
-
-#### [Financial Ratios](financial_ratios.md)
-Key financial metrics and ratio analysis
-- Price-earnings (P/E) ratio
-- Earnings yield and price-to-book ratio
-- PEG ratio and free cash flow yield
-- CSV export and data comparison
-
-#### [SEC Data Scraper](scraper.md)
-Automated extraction of financial data from SEC filings
-- S&P 500 company coverage
-- 10-K and 10-Q filing analysis
-- Financial metric extraction
-- EBIT/EBITDA calculations
-
-#### [Company Analyzer](company_analyzer.md)
-Comprehensive company analysis and visualization
-- Share price charts and analysis
-- Company overview and metrics
-- Financial performance indicators
-- Data visualization and export
-
-### System Architecture
-
-#### Data Flow
-```
-SEC Filings → Data Scraper → Financial Data → DCF Calculator → Valuation Results
-     ↓              ↓              ↓              ↓              ↓
-Company Info → Company Analyzer → Financial Ratios → Sensitivity Analysis → Final Analysis
-```
-
-#### Integration Points
-- **Data Sources**: SEC EDGAR, Yahoo Finance
-- **Analysis Tools**: DCF models, ratio calculations, sensitivity testing
-- **Output Formats**: Console display, CSV export, chart generation
-- **User Interface**: Command-line interface, Makefile integration
-
-## Quick Start Guide
-
-### Installation
-
+### 1. Clone and Setup
 ```bash
-# Clone the repository
-git clone <repository-url>
+git clone <your-repository-url>
 cd DCF_projections
-
-# Install dependencies
-make install
-
-# Set up pre-commit hooks
-make setup
 ```
 
-### Basic Usage
-
+### 2. Backend Setup (FastAPI)
 ```bash
-# Company overview
-make run-demo
+# Install Python dependencies
+uv sync
 
-# Financial ratios
-make run-ratios
-
-# DCF analysis
-make run-dcf
-
-# Sensitivity analysis
-make run-sensitivity
+# Run the FastAPI server
+uv run uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Advanced Usage
+**Backend will be available at:**
+- **Local**: http://localhost:8000
+- **Network**: http://192.168.0.115:8000 (your local IP)
+- **API Docs**: http://localhost:8000/docs
 
+### 3. Frontend Setup (React)
 ```bash
-# Custom DCF parameters
-python src/main.py --ticker AAPL --dcf --y 5 --eg 0.20 --steps 3
+# Navigate to frontend directory
+cd frontend
 
-# Save financial ratios to CSV
-python src/main.py --ticker AAPL --ratios --save-ratios default
+# Install Node.js dependencies
+npm install
 
-# Custom sensitivity analysis
-python src/main.py --ticker AAPL --sensitivity --sensitivity-steps 21
+# Start the React development server
+npm start
 ```
 
-## Command Line Interface
+**Frontend will be available at:**
+- **Local**: http://localhost:3000
+- **Network**: http://192.168.0.115:3000 (your local IP)
 
-### Main Commands
+## 📱 Mobile Testing
 
-- `--ticker`: Specify company ticker symbol
-- `--overview`: Show company overview
-- `--ratios`: Display financial ratios
-- `--dcf`: Run DCF analysis
-- `--sensitivity`: Perform sensitivity analysis
-- `--chart`: Generate share price charts
+### Local Network Access
+The application is configured for local network access, allowing you to test on your phone:
 
-### DCF Analysis Options
+1. **Ensure both services are running** (backend on port 8000, frontend on port 3000)
+2. **Connect your phone to the same WiFi network** as your computer
+3. **Access the app** using your computer's local IP address:
+   - Frontend: `http://192.168.0.115:3000`
+   - API: `http://192.168.0.115:8000`
 
-- `--y`: Years of historical data (default: 3)
-- `--eg`: Base earnings growth rate (default: 15%)
-- `--steps`: Additional growth scenarios (default: 2)
-- `--s`: Growth rate step size (default: 10%)
+### Why Local Network?
+- **Security**: No internet exposure during development
+- **Speed**: Fast local network communication
+- **Control**: Full control over the development environment
 
-### Sensitivity Analysis Options
+## 🛠️ Development Commands
 
-- `--sensitivity-steps`: Number of analysis steps (default: 11)
-- `--sensitivity-range`: Parameter variation range (default: ±50%)
+### Backend Commands
+```bash
+# Run with auto-reload (development)
+uv run uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
 
-### Output Options
+# Run production mode
+uv run uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 
-- `--save-ratios`: Save ratios to CSV file
-- `--save-chart`: Save chart to image file
-- `--period`: Chart time period (1y, 5y, 10y, max)
+# Alternative: Use the run script
+./run_app.sh
+```
 
-## Examples and Use Cases
+### Frontend Commands
+```bash
+cd frontend
 
-### Investment Analysis
-- **Stock Research**: Comprehensive company analysis
-- **Valuation**: DCF-based intrinsic value calculation
-- **Risk Assessment**: Sensitivity analysis and scenario testing
-- **Comparison**: Financial ratios across companies
+# Development mode with hot reload
+npm start
 
-### Financial Modeling
-- **Projections**: Future cash flow forecasting
-- **Scenarios**: Multiple growth rate assumptions
-- **Sensitivity**: Parameter impact analysis
-- **Documentation**: Export results for reports
+# Build for production
+npm run build
 
-### Academic Research
-- **Data Collection**: Automated SEC data extraction
-- **Analysis**: Financial ratio calculations
-- **Modeling**: DCF valuation models
-- **Visualization**: Charts and data presentation
+# Run tests
+npm test
 
-## Configuration
+# Eject (not recommended)
+npm run eject
+```
 
-### Environment Setup
-- **Python**: 3.11 or higher
-- **Dependencies**: See pyproject.toml for complete list
-- **Data Storage**: company_data/ directory for local storage
-- **Charts**: charts/ directory for generated images
+## 🔧 Configuration
 
-### Makefile Targets
-- `install`: Install project dependencies
-- `setup`: Set up pre-commit hooks
-- `test`: Run all pre-commit checks
-- `format`: Format code with ruff
-- `lint`: Run linting checks
-- `clean`: Clean up generated files
+### Environment Variables
+Create a `.env` file in the root directory:
+```bash
+# API Configuration
+API_HOST=0.0.0.0
+API_PORT=8000
+API_DEBUG=true
 
-### Pre-commit Hooks
-- **Code Formatting**: Automatic code style enforcement
-- **Linting**: Code quality and style checks
-- **Testing**: Automated test execution
-- **Documentation**: Documentation validation
+# Database (if using)
+DATABASE_URL=postgresql://user:password@localhost/dcf_projections
 
-## Troubleshooting
+# Redis (if using)
+REDIS_URL=redis://localhost:6379
+```
+
+### Network Configuration
+The application is configured to bind to `0.0.0.0` to allow network access:
+- **Backend**: `--host 0.0.0.0 --port 8000`
+- **Frontend**: Configured for local network access
+
+## 📁 Project Structure
+
+```
+DCF_projections/
+├── src/
+│   ├── app/                 # Core business logic
+│   │   ├── core/           # Business domain modules
+│   │   ├── services/       # Business services
+│   │   └── utils/          # Utility functions
+│   ├── api/                # FastAPI application
+│   │   ├── endpoints/      # API endpoints
+│   │   └── main.py        # FastAPI app entry point
+│   └── main.py            # CLI entry point
+├── frontend/               # React frontend
+│   ├── src/
+│   │   ├── components/    # React components
+│   │   ├── services/      # API client services
+│   │   └── App.tsx        # Main React app
+│   └── package.json
+├── tests/                  # Test suite
+├── pyproject.toml         # Python dependencies
+└── README.md              # This file
+```
+
+## 🧪 Testing
+
+### Backend Testing
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=src
+
+# Run specific test file
+pytest tests/unit/test_dcf_calculations.py
+```
+
+### Frontend Testing
+```bash
+cd frontend
+
+# Run tests
+npm test
+
+# Run tests with coverage
+npm run test -- --coverage
+```
+
+## 🚀 Production Deployment
+
+### Backend Deployment
+```bash
+# Build and run production
+uv run uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+
+# Or use the production script
+uv run uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+```
+
+### Frontend Deployment
+```bash
+cd frontend
+
+# Build production bundle
+npm run build
+
+# Serve static files
+npx serve -s build -l 3000
+```
+
+## 🔍 Troubleshooting
 
 ### Common Issues
 
-#### NumPy Compatibility
-If you encounter NumPy version conflicts:
+#### Port Already in Use
 ```bash
-# Reinstall dependencies with correct versions
-uv sync --reinstall
+# Find process using port 8000
+lsof -i :8000
+
+# Kill process
+kill -9 <PID>
 ```
 
-#### Import Errors
-For module import issues:
+#### Module Not Found Errors
 ```bash
-# Use uv run for proper environment
-uv run python src/main.py --ticker AAPL --ratios
-```
-
-#### Data Retrieval Issues
-For SEC data access problems:
-- Check internet connection
-- Verify SEC API availability
-- Review rate limiting compliance
-
-### Performance Optimization
-
-#### Large Datasets
-- Use appropriate time periods for analysis
-- Enable data caching where possible
-- Process companies in batches
-
-#### Memory Management
-- Monitor memory usage during analysis
-- Use efficient data structures
-- Clean up temporary files
-
-## Contributing
-
-### Development Setup
-```bash
-# Install development dependencies
+# Reinstall dependencies
 uv sync
 
-# Set up pre-commit hooks
-pre-commit install
-
-# Run tests
-make test
+# Clear Python cache
+find . -type d -name "__pycache__" -delete
 ```
+
+#### Frontend Build Errors
+```bash
+cd frontend
+
+# Clear node modules and reinstall
+rm -rf node_modules package-lock.json
+npm install
+```
+
+#### Network Access Issues
+1. **Check firewall settings** on macOS
+2. **Verify both services are running** on 0.0.0.0
+3. **Confirm same WiFi network** for phone and computer
+4. **Check local IP address** with `ifconfig` or `ipconfig`
+
+### Logs and Debugging
+```bash
+# Backend logs (in terminal running uvicorn)
+# Frontend logs (in terminal running npm start)
+# Browser console (F12 for developer tools)
+```
+
+## 📚 API Endpoints
+
+### Core Endpoints
+- `GET /health` - Health check
+- `GET /api/companies/search` - Search companies
+- `GET /api/companies/{ticker}/overview` - Company overview
+- `GET /api/companies/{ticker}/ratios` - Financial ratios
+- `GET /api/companies/{ticker}/dcf` - DCF analysis
+- `GET /api/companies/{ticker}/sensitivity` - Sensitivity analysis
+
+### Interactive API Documentation
+Visit http://localhost:8000/docs for interactive API documentation and testing.
+
+## 🤝 Contributing
+
+### Development Workflow
+1. **Create feature branch** from main
+2. **Make changes** following the established patterns
+3. **Run tests** to ensure nothing breaks
+4. **Submit pull request** with clear description
 
 ### Code Standards
-- **Formatting**: Use ruff for code formatting
-- **Linting**: Follow flake8 guidelines
+- **Python**: Follow PEP 8, use type hints
+- **React**: Use functional components with hooks
+- **Imports**: Always use absolute imports
 - **Testing**: Maintain test coverage
-- **Documentation**: Update docs for new features
 
-### Testing
+## 📞 Support
+
+### Getting Help
+- **Check logs** in terminal outputs
+- **Review API docs** at http://localhost:8000/docs
+- **Check browser console** for frontend errors
+- **Verify network configuration** for mobile access
+
+### Useful Commands
 ```bash
-# Run unit tests
-pytest tests/unit/
+# Check service status
+ps aux | grep -E "(uvicorn|npm)"
 
-# Run integration tests
-pytest tests/integration/
+# Test API health
+curl http://localhost:8000/health
 
-# Check coverage
-pytest --cov=src tests/
+# Test frontend
+curl http://localhost:3000
+
+# Check network interfaces
+ifconfig | grep "inet "
 ```
-
-## Support and Resources
-
-### Documentation
-- **Feature Docs**: Detailed documentation for each module
-- **API Reference**: Code-level documentation
-- **Examples**: Usage examples and tutorials
-- **Troubleshooting**: Common issues and solutions
-
-### Community
-- **Issues**: Report bugs and request features
-- **Discussions**: Community discussions and questions
-- **Contributions**: Guidelines for contributing code
-- **Feedback**: Suggestions for improvements
-
-### External Resources
-- **SEC EDGAR**: [https://www.sec.gov/edgar](https://www.sec.gov/edgar)
-- **Yahoo Finance**: [https://finance.yahoo.com](https://finance.yahoo.com)
-- **Financial Modeling**: Best practices and methodologies
-- **Python Finance**: Financial analysis libraries and tools
-
-## License and Legal
-
-### Usage Terms
-- **SEC Data**: Follow SEC data usage guidelines
-- **Yahoo Finance**: Respect API terms of service
-- **Academic Use**: Suitable for research and education
-- **Commercial Use**: Review licensing requirements
-
-### Attribution
-- **SEC**: Securities and Exchange Commission
-- **Yahoo Finance**: Market data provider
-- **Open Source**: Respect open source licenses
-- **Contributors**: Credit code contributors
 
 ---
 
-For questions, issues, or contributions, please refer to the project repository or contact the development team.
+**Happy coding! 🚀**
+
+Your DCF Projections application is now ready for development and testing. The local network configuration allows you to test the mobile experience on your phone while developing on your computer.

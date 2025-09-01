@@ -13,15 +13,17 @@ class CompanyAnalyzer:
     Comprehensive company analysis including share price visualization and overview tables.
     """
 
-    def __init__(self, ticker):
+    def __init__(self, ticker, financial_data=None):
         """
         Initialize company analyzer.
 
         Args:
             ticker (str): Company ticker symbol
+            financial_data (dict, optional): Financial data from SEC filings
         """
         self.ticker = ticker
         self.yf_ticker = yf.Ticker(ticker)
+        self.financial_data = financial_data
 
     def get_share_price_data(self, period="5y"):
         """
@@ -140,7 +142,55 @@ class CompanyAnalyzer:
             return overview
         except Exception as e:
             print(f"Error fetching company overview for {self.ticker}: {e}")
-            return {}
+            # Return a basic overview instead of empty dict
+            return {
+                "Company Name": f"{self.ticker} Corporation",
+                "Sector": "N/A",
+                "Industry": "N/A",
+                "Status": f"Yahoo Finance data unavailable: {str(e)}",
+                "Error": str(e),
+            }
+
+    def get_company_overview_with_financials(self):
+        """
+        Get company overview combining Yahoo Finance data with SEC financial data.
+
+        Returns:
+            dict: Combined company overview data
+        """
+        # Get base overview from Yahoo Finance
+        base_overview = self.get_company_overview()
+
+        # Add SEC financial data if available
+        if self.financial_data:
+            # Get the most recent year's data
+            latest_year = (
+                max(self.financial_data.keys()) if self.financial_data else None
+            )
+
+            if latest_year:
+                latest_data = self.financial_data[latest_year]
+
+                # Add key financial metrics
+                financial_overview = {
+                    "latest_year": latest_year,
+                    "revenue": latest_data.get("Total net sales", 0),
+                    "ebit": latest_data.get(
+                        "EBIT (Operating Income + Other Income/Expense)", 0
+                    ),
+                    "net_income": latest_data.get("Net income", 0),
+                    "total_assets": latest_data.get("Total assets", 0),
+                    "total_liabilities": latest_data.get("Total liabilities", 0),
+                    "cash": latest_data.get("Cash and cash equivalents", 0),
+                    "debt": latest_data.get("Total debt", 0),
+                }
+
+                # Merge the data
+                combined_overview = {**base_overview, **financial_overview}
+                return combined_overview
+
+        # Return base overview if no financial data
+        return base_overview
 
     def print_company_overview_table(self):
         """

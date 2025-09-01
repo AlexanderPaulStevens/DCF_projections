@@ -55,24 +55,12 @@ make run-ratios
 
 ### Programmatic Usage
 
-```python
-from app.features.financial_ratios import FinancialRatiosAnalyzer
+The financial ratios module provides comprehensive analysis of key financial metrics for companies. It allows you to:
 
-# Create analyzer
-analyzer = FinancialRatiosAnalyzer("AAPL")
-
-# Get all ratios
-ratios = analyzer.get_financial_ratios()
-
-# Display formatted table
-analyzer.print_financial_ratios_table()
-
-# Save to CSV
-csv_path = analyzer.save_ratios_to_csv("apple_ratios.csv")
-
-# Get summary for programmatic use
-summary = analyzer.get_ratios_summary()
-```
+- Calculate standard financial ratios (P/E, P/B, PEG, etc.)
+- Generate formatted tables for easy reading
+- Export results to CSV for further analysis
+- Compare ratios across different companies
 
 ## Data Sources
 

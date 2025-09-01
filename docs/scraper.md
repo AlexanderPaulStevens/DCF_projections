@@ -73,24 +73,12 @@ python src/main.py --all
 
 ### Programmatic Usage
 
-```python
-from app.features.scraper import SP500Scraper
+The scraper module provides comprehensive data retrieval capabilities for S&P 500 companies. It allows you to:
 
-# Create scraper instance
-scraper = SP500Scraper()
-
-# Get S&P 500 companies
-companies = scraper.get_sp500_companies()
-
-# Analyze specific company
-scraper.analyze_company("AAPL")
-
-# Get company information
-company_info = scraper.get_company_info("0000320193")  # AAPL's CIK
-
-# Search for 10-K filings
-filings = scraper.search_filings_by_form("0000320193", "10-K", limit=5)
-```
+- Retrieve the complete list of S&P 500 companies
+- Analyze specific companies for financial data
+- Get detailed company overviews
+- Access SEC filing information
 
 ## Data Sources
 
@@ -116,46 +104,39 @@ For additional financial data and current market information:
 
 ### 1. Filing Discovery
 
-```python
-# Find recent filings for a company
-recent_filings = scraper.get_recent_filings(cik, limit=10)
+The filing discovery process includes:
 
-# Search for specific filing types
-form_10k_filings = scraper.search_filings_by_form(cik, "10-K", limit=5)
-```
+- Finding recent filings for companies
+- Searching for specific filing types (10-K, 10-Q, etc.)
+- Limiting results to manageable numbers
+- Organizing filings by date and type
 
 ### 2. Content Retrieval
 
-```python
-# Get filing content
-content = scraper.get_filing_details(
-    cik,
-    filing["accessionNumber"],
-    filing["primaryDocument"]
-)
-```
+Content retrieval involves:
+
+- Accessing filing documents by accession number
+- Retrieving primary document content
+- Handling different document formats
+- Managing large document sizes
 
 ### 3. Data Parsing
 
-```python
-# Extract financial metrics
-financial_data = scraper.extract_financial_data(content)
+Data parsing includes:
 
-# Calculate derived metrics
-ebit_ebitda = scraper.calculate_ebit_ebitda(financial_data)
-```
+- Extracting financial metrics from documents
+- Calculating derived financial ratios
+- Handling different data formats
+- Validating extracted data
 
 ### 4. Data Storage
 
-```python
-# Save analysis results
-scraper.save_financial_analysis(
-    ticker,
-    financial_data,
-    ebit_ebitda,
-    filename
-)
-```
+Data storage capabilities include:
+
+- Saving financial analysis results
+- Organizing data by company ticker
+- Creating structured data files
+- Managing file naming conventions
 
 ## Financial Metrics Extracted
 

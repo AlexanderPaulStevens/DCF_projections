@@ -4,7 +4,7 @@ Unit tests for financial ratios functionality.
 """
 
 from unittest.mock import Mock, patch
-from src.app.features.financial_ratios import FinancialRatiosAnalyzer
+from src.app.core.financial_ratios import FinancialRatiosAnalyzer
 
 
 class TestFinancialRatiosAnalyzer:
@@ -16,7 +16,7 @@ class TestFinancialRatiosAnalyzer:
         assert analyzer.ticker == "AAPL"
         assert analyzer.yf_ticker is not None
 
-    @patch("src.app.features.financial_ratios.yf.Ticker")
+    @patch("src.app.core.financial_ratios.yf.Ticker")
     def test_get_financial_ratios_success(self, mock_yf_ticker):
         """Test successful financial ratios calculation."""
         # Mock Yahoo Finance data
@@ -49,7 +49,7 @@ class TestFinancialRatiosAnalyzer:
         assert ratios["Price to Book Ratio"] == 15.0  # 150/10
         assert ratios["PEG Ratio"] == 200.0  # 30/0.15
 
-    @patch("src.app.features.financial_ratios.yf.Ticker")
+    @patch("src.app.core.financial_ratios.yf.Ticker")
     def test_get_financial_ratios_missing_data(self, mock_yf_ticker):
         """Test financial ratios calculation with missing data."""
         # Mock incomplete Yahoo Finance data
@@ -76,7 +76,7 @@ class TestFinancialRatiosAnalyzer:
         assert ratios["PEG Ratio"] is None
         assert ratios["Free Cash Flow Yield"] is None
 
-    @patch("src.app.features.financial_ratios.yf.Ticker")
+    @patch("src.app.core.financial_ratios.yf.Ticker")
     def test_get_financial_ratios_division_by_zero(self, mock_yf_ticker):
         """Test financial ratios calculation with division by zero."""
         # Mock data that would cause division by zero
@@ -131,7 +131,7 @@ class TestFinancialRatiosAnalyzer:
         formatted = analyzer.format_ratio_value("Test String", "Test Metric")
         assert formatted == "Test String"
 
-    @patch("src.app.features.financial_ratios.yf.Ticker")
+    @patch("src.app.core.financial_ratios.yf.Ticker")
     def test_get_ratios_summary(self, mock_yf_ticker):
         """Test getting ratios summary without raw data."""
         # Mock Yahoo Finance data
@@ -156,7 +156,7 @@ class TestFinancialRatiosAnalyzer:
         assert "Price-Earnings Ratio" in summary
         assert "Earnings Yield" in summary
 
-    @patch("src.app.features.financial_ratios.yf.Ticker")
+    @patch("src.app.core.financial_ratios.yf.Ticker")
     def test_get_ratios_summary_empty(self, mock_yf_ticker):
         """Test getting ratios summary with empty data."""
         # Mock empty Yahoo Finance data
@@ -176,7 +176,7 @@ class TestFinancialRatiosAnalyzer:
         for value in summary.values():
             assert value is None
 
-    @patch("src.app.features.financial_ratios.yf.Ticker")
+    @patch("src.app.core.financial_ratios.yf.Ticker")
     def test_exception_handling(self, mock_yf_ticker):
         """Test exception handling in financial ratios calculation."""
         # Mock Yahoo Finance to raise an exception

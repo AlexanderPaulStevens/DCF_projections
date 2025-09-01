@@ -7,7 +7,11 @@ import tempfile
 import os
 from pathlib import Path
 from unittest.mock import Mock
-from src.main import DCFProjectionsCLI
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
+
+from app.services.cli_service import CLIService
 
 
 class TestCLIIntegration:
@@ -15,36 +19,46 @@ class TestCLIIntegration:
 
     def test_cli_ratios_integration(self):
         """Test CLI ratios functionality with real data flow."""
-        cli = DCFProjectionsCLI()
+        cli = CLIService()
         cli.args = Mock()
         cli.args.ratios = True
         cli.args.save_ratios = None
 
         # Test that the CLI can handle ratios analysis
         try:
-            cli.show_financial_ratios("AAPL")
+            cli._handle_financial_ratios("AAPL")
             # If we get here, the integration worked
             assert True
         except Exception as e:
             # If there's an error, it should be a reasonable one (not a setup issue)
-            assert "yfinance" in str(e) or "network" in str(e) or "API" in str(e)
+            assert (
+                "yfinance" in str(e)
+                or "network" in str(e)
+                or "API" in str(e)
+                or "cached" in str(e)
+            )
 
     def test_cli_list_companies_integration(self):
         """Test CLI list companies functionality with real scraper."""
-        cli = DCFProjectionsCLI()
+        cli = CLIService()
 
         # Test that the CLI can list companies
         try:
-            cli.list_companies()
+            cli._handle_list_cached_companies()
             # If we get here, the integration worked
             assert True
         except Exception as e:
             # If there's an error, it should be a reasonable one (not a setup issue)
-            assert "network" in str(e) or "API" in str(e) or "timeout" in str(e)
+            assert (
+                "network" in str(e)
+                or "API" in str(e)
+                or "timeout" in str(e)
+                or "cached" in str(e)
+            )
 
     def test_cli_argument_parsing_integration(self):
         """Test CLI argument parsing integration."""
-        cli = DCFProjectionsCLI()
+        cli = CLIService()
         parser = cli.setup_argument_parser()
 
         # Test that we can parse basic arguments
@@ -68,7 +82,7 @@ class TestCLIIntegration:
 
     def test_cli_file_save_integration(self):
         """Test CLI file saving integration."""
-        cli = DCFProjectionsCLI()
+        cli = CLIService()
         cli.args = Mock()
         cli.args.ratios = True
         cli.args.save_ratios = "test_ratios.csv"
@@ -85,7 +99,7 @@ class TestCLIIntegration:
                 company_data_dir.mkdir(parents=True, exist_ok=True)
 
                 # Test that the CLI can handle file saving
-                cli.show_financial_ratios("AAPL")
+                cli._handle_financial_ratios("AAPL")
 
                 # Check if file was created (even if empty due to mocking)
                 assert company_data_dir.exists()
@@ -96,11 +110,11 @@ class TestCLIIntegration:
 
     def test_cli_error_handling_integration(self):
         """Test CLI error handling integration."""
-        cli = DCFProjectionsCLI()
+        cli = CLIService()
 
         # Test with invalid ticker
         try:
-            cli.analyze_company("INVALID_TICKER_12345")
+            cli._handle_analyze_company("INVALID_TICKER_12345")
             # Should handle gracefully
             assert True
         except Exception:
@@ -109,13 +123,12 @@ class TestCLIIntegration:
 
     def test_cli_configuration_integration(self):
         """Test CLI configuration integration."""
-        cli = DCFProjectionsCLI()
+        cli = CLIService()
 
         # Test that CLI has all required components
-        assert hasattr(cli, "scraper")
         assert hasattr(cli, "dcf_service")
-        assert cli.scraper is not None
         assert cli.dcf_service is not None
+        assert hasattr(cli, "company_data_dir")
 
         # Test that argument parser can be created
         parser = cli.setup_argument_parser()
@@ -124,7 +137,7 @@ class TestCLIIntegration:
 
     def test_cli_method_chaining_integration(self):
         """Test CLI method chaining integration."""
-        cli = DCFProjectionsCLI()
+        cli = CLIService()
 
         # Test that CLI methods can be called in sequence
         try:
@@ -138,7 +151,7 @@ class TestCLIIntegration:
             cli.args.save_ratios = None  # Don't save to avoid file path issues
 
             # Test method chaining
-            cli.analyze_company("AAPL")
+            cli._handle_analyze_company("AAPL")
             assert True
         except Exception as e:
             # Should handle gracefully
@@ -147,32 +160,33 @@ class TestCLIIntegration:
                 or "API" in str(e)
                 or "timeout" in str(e)
                 or "Mock" in str(e)
+                or "cached" in str(e)
             )
 
 
 # Test functions for pytest discovery
 def test_cli_integration_basic():
     """Basic CLI integration test."""
-    cli = DCFProjectionsCLI()
+    cli = CLIService()
     assert cli is not None
-    assert hasattr(cli, "scraper")
     assert hasattr(cli, "dcf_service")
+    assert hasattr(cli, "company_data_dir")
 
 
 def test_cli_integration_argument_parser():
     """Test CLI argument parser integration."""
-    cli = DCFProjectionsCLI()
+    cli = CLIService()
     parser = cli.setup_argument_parser()
     assert parser is not None
 
 
 def test_cli_integration_error_scenarios():
     """Test CLI integration with error scenarios."""
-    cli = DCFProjectionsCLI()
+    cli = CLIService()
 
     # Test with None args
     try:
-        cli.analyze_company("TEST")
+        cli._handle_analyze_company("TEST")
         # Should handle gracefully
         assert True
     except Exception:

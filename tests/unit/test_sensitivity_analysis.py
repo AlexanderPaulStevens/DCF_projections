@@ -9,8 +9,8 @@ import os
 # Add src to Python path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../..", "src"))
 
-from app.features.sensitivity_analysis import SensitivityAnalyzer, SensitivityVariable
-from app.features.DCF_calculations import DCFCalculator
+from app.core.sensitivity_analysis import SensitivityAnalyzer, SensitivityVariable
+from app.core.DCF_calculations import DCFCalculator
 from unittest.mock import Mock
 
 
@@ -100,7 +100,7 @@ class TestSensitivityAnalysis:
     def test_matplotlib_backend_configuration(self):
         """Test that matplotlib backend is properly configured."""
         # Import should set matplotlib backend
-        from src.app.features.sensitivity_analysis import SensitivityAnalyzer
+        from src.app.core.sensitivity_analysis import SensitivityAnalyzer
 
         import matplotlib
 

@@ -4,8 +4,7 @@ Unit tests for SP500Scraper class.
 """
 
 import pytest
-from pathlib import Path
-from src.app.features.scraper import SP500Scraper
+from src.app.core.scraper import SP500Scraper
 
 
 class TestSP500Scraper:
@@ -18,7 +17,7 @@ class TestSP500Scraper:
         assert scraper.base_url == "https://data.sec.gov"
         assert "Alexander Stevens" in scraper.headers["User-Agent"]
         assert scraper.session is not None
-        assert scraper.company_data_dir == Path("company_data")
+        assert scraper.company_data_dir.name == "company_data"
         assert len(scraper.sp500_companies) > 0
 
     def test_init_custom_user_agent(self):
@@ -31,16 +30,17 @@ class TestSP500Scraper:
     def test_get_sp500_companies(self):
         """Test getting S&P 500 companies list."""
         scraper = SP500Scraper()
-        companies = scraper.get_sp500_companies()
+        # The scraper loads companies as a dictionary in sp500_companies attribute
+        companies_dict = scraper.sp500_companies
 
-        assert isinstance(companies, list)
-        assert len(companies) > 0
+        assert isinstance(companies_dict, dict)
+        assert len(companies_dict) > 0
 
-        # Check structure of first company
-        first_company = companies[0]
-        assert "ticker" in first_company
-        assert "cik" in first_company
-        assert "name" in first_company
+        # Check that we have ticker-CIK pairs
+        first_ticker = next(iter(companies_dict.keys()))
+        first_cik = companies_dict[first_ticker]
+        assert isinstance(first_ticker, str)
+        assert isinstance(first_cik, str)
 
     def test_load_sp500_companies(self):
         """Test loading S&P 500 companies."""
@@ -90,9 +90,9 @@ class TestSP500Scraper:
         """Test getting recent filings for a company."""
         scraper = SP500Scraper()
 
-        # Test with a known CIK
+        # Test with a known CIK and use the available method
         cik = "0000320193"  # AAPL
-        filings = scraper.get_recent_filings(cik, limit=5)
+        filings = scraper.search_filings_by_form(cik, "10-K", limit=5)
 
         # Should return a list
         assert isinstance(filings, list)
@@ -185,12 +185,12 @@ class TestSP500Scraper:
         assert len(ebit_ebitda) >= 0  # May be empty if no patterns match
 
     def test_analyze_company(self):
-        """Test analyzing a company."""
+        """Test getting historical financial data for a company."""
         scraper = SP500Scraper()
 
-        # Test with a known ticker
-        ticker = "AAPL"
-        result = scraper.analyze_company(ticker)
+        # Test with a known CIK (this method exists)
+        cik = "0000320193"  # AAPL
+        result = scraper.get_historical_financial_data(cik, years_back=1)
 
         # Should return a dictionary or None
         assert result is None or isinstance(result, dict)

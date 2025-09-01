@@ -8,7 +8,10 @@ from bs4 import BeautifulSoup
 
 class SP500Scraper:
     """
-    A comprehensive scraper for S&P 500 companies with caching and individual company support.
+    A comprehensive scraper for S&P 500 companies.
+
+    This class is used exclusively by the company_data scraping scripts.
+    All other parts of the system work with cached data only.
     """
 
     def __init__(
@@ -27,180 +30,68 @@ class SP500Scraper:
         self.session.headers.update(self.headers)
 
         # Create company data directory
-        self.company_data_dir = Path("company_data")
+        # Try to find the company_data directory relative to current working directory
+        current_dir = Path.cwd()
+        if current_dir.name == "company_data":
+            # We're already in the company_data directory
+            self.company_data_dir = current_dir
+        else:
+            # Look for company_data in the current directory or parent
+            self.company_data_dir = current_dir / "company_data"
+            if not self.company_data_dir.exists():
+                self.company_data_dir = current_dir.parent / "company_data"
+
         self.company_data_dir.mkdir(exist_ok=True)
 
         # S&P 500 companies with their CIKs
         self.sp500_companies = self._load_sp500_companies()
 
-    def get_sp500_companies(self):
-        """
-        Get list of S&P 500 companies.
-
-        Returns:
-            list: List of dictionaries with ticker and name
-        """
-        companies = []
-        for ticker, cik in self.sp500_companies.items():
-            companies.append(
-                {
-                    "ticker": ticker,
-                    "cik": cik,
-                    "name": ticker,  # For now, just use ticker as name
-                }
-            )
-        return companies
-
     def _load_sp500_companies(self):
         """
-        Load S&P 500 companies with their CIKs.
+        Load S&P 500 companies with their CIKs from the scraped JSON file.
         Returns a dictionary mapping ticker to CIK.
         """
-        # This is a subset - you can expand this list
-        return {
-            "AAPL": "0000320193",
-            "MSFT": "0000789019",
-            "GOOGL": "0001652044",
-            "AMZN": "0001018724",
-            "NVDA": "0001045810",
-            "META": "0001326801",
-            "BRK.B": "0001067983",
-            "LLY": "0000059478",
-            "TSM": "0001046179",
-            "UNH": "0000731766",
-            "JPM": "0000019617",
-            "V": "0001403161",
-            "XOM": "0000034088",
-            "PG": "0000080424",
-            "JNJ": "0000200404",
-            "HD": "0000354950",
-            "MA": "0001141391",
-            "CVX": "0000093410",
-            "ABBV": "0001150494",
-            "AVGO": "0001730168",
-            "PEP": "0000077476",
-            "KO": "0000021344",
-            "COST": "0000909832",
-            "TMO": "0000977550",
-            "ACN": "0001467373",
-            "DHR": "0000313543",
-            "NEE": "0000753308",
-            "ADBE": "0000796343",
-            "CRM": "0001108524",
-            "WMT": "0000104169",
-            "NFLX": "0001065280",
-            "DIS": "0001001039",
-            "INTC": "0000050863",
-            "VZ": "0000732712",
-            "CMCSA": "0001166691",
-            "PFE": "0000078001",
-            "T": "0000732717",
-            "ABT": "0000001800",
-            "MRK": "0000310158",
-            "QCOM": "0000804328",
-            "TXN": "0000097476",
-            "HON": "0000773840",
-            "ORCL": "0001341439",
-            "AMD": "0000002488",
-            "IBM": "0000051143",
-            "GE": "0000040545",
-            "CAT": "0000018230",
-            "BA": "0000012927",
-            "GS": "0000886982",
-            "AXP": "0000004962",
-            "SPGI": "0000064406",
-            "ISRG": "0001035267",
-            "GILD": "0000882092",
-            "LMT": "0000936468",
-            "RTX": "0000101832",
-            "BKNG": "0001075531",
-            "ADI": "0000006281",
-            "MDLZ": "0001103982",
-            "REGN": "0000872589",
-            "PANW": "0001327567",
-            "KLAC": "0000319489",
-            "SNPS": "0000883201",
-            "CDNS": "0000813757",
-            "MU": "0000723125",
-            "FTNT": "0001262039",
-            "CTAS": "0000723125",
-            "PAYX": "0000723125",
-            "MCHP": "0000827054",
-            "CTSH": "0001058290",
-            "ROST": "0000745735",
-            "ODFL": "0000878489",
-            "FAST": "0000815559",
-            "BIIB": "0000875040",
-            "AMGN": "0000318154",
-            "WDAY": "0001326801",
-            "ADP": "0000008670",
-            "CSCO": "0000858877",
-            "INTU": "0000896878",
-            "CME": "0001156375",
-            "ICE": "0001100263",
-            "BLK": "0001100914",
-            "SCHW": "0000316709",
-            "USB": "0000036107",
-            "PNC": "0000713676",
-            "TFC": "0000009229",
-            "COF": "0000927628",
-            "AIG": "0000005272",
-            "MET": "0001099219",
-            "PRU": "0001137774",
-            "ALL": "0000899051",
-            "TRV": "0000086312",
-            "PGR": "0000080661",
-            "CB": "0000009061",
-            "AON": "0000315293",
-            "MMC": "0000062705",
-            "AJG": "0000008841",
-            "MCO": "0001059556",
-            "FIS": "0001136899",
-            "FISV": "0000798355",
-            "JKHY": "0000884562",
-            "FLT": "0001175454",
-            "GPN": "0001123360",
-            "EFX": "0000033185",
-            "TSS": "0000723125",
-            "BR": "0001383312",
-            "RMD": "0000943587",
-            "ZTS": "0001555280",
-            "HCA": "0000860731",
-            "DVA": "0000927066",
-            "UHS": "0000352345",
-            "TEN": "0000097101",
-            "APD": "0000002969",
-            "LIN": "0001707925",
-            "APTV": "0001521332",
-            "BLL": "0001109152",
-            "CCK": "0000012107",
-            "WRK": "0001732845",
-            "IP": "0000051434",
-            "PKG": "0000071655",
-            "SEE": "0000101500",
-            "AVY": "0000008818",
-            "GLW": "0000024741",
-            "FCX": "0000831259",
-            "NEM": "0001164727",
-            "NUE": "0000073307",
-            "STLD": "0000798355",
-            "X": "0000004962",
-            "CLF": "0000764185",
-            "ALB": "0000928453",
-            "LVS": "0001300514",
-            "MGM": "0000789570",
-            "CZR": "0001075531",
-            "WYNN": "0001174922",
-            "MAR": "0001048286",
-            "HLT": "0001585689",
-            "AAL": "0000006201",
-            "DAL": "0000027904",
-            "UAL": "000100517",
-            "LUV": "0000092380",
-            "ALK": "0000766421",
-            "JBLU": "0001158463",
-            "SAVE": "0001178460",
-        }
+        # Get the project root directory by looking for the company_data folder
+        # Start from current working directory and work our way up
+        current_dir = Path.cwd()
+        project_root = None
+
+        # Look for company_data directory in current or parent directories
+        search_dirs = [current_dir, current_dir.parent, current_dir.parent.parent]
+
+        for search_dir in search_dirs:
+            potential_company_data = search_dir / "company_data"
+            if potential_company_data.exists():
+                project_root = search_dir
+                break
+
+        if project_root is None:
+            print(
+                "❌ Could not find company_data directory. Please ensure you're running from the project root."
+            )
+            return {}
+
+        # Look for the companies file in the company_data directory
+        companies_file = project_root / "company_data" / "sp500_companies.json"
+
+        if companies_file.exists():
+            try:
+                with open(companies_file, "r") as f:
+                    companies = json.load(f)
+                print(f"✅ Loaded {len(companies)} companies from {companies_file}")
+                return companies
+            except Exception as e:
+                print(f"❌ Error loading companies from {companies_file}: {e}")
+                print(
+                    "   Please run 'make scrape-wikipedia' to get the current S&P 500 companies list."
+                )
+                return {}
+
+        print(f"❌ Companies file not found at {companies_file}")
+        print(
+            "   Please run 'make scrape-wikipedia' first to get the current S&P 500 companies list."
+        )
+        return {}
 
     def get_company_info(self, cik):
         """
@@ -210,11 +101,12 @@ class SP500Scraper:
             cik (str): Company CIK (Central Index Key)
 
         Returns:
-            dict: Company information
+            dict: Company information or None if not accessible
         """
         # Get ticker for this CIK
         ticker = self._get_ticker_from_cik(cik)
         if not ticker:
+            print(f"Warning: No ticker found for CIK {cik}")
             return None
 
         # Check cache first
@@ -228,8 +120,24 @@ class SP500Scraper:
         url = f"{self.base_url}/submissions/CIK{padded_cik}.json"
 
         try:
+            print(f"Fetching company info for {ticker} (CIK: {padded_cik})...")
             response = self.session.get(url)
-            response.raise_for_status()
+
+            if response.status_code == 404:
+                print(
+                    f"Warning: Company {ticker} (CIK: {padded_cik}) not accessible via SEC API"
+                )
+                print("This could be due to:")
+                print("  - Company delisted or merged")
+                print("  - CIK number changed")
+                print("  - Company no longer in S&P 500")
+                return None
+            elif response.status_code != 200:
+                print(
+                    f"Error fetching company info for {ticker}: HTTP {response.status_code}"
+                )
+                return None
+
             data = response.json()
 
             # Cache the result
@@ -238,9 +146,17 @@ class SP500Scraper:
             with open(cache_file, "w") as f:
                 json.dump(data, f, indent=2)
 
+            print(f"✓ Successfully fetched company info for {ticker}")
             return data
+
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching company info: {e}")
+            print(f"Error fetching company info for {ticker}: {e}")
+            return None
+        except json.JSONDecodeError as e:
+            print(f"Error parsing JSON response for {ticker}: {e}")
+            return None
+        except Exception as e:
+            print(f"Unexpected error for {ticker}: {e}")
             return None
 
     def _get_ticker_from_cik(self, cik):
@@ -257,59 +173,6 @@ class SP500Scraper:
             if company_cik == cik:
                 return ticker
         return None
-
-    def get_recent_filings(self, cik, limit=10):
-        """
-        Get recent filings for a company.
-
-        Args:
-            cik (str): Company CIK
-            limit (int): Number of recent filings to retrieve
-
-        Returns:
-            list: Recent filings
-        """
-        # Get ticker for this CIK
-        ticker = self._get_ticker_from_cik(cik)
-        if not ticker:
-            return []
-
-        # Check cache first
-        cache_file = self.company_data_dir / ticker / f"recent_filings_{limit}.json"
-        if cache_file.exists():
-            with open(cache_file, "r") as f:
-                return json.load(f)
-
-        company_info = self.get_company_info(cik)
-        if not company_info:
-            return []
-
-        filings = company_info.get("filings", {}).get("recent", {})
-
-        # Get the most recent filings
-        recent_filings = []
-        for i in range(min(limit, len(filings.get("form", [])))):
-            # Get description safely
-            description = ""
-            if filings.get("description") and i < len(filings["description"]):
-                description = filings["description"][i]
-
-            filing = {
-                "form": filings["form"][i],
-                "filingDate": filings["filingDate"][i],
-                "accessionNumber": filings["accessionNumber"][i],
-                "primaryDocument": filings["primaryDocument"][i],
-                "description": description,
-            }
-            recent_filings.append(filing)
-
-        # Cache the result
-        cache_dir = self.company_data_dir / ticker
-        cache_dir.mkdir(exist_ok=True)
-        with open(cache_file, "w") as f:
-            json.dump(recent_filings, f, indent=2)
-
-        return recent_filings
 
     def get_filing_details(self, cik, accession_number, primary_document):
         """
@@ -645,104 +508,6 @@ class SP500Scraper:
                 )
 
         return results
-
-    def analyze_company(self, ticker):
-        """
-        Analyze a specific company by ticker.
-
-        Args:
-            ticker (str): Company ticker symbol
-        """
-        if ticker not in self.sp500_companies:
-            print(f"Error: {ticker} not found in S&P 500 companies list")
-            return
-
-        cik = self.sp500_companies[ticker]
-        print(f"Analyzing {ticker} (CIK: {cik})...")
-
-        # Get company information
-        print(f"\n1. Fetching company information for {ticker}...")
-        company_info = self.get_company_info(cik)
-        if company_info:
-            company_name = company_info.get("name", "Unknown")
-            print(f"Company Name: {company_name}")
-
-        # Get recent filings
-        print(f"\n2. Fetching recent filings for {ticker}...")
-        recent_filings = self.get_recent_filings(cik, limit=10)
-        if recent_filings:
-            print(f"Found {len(recent_filings)} recent filings:")
-            for filing in recent_filings[:5]:  # Show first 5
-                print(
-                    f"  - {filing['form']} on {filing['filingDate']}: {filing['primaryDocument']}"
-                )
-
-        # Search for 10-K filings
-        print(f"\n3. Searching for 10-K filings for {ticker}...")
-        form_10k_filings = self.search_filings_by_form(cik, "10-K", limit=5)
-        if form_10k_filings:
-            print(f"Found {len(form_10k_filings)} 10-K filings:")
-            for filing in form_10k_filings:
-                print(f"  - {filing['filingDate']}: {filing['primaryDocument']}")
-
-        # Get content and analyze financial data from the most recent 10-K filing
-        if form_10k_filings:
-            print(
-                f"\n4. Analyzing financial data from most recent 10-K filing for {ticker}..."
-            )
-            latest_10k = form_10k_filings[0]
-
-            content = self.get_filing_details(
-                cik, latest_10k["accessionNumber"], latest_10k["primaryDocument"]
-            )
-
-            if content:
-                # Save filing content in company directory
-                company_dir = self.company_data_dir / ticker
-                company_dir.mkdir(exist_ok=True)
-                filename = f"10k_{latest_10k['filingDate']}.txt"
-                file_path = company_dir / filename
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(content)
-                print(f"Retrieved {len(content)} characters of content")
-
-                # Extract financial data
-                print(f"\n5. Extracting financial metrics for {ticker}...")
-                financial_data = self.extract_financial_data(content)
-                print(f"Extracted {len(financial_data)} financial metrics")
-
-                if financial_data:
-                    # Show some key metrics
-                    print(f"\nKey financial metrics found for {ticker}:")
-                    for key, value in list(financial_data.items())[:10]:
-                        print(f"  {key}: {value:,.0f}")
-
-                    # Calculate EBIT and EBITDA
-                    print(f"\n6. Calculating EBIT and EBITDA for {ticker}...")
-                    ebit_ebitda = self.calculate_ebit_ebitda(financial_data)
-
-                    if ebit_ebitda:
-                        print(f"\nCalculated metrics for {ticker}:")
-                        for metric, value in ebit_ebitda.items():
-                            print(f"  {metric}: ${value:,.0f}")
-
-                        # Save financial analysis
-                        analysis_filename = (
-                            f"financial_analysis_{latest_10k['filingDate']}.json"
-                        )
-                        self.save_financial_analysis(
-                            ticker, financial_data, ebit_ebitda, analysis_filename
-                        )
-                    else:
-                        print(
-                            f"Could not calculate EBIT/EBITDA for {ticker} with available data"
-                        )
-                else:
-                    print(f"No financial data could be extracted for {ticker}")
-            else:
-                print(f"Failed to retrieve filing content for {ticker}")
-
-        print(f"\nAnalysis complete for {ticker}!")
 
     def save_financial_analysis(self, ticker, financial_data, ebit_ebitda, filename):
         """

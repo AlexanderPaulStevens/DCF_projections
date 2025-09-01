@@ -1,4 +1,4 @@
-.PHONY: help install setup test clean format lint run-demo run-dcf run-sensitivity run-ratios
+.PHONY: help install setup test clean format lint run-demo run-dcf run-sensitivity run-ratios test-coverage coverage-report scrape-company scrape-all
 
 # Default target
 help:
@@ -12,12 +12,28 @@ help:
 	@echo "  format      Format code with ruff"
 	@echo "  lint        Run linting checks"
 	@echo "  test        Run all pre-commit checks"
+	@echo "  test-coverage Run tests with coverage report in terminal"
+	@echo "  coverage-report Generate detailed HTML coverage report"
+	@echo ""
+	@echo "Data Scraping:"
+	@echo "  scrape-company  Scrape data for one company (usage: make scrape-company TICKER=AAPL)"
+	@echo "  scrape-all      Scrape data for all S&P 500 companies"
+	@echo "  scrape-missing  Scrape only companies without data (recommended)"
+	@echo "  update-ciks     Update CIK list with current S&P 500 companies"
+	@echo "  scrape-wikipedia Scrape current S&P 500 companies from Wikipedia"
+	@echo "  check-status    Check data status for all companies"
 	@echo ""
 	@echo "Examples:"
 	@echo "  run-demo    Run basic analysis for AAPL"
 	@echo "  run-dcf     Run DCF analysis for AAPL"
 	@echo "  run-sensitivity Run sensitivity analysis for AAPL"
 	@echo "  run-ratios  Run financial ratios analysis for AAPL"
+	@echo "  scrape-company TICKER=AAPL"
+	@echo "  scrape-all"
+	@echo "  scrape-missing"
+	@echo "  update-ciks"
+	@echo "  scrape-wikipedia"
+	@echo "  check-status"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  clean       Clean up generated files and caches"
@@ -38,6 +54,45 @@ lint:
 
 test:
 	pre-commit run --all-files
+
+# Testing and coverage
+test-coverage:
+	python -m pytest tests/ --cov=src --cov-report=term-missing
+
+coverage-report:
+	python -m pytest tests/ --cov=src --cov-report=html
+	@echo "Coverage report generated in htmlcov/index.html"
+	@echo "Open htmlcov/index.html in your browser to view the report"
+
+# Data scraping
+scrape-company:
+	@if [ -z "$(TICKER)" ]; then \
+		echo "Error: Please specify TICKER=SYMBOL"; \
+		echo "Example: make scrape-company TICKER=AAPL"; \
+		exit 1; \
+	fi
+	@echo "Scraping $(TICKER)..."
+	cd company_data && PYTHONPATH=.. python scrape_company.py $(TICKER)
+
+scrape-all:
+	@echo "Scraping all S&P 500 companies..."
+	cd company_data && PYTHONPATH=.. python scrape_sp500.py
+
+check-status:
+	@echo "Checking data status for all companies..."
+	cd company_data && PYTHONPATH=.. python check_data_status.py
+
+scrape-missing:
+	@echo "Scraping only missing companies..."
+	cd company_data && PYTHONPATH=.. python scrape_missing.py
+
+update-ciks:
+	@echo "Updating CIK list with current S&P 500 companies..."
+	cd company_data && PYTHONPATH=.. python update_cik_list.py
+
+scrape-wikipedia:
+	@echo "Scraping S&P 500 companies from Wikipedia..."
+	cd company_data && PYTHONPATH=.. python scrape_wikipedia_sp500.py
 
 # Example runs
 run-demo:

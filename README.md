@@ -115,7 +115,7 @@ uv run pytest tests/
 DCF_projections/
 ├── src/                          # Source code
 │   ├── app/                      # Main application
-│   │   ├── features/             # Core DCF features
+│   │   ├── core/                 # Core business logic
 │   │   ├── services/             # Business logic layer
 │   │   └── __init__.py
 │   └── main.py                   # CLI entry point

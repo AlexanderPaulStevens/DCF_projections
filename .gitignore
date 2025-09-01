@@ -25,9 +25,6 @@ uv.lock
 # software development best practices
 SOFTWARE_DEVELOPMENT_BEST_PRACTICES.md
 
-#streamlit
-src/ui.py
-
 #htmlcov
 htmlcov/
 
@@ -36,3 +33,6 @@ htmlcov/
 
 #coverage
 .coverage
+
+#cursor rules
+.cursorrules

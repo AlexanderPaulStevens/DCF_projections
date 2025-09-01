@@ -33,4 +33,4 @@ repos:
         always_run: true
         stages: [commit]
 
-exclude: '(.*/prompts/|.*/scripts/)'
+exclude: '(.*/prompts/|.*/scripts/|.*/public/.*\.png|.*/package-lock\.json)'

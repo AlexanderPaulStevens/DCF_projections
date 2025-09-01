@@ -133,12 +133,36 @@ class SensitivityAnalyzer:
 
         # Modify the specific variable
         if variable == SensitivityVariable.EARNINGS_GROWTH_RATE:
-            # This will be used in project_financials method
+            # Store the earnings growth rate to use in project_financials
             modified_calculator._earnings_growth_rate = value
+            # Override the project_financials method to use our stored value
+            original_method = modified_calculator.project_financials
+
+            def modified_project_financials(years=5, cap_ex_growth_rate=None):
+                return original_method(
+                    earnings_growth_rate=value,
+                    years=years,
+                    cap_ex_growth_rate=cap_ex_growth_rate,
+                )
+
+            modified_calculator.project_financials = modified_project_financials
         elif variable == SensitivityVariable.DISCOUNT_RATE:
             modified_calculator.wacc = value
         elif variable == SensitivityVariable.CAP_EX_GROWTH_RATE:
             modified_calculator._cap_ex_growth_rate = value
+            # Override the project_financials method to use our stored cap ex growth rate
+            original_method = modified_calculator.project_financials
+
+            def modified_project_financials(
+                earnings_growth_rate=0.15, years=5, cap_ex_growth_rate=None
+            ):
+                return original_method(
+                    earnings_growth_rate=earnings_growth_rate,
+                    years=years,
+                    cap_ex_growth_rate=value,
+                )
+
+            modified_calculator.project_financials = modified_project_financials
         elif variable == SensitivityVariable.PERPETUAL_GROWTH_RATE:
             modified_calculator.terminal_growth_rate = value
 

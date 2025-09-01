@@ -78,24 +78,12 @@ make run-demo
 
 ### Programmatic Usage
 
-```python
-from app.features.company_analyzer import CompanyAnalyzer
+The company analyzer module provides comprehensive company analysis capabilities. It allows you to:
 
-# Create analyzer
-analyzer = CompanyAnalyzer("AAPL")
-
-# Get share price data
-price_data = analyzer.get_share_price_data(period="5y")
-
-# Generate price chart
-analyzer.plot_share_price(period="5y", save_path="charts/AAPL_5y.png")
-
-# Get company overview
-overview = analyzer.get_company_overview()
-
-# Display overview table
-analyzer.print_company_overview_table()
-```
+- Retrieve detailed company overview information
+- Generate formatted overview tables
+- Create and save share price charts
+- Access both Yahoo Finance and SEC filing data
 
 ## Data Sources
 
@@ -128,21 +116,12 @@ Enhanced analysis when SEC data is available:
 
 ### Chart Configuration
 
-```python
-# Basic chart generation
-analyzer.plot_share_price(period="5y")
+The chart generation system supports:
 
-# Save chart to file
-analyzer.plot_share_price(
-    period="5y",
-    save_path="charts/AAPL_5y.png"
-)
-
-# Custom time periods
-periods = ["1y", "2y", "5y", "10y", "max"]
-for period in periods:
-    analyzer.plot_share_price(period=period)
-```
+- Basic chart generation with default settings
+- Custom file saving with specified paths
+- Multiple time period options (1y, 2y, 5y, 10y, max)
+- Batch processing for multiple periods
 
 ### Chart Customization
 

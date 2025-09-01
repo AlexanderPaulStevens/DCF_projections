@@ -3,7 +3,7 @@ DCF Service Layer - Orchestrates DCF calculations and analysis
 """
 
 from typing import Dict, Any, Optional
-from ..features.DCF_calculations import DCFCalculator
+from app.core.DCF_calculations import DCFCalculator
 
 
 class DCFService:
@@ -19,20 +19,40 @@ class DCFService:
     def create_dcf_calculator(
         self,
         ticker: str,
-        financial_data: Dict[int, Dict[str, Any]],
-        base_year: Optional[int] = None,
+        financial_data: Dict[Any, Dict[str, Any]],
+        base_year: Optional[Any] = None,
     ) -> DCFCalculator:
         """
         Create and configure a DCF calculator instance.
 
         Args:
             ticker: Company ticker symbol
-            financial_data: Historical financial data by year
-            base_year: Base year for projections
+            financial_data: Historical financial data by year (can have string or int keys)
+            base_year: Base year for projections (can be string or int)
 
         Returns:
             Configured DCFCalculator instance
         """
+        # Convert string keys to integers if needed for compatibility
+        if financial_data and isinstance(next(iter(financial_data.keys())), str):
+            converted_financial_data = {}
+            for key, value in financial_data.items():
+                try:
+                    converted_key = int(key)
+                    converted_financial_data[converted_key] = value
+                except (ValueError, TypeError):
+                    # If we can't convert to int, keep the original key
+                    converted_financial_data[key] = value
+
+            # Convert base_year if it's a string
+            if base_year and isinstance(base_year, str):
+                try:
+                    base_year = int(base_year)
+                except (ValueError, TypeError):
+                    pass
+
+            financial_data = converted_financial_data
+
         self.dcf_calculator = DCFCalculator(ticker, financial_data, base_year)
         return self.dcf_calculator
 

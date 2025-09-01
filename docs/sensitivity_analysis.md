@@ -67,24 +67,12 @@ make run-sensitivity
 
 ### Programmatic Usage
 
-```python
-from app.features.sensitivity_analysis import SensitivityAnalyzer, SensitivityVariable
+The sensitivity analysis module provides tools to analyze how changes in key variables affect DCF valuations. It allows you to:
 
-# Create analyzer
-analyzer = SensitivityAnalyzer(dcf_calculator)
-
-# Run earnings growth sensitivity
-results = analyzer.run_sensitivity_analysis(
-    variable=SensitivityVariable.EARNINGS_GROWTH_RATE,
-    base_value=0.15,
-    min_change=-0.50,
-    max_change=0.50,
-    steps=11
-)
-
-# Run comprehensive analysis
-comprehensive_results = analyzer.run_comprehensive_analysis()
-```
+- Create sensitivity analyzers for DCF calculations
+- Run earnings growth sensitivity analysis
+- Perform comprehensive multi-variable analysis
+- Generate detailed reports and visualizations
 
 ## Analysis Variables
 
@@ -112,23 +100,19 @@ comprehensive_results = analyzer.run_comprehensive_analysis()
 
 ### Parameter Ranges
 
-```python
-# Default sensitivity ranges
-base_values = {
-    "earnings_growth_rate": 0.15,      # 15% base growth
-    "discount_rate": 0.10,             # 10% required return
-    "cap_ex_growth_rate": 0.04,        # 4% capex growth
-    "perpetual_growth_rate": 0.025,    # 2.5% terminal growth
-}
+The sensitivity analysis uses configurable parameter ranges:
 
-# Analysis ranges
-analysis_ranges = {
-    "earnings_growth_rate": (-0.50, 1.00),    # -50% to +100%
-    "discount_rate": (-0.20, 0.50),           # -20% to +50%
-    "cap_ex_growth_rate": (-0.50, 1.00),     # -50% to +100%
-    "perpetual_growth_rate": (-0.60, 1.00),  # -60% to +100%
-}
-```
+**Default Base Values:**
+- Earnings growth rate: 15% base growth
+- Discount rate: 10% required return
+- CapEx growth rate: 4% capex growth
+- Perpetual growth rate: 2.5% terminal growth
+
+**Analysis Ranges:**
+- Earnings growth rate: -50% to +100%
+- Discount rate: -20% to +50%
+- CapEx growth rate: -50% to +100%
+- Perpetual growth rate: -60% to +100%
 
 ### Step Configuration
 
@@ -167,16 +151,12 @@ Results Summary:
 
 Results can be exported in multiple formats:
 
-```python
-# Export to CSV
-analyzer.export_results(results, format='csv', filename='sensitivity_results.csv')
+The module supports multiple export formats:
 
-# Export to JSON
-analyzer.export_results(results, format='json', filename='sensitivity_results.json')
-
-# Get results as dictionary
-results_dict = analyzer.get_results_summary(results)
-```
+- CSV export for spreadsheet analysis
+- JSON export for programmatic use
+- Dictionary format for direct access
+- Custom filename specification
 
 ## Visualization
 
@@ -191,16 +171,12 @@ The module generates various chart types:
 
 ### Chart Configuration
 
-```python
-# Generate sensitivity chart
-analyzer.generate_sensitivity_chart(
-    results,
-    chart_type='line',
-    save_path='sensitivity_chart.png',
-    show_grid=True,
-    include_annotations=True
-)
-```
+The chart generation system supports:
+
+- Multiple chart types (line, bar, heat map, tornado)
+- Custom save paths and file formats
+- Grid and annotation options
+- Configurable appearance settings
 
 ## Integration
 

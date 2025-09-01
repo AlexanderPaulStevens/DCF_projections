@@ -1,0 +1,26 @@
+body {
+  margin: 0;
+  font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #000000;
+  color: #ffffff;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+/* Ensure dark theme consistency */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background-color: #000000;
+}
+
+#root {
+  background-color: #000000;
+  min-height: 100vh;
+}
