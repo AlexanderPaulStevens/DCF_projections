@@ -4,10 +4,11 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import CompanySearch from './components/CompanySearch';
 import CompanyOverview from './components/CompanyOverview';
+import CompanyAnalysis from './components/CompanyAnalysis';
 import DCFAnalysis from './components/DCFAnalysis';
 import FinancialRatios from './components/FinancialRatios';
 import SensitivityAnalysis from './components/SensitivityAnalysis';
-import PortfolioAnalyzer from './components/PortfolioAnalyzer';
+// import PortfolioAnalyzer from './components/PortfolioAnalyzer'; // Backend functionality preserved
 import './App.css';
 
 // Create dark theme
@@ -78,10 +79,11 @@ function App() {
           <Routes>
             <Route path="/" element={<CompanySearch />} />
             <Route path="/company/:ticker" element={<CompanyOverview />} />
+            <Route path="/company/:ticker/analysis" element={<CompanyAnalysis />} />
             <Route path="/company/:ticker/dcf" element={<DCFAnalysis />} />
             <Route path="/company/:ticker/ratios" element={<FinancialRatios />} />
             <Route path="/company/:ticker/sensitivity" element={<SensitivityAnalysis />} />
-            <Route path="/portfolio" element={<PortfolioAnalyzer />} />
+            {/* <Route path="/portfolio" element={<PortfolioAnalyzer />} /> Backend functionality preserved */}
           </Routes>
         </div>
       </Router>

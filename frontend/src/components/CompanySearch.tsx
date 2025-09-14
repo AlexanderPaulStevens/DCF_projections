@@ -6,7 +6,7 @@ import {
   Typography,
   Paper,
 } from '@mui/material';
-import { TrendingUp, AccountBalance, Calculate } from '@mui/icons-material';
+import { TrendingUp } from '@mui/icons-material';
 
 const CompanySearch: React.FC = () => {
   const navigate = useNavigate();
@@ -145,15 +145,14 @@ const CompanySearch: React.FC = () => {
               lineHeight: 1.4,
             }}
           >
-            Looking beyond noise to find future opportunities
+            Understand, Project, Invest
           </Typography>
         </Box>
 
-        {/* Features Grid */}
+        {/* Company Analysis Button */}
         <Box sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-          gap: 4,
+          display: 'flex',
+          justifyContent: 'center',
           mb: 6,
         }}>
           <Paper
@@ -162,10 +161,12 @@ const CompanySearch: React.FC = () => {
               backdropFilter: 'blur(20px)',
               border: '1px solid #333333',
               borderRadius: 4,
-              p: 4,
+              p: 6,
               textAlign: 'center',
               transition: 'all 0.3s ease',
               cursor: 'pointer',
+              maxWidth: '500px',
+              width: '100%',
               '&:hover': {
                 transform: 'translateY(-8px)',
                 borderColor: '#00d4ff',
@@ -174,66 +175,15 @@ const CompanySearch: React.FC = () => {
             }}
             onClick={() => navigate('/company/AAPL')}
           >
-            <TrendingUp sx={{ fontSize: 48, color: '#00d4ff', mb: 2 }} />
-            <Typography variant="h6" sx={{ color: '#ffffff', mb: 2, fontWeight: 600 }}>
+            <TrendingUp sx={{ fontSize: 64, color: '#00d4ff', mb: 3 }} />
+            <Typography variant="h4" sx={{ color: '#ffffff', mb: 2, fontWeight: 700 }}>
               Company Analysis
             </Typography>
-            <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
-              Deep dive into company financials, ratios, and DCF valuations
+            <Typography variant="h6" sx={{ color: '#b0b0b0', mb: 3, lineHeight: 1.5 }}>
+              Deep dive into company financials, DCF valuations, and stock price forecasting
             </Typography>
-          </Paper>
-
-          <Paper
-            sx={{
-              background: 'rgba(17, 17, 17, 0.8)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid #333333',
-              borderRadius: 4,
-              p: 4,
-              textAlign: 'center',
-              transition: 'all 0.3s ease',
-              cursor: 'pointer',
-              '&:hover': {
-                transform: 'translateY(-8px)',
-                borderColor: '#00d4ff',
-                boxShadow: '0 8px 32px rgba(0, 212, 255, 0.2)',
-              },
-            }}
-            onClick={() => navigate('/portfolio')}
-          >
-            <AccountBalance sx={{ fontSize: 48, color: '#00d4ff', mb: 2 }} />
-            <Typography variant="h6" sx={{ color: '#ffffff', mb: 2, fontWeight: 600 }}>
-              Portfolio Optimization
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
-              AI-powered portfolio analysis and optimization strategies
-            </Typography>
-          </Paper>
-
-          <Paper
-            sx={{
-              background: 'rgba(17, 17, 17, 0.8)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid #333333',
-              borderRadius: 4,
-              p: 4,
-              textAlign: 'center',
-              transition: 'all 0.3s ease',
-              cursor: 'pointer',
-              '&:hover': {
-                transform: 'translateY(-8px)',
-                borderColor: '#00d4ff',
-                boxShadow: '0 8px 32px rgba(0, 212, 255, 0.2)',
-              },
-            }}
-            onClick={() => navigate('/company/AAPL/sensitivity')}
-          >
-            <Calculate sx={{ fontSize: 48, color: '#00d4ff', mb: 2 }} />
-            <Typography variant="h6" sx={{ color: '#ffffff', mb: 2, fontWeight: 600 }}>
-              Risk Analysis
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
-              Comprehensive risk assessment and sensitivity analysis
+            <Typography variant="body1" sx={{ color: '#00d4ff', fontWeight: 600 }}>
+              Click to explore →
             </Typography>
           </Paper>
         </Box>

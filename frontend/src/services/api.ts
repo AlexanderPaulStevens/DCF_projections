@@ -37,6 +37,13 @@ console.log('🌐 API Base URL:', API_BASE_URL);
 console.log('📍 Current Hostname:', window.location.hostname);
 console.log('🔌 Is Ngrok:', window.location.hostname.includes('ngrok'));
 
+// Test API connection immediately
+console.log('🧪 Testing API connection...');
+fetch(`${API_BASE_URL}/health`)
+  .then(response => response.json())
+  .then(data => console.log('✅ API Health Check:', data))
+  .catch(error => console.error('❌ API Health Check Failed:', error));
+
 // Configuration utility
 export const APIConfig = {
   getBaseURL: () => API_BASE_URL,
@@ -147,6 +154,68 @@ export interface SensitivityAnalysis {
   steps: Array<Record<string, any>>;
 }
 
+export interface ForecastAnalysis {
+  ticker: string;
+  current_price: number;
+  forecast_price: number;
+  forecast_trend: number;
+  confidence_lower: number;
+  confidence_upper: number;
+  forecast_dates: string[];
+  forecast_values: number[];
+}
+
+export interface StockData {
+  ticker: string;
+  name: string;
+  current_price: number;
+  previous_close: number;
+  open: number;
+  day_low: number;
+  day_high: number;
+  fifty_two_week_low: number;
+  fifty_two_week_high: number;
+  volume: number;
+  avg_volume: number;
+  market_cap: number;
+  beta: number;
+  pe_ratio: number;
+  forward_pe: number;
+  eps: number;
+  forward_eps: number;
+  dividend_yield: number;
+  ex_dividend_date?: string;
+  earnings_date?: string;
+  target_price: number;
+  recommendation: string;
+  currency: string;
+  exchange: string;
+  sector: string;
+  industry: string;
+  website: string;
+  description: string;
+  employees: number;
+  city: string;
+  state: string;
+  country: string;
+  price_change: number;
+  price_change_percent: number;
+  last_updated: string;
+}
+
+export interface HistoricalData {
+  ticker: string;
+  period: string;
+  data: Array<{
+    Date: string;
+    Open: number;
+    High: number;
+    Low: number;
+    Close: number;
+    Volume: number;
+  }>;
+}
+
 // API service class
 export class APIService {
   // Health check
@@ -203,6 +272,26 @@ export class APIService {
   // Get company financials
   static async getCompanyFinancials(ticker: string) {
     const response = await api.get(`/api/companies/${ticker}/financials`);
+    return response.data;
+  }
+
+  // Get forecast analysis
+  static async getForecastAnalysis(ticker: string): Promise<ForecastAnalysis> {
+    const response = await api.get(`/api/companies/${ticker}/forecast`);
+    return response.data;
+  }
+
+  // Get real-time stock data
+  static async getStockData(ticker: string): Promise<StockData> {
+    const response = await api.get(`/api/companies/${ticker}/stock-data`);
+    return response.data;
+  }
+
+  // Get historical stock data
+  static async getHistoricalData(ticker: string, period: string = '1y'): Promise<HistoricalData> {
+    console.log('🌐 API call: getHistoricalData', { ticker, period });
+    const response = await api.get(`/api/companies/${ticker}/historical-data?period=${period}`);
+    console.log('📊 API response:', response.data);
     return response.data;
   }
 }

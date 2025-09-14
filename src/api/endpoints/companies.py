@@ -11,12 +11,14 @@ from pathlib import Path
 
 from src.app.core.financial_ratios import FinancialRatiosAnalyzer
 from src.app.services.dcf_service import DCFService
+from src.app.services.yahoo_finance_service import YahooFinanceService
 
 # Initialize router
 router = APIRouter(prefix="/api/companies", tags=["companies"])
 
 # Initialize services
 dcf_service = DCFService()
+yahoo_service = YahooFinanceService()
 
 
 # Company data directory - use robust path resolution
@@ -75,6 +77,55 @@ class SensitivityAnalysis(BaseModel):
     variable: str
     base_value: float
     steps: List[Dict[str, Any]]
+
+
+class ForecastAnalysis(BaseModel):
+    ticker: str
+    current_price: float
+    forecast_price: float
+    forecast_trend: float
+    confidence_lower: float
+    confidence_upper: float
+    forecast_dates: List[str]
+    forecast_values: List[float]
+
+
+class StockData(BaseModel):
+    ticker: str
+    name: str
+    current_price: float
+    previous_close: float
+    open: float
+    day_low: float
+    day_high: float
+    fifty_two_week_low: float
+    fifty_two_week_high: float
+    volume: int
+    avg_volume: int
+    market_cap: int
+    beta: float
+    pe_ratio: float
+    forward_pe: float
+    eps: float
+    forward_eps: float
+    dividend_yield: float
+    ex_dividend_date: Optional[str] = None
+    earnings_date: Optional[str] = None
+    target_price: float
+    recommendation: str
+    currency: str
+    exchange: str
+    sector: str
+    industry: str
+    website: str
+    description: str
+    employees: int
+    city: str
+    state: str
+    country: str
+    price_change: float
+    price_change_percent: float
+    last_updated: str
 
 
 def get_cached_companies() -> List[Dict[str, Any]]:
@@ -656,4 +707,117 @@ async def get_sensitivity_analysis(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error getting sensitivity analysis: {str(e)}"
+        )
+
+
+@router.get("/{ticker}/forecast", response_model=ForecastAnalysis)
+async def get_forecast_analysis(ticker: str):
+    """
+    Get live stock price forecast using Prophet.
+
+    Args:
+        ticker: Company ticker symbol
+
+    Returns:
+        Live Prophet forecast analysis results
+    """
+    try:
+        # Import Prophet service
+        from app.services.prophet_service import ProphetService
+
+        # Create Prophet service instance
+        prophet_service = ProphetService()
+
+        # Generate live forecast
+        forecast_data = prophet_service.get_forecast(ticker, periods=365)
+
+        # Set the ticker
+        forecast_data["ticker"] = ticker
+
+        return ForecastAnalysis(
+            ticker=ticker,
+            current_price=forecast_data.get("current_price", 0),
+            forecast_price=forecast_data.get("forecast_price", 0),
+            forecast_trend=forecast_data.get("forecast_trend", 0),
+            confidence_lower=forecast_data.get("confidence_lower", 0),
+            confidence_upper=forecast_data.get("confidence_upper", 0),
+            forecast_dates=forecast_data.get("forecast_dates", []),
+            forecast_values=forecast_data.get("forecast_values", []),
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error generating live forecast: {str(e)}"
+        )
+
+
+@router.get("/{ticker}/stock-data", response_model=StockData)
+async def get_stock_data(ticker: str):
+    """
+    Get real-time stock data from Yahoo Finance.
+
+    Args:
+        ticker: Company ticker symbol
+
+    Returns:
+        Real-time stock data
+    """
+    try:
+        stock_data = yahoo_service.get_stock_info(ticker)
+
+        if not stock_data:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Could not fetch stock data for {ticker}",
+            )
+
+        return StockData(**stock_data)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error getting stock data: {str(e)}"
+        )
+
+
+@router.get("/{ticker}/historical-data")
+async def get_historical_data(
+    ticker: str,
+    period: str = Query(
+        "1y",
+        description="Period for historical data (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max)",
+    ),
+):
+    """
+    Get historical stock data from Yahoo Finance.
+
+    Args:
+        ticker: Company ticker symbol
+        period: Period for historical data
+
+    Returns:
+        Historical stock data
+    """
+    try:
+        hist_data = yahoo_service.get_historical_data(ticker, period)
+
+        if hist_data is None or hist_data.empty:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Could not fetch historical data for {ticker}",
+            )
+
+        # Convert DataFrame to list of dictionaries
+        return {
+            "ticker": ticker,
+            "period": period,
+            "data": hist_data.to_dict("records"),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error getting historical data: {str(e)}"
         )
