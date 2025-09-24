@@ -10,6 +10,8 @@ import json
 from pathlib import Path
 
 from src.app.core.financial_ratios import FinancialRatiosAnalyzer
+from src.app.core.competitive_analyzer import CompetitiveAnalyzer
+from src.app.core.business_strategy_analyzer import BusinessStrategyAnalyzer
 from src.app.services.dcf_service import DCFService
 from src.app.services.yahoo_finance_service import YahooFinanceService
 
@@ -126,6 +128,56 @@ class StockData(BaseModel):
     price_change: float
     price_change_percent: float
     last_updated: str
+
+
+class CompetitorData(BaseModel):
+    ticker: str
+    name: str
+    market_cap: float
+    sector: str
+    industry: str
+    pe_ratio: Optional[float]
+    revenue: Optional[float]
+    profit_margin: Optional[float]
+    roe: Optional[float]
+    debt_to_equity: Optional[float]
+    current_ratio: Optional[float]
+    revenue_growth: Optional[float]
+    earnings_growth: Optional[float]
+
+
+class CompetitiveAnalysis(BaseModel):
+    target_company: Dict[str, Any]
+    competitors: List[CompetitorData]
+    comparison_metrics: Dict[str, Any]
+    insights: Dict[str, Any]
+    analysis_date: str
+
+
+class StrategyInsight(BaseModel):
+    category: str
+    insight: str
+    confidence: float
+    source: str
+
+
+class SurvivalMetrics(BaseModel):
+    altman_z_score: Optional[float]
+    current_ratio: Optional[float]
+    debt_to_equity: Optional[float]
+    interest_coverage: Optional[float]
+    cash_ratio: Optional[float]
+    survival_probability: float
+    risk_level: str
+
+
+class BusinessStrategyAnalysis(BaseModel):
+    ticker: str
+    strategy_insights: List[StrategyInsight]
+    business_model_analysis: Dict[str, Any]
+    survival_metrics: SurvivalMetrics
+    recommendations: List[str]
+    analysis_date: str
 
 
 def get_cached_companies() -> List[Dict[str, Any]]:
@@ -532,6 +584,13 @@ async def calculate_dcf_from_data(
                 shares_outstanding = financial_data["financial_metrics"][field]
                 break
 
+        # Convert from thousands to actual shares if needed
+        # (financial data often reports shares in thousands)
+        if (
+            shares_outstanding and shares_outstanding < 1000000
+        ):  # If less than 1 million, likely in thousands
+            shares_outstanding = shares_outstanding * 1000
+
         # If no shares data found, use a reasonable default based on company size
         if not shares_outstanding or shares_outstanding <= 0:
             # Estimate based on EBIT - larger companies typically have more shares
@@ -788,16 +847,21 @@ async def get_historical_data(
         "1y",
         description="Period for historical data (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max)",
     ),
+    include_forecast: bool = Query(
+        False,
+        description="Whether to include forecast data extending the historical data",
+    ),
 ):
     """
-    Get historical stock data from Yahoo Finance.
+    Get historical stock data from Yahoo Finance, optionally extended with forecast data.
 
     Args:
         ticker: Company ticker symbol
         period: Period for historical data
+        include_forecast: Whether to include forecast data extending the historical data
 
     Returns:
-        Historical stock data
+        Historical stock data, optionally extended with forecast data
     """
     try:
         hist_data = yahoo_service.get_historical_data(ticker, period)
@@ -809,11 +873,41 @@ async def get_historical_data(
             )
 
         # Convert DataFrame to list of dictionaries
-        return {
+        result = {
             "ticker": ticker,
             "period": period,
             "data": hist_data.to_dict("records"),
         }
+
+        # If forecast is requested, extend the data
+        if include_forecast:
+            try:
+                # Import Prophet service
+                from src.app.services.prophet_service import ProphetService
+
+                # Create Prophet service instance
+                prophet_service = ProphetService()
+
+                # Generate forecast (default 90 days to extend the chart nicely)
+                forecast_data = prophet_service.get_forecast(ticker, periods=90)
+
+                # Add forecast data to the result
+                result["forecast"] = {
+                    "forecast_dates": forecast_data.get("forecast_dates", []),
+                    "forecast_values": forecast_data.get("forecast_values", []),
+                    "confidence_lower": forecast_data.get("confidence_lower", 0),
+                    "confidence_upper": forecast_data.get("confidence_upper", 0),
+                    "current_price": forecast_data.get("current_price", 0),
+                    "forecast_price": forecast_data.get("forecast_price", 0),
+                    "forecast_trend": forecast_data.get("forecast_trend", 0),
+                }
+
+            except Exception as forecast_error:
+                # If forecast fails, just return historical data without forecast
+                print(f"Forecast generation failed for {ticker}: {forecast_error}")
+                result["forecast_error"] = str(forecast_error)
+
+        return result
 
     except HTTPException:
         raise
@@ -821,3 +915,171 @@ async def get_historical_data(
         raise HTTPException(
             status_code=500, detail=f"Error getting historical data: {str(e)}"
         )
+
+
+@router.get("/{ticker}/competitive-analysis", response_model=CompetitiveAnalysis)
+async def get_competitive_analysis(
+    ticker: str,
+    max_competitors: int = Query(
+        5, ge=1, le=10, description="Maximum number of competitors to analyze"
+    ),
+):
+    """
+    Get competitive analysis comparing the company with its direct competitors.
+
+    Args:
+        ticker: Company ticker symbol
+        max_competitors: Maximum number of competitors to analyze
+
+    Returns:
+        Competitive analysis results
+    """
+    try:
+        # Initialize competitive analyzer
+        competitive_analyzer = CompetitiveAnalyzer(ticker)
+
+        # Get competitive insights
+        analysis_data = competitive_analyzer.get_competitive_insights(max_competitors)
+
+        if "error" in analysis_data:
+            raise HTTPException(status_code=500, detail=analysis_data["error"])
+
+        return CompetitiveAnalysis(**analysis_data)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error getting competitive analysis: {str(e)}"
+        )
+
+
+@router.get("/{ticker}/business-strategy", response_model=BusinessStrategyAnalysis)
+async def get_business_strategy_analysis(ticker: str):
+    """
+    Get business strategy analysis and survival metrics.
+
+    Args:
+        ticker: Company ticker symbol
+
+    Returns:
+        Business strategy analysis results
+    """
+    try:
+        # Get cached financial data
+        financial_data = get_cached_financial_data(ticker)
+        if not financial_data:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No financial data found for {ticker}. Run scraping script first.",
+            )
+
+        # Initialize business strategy analyzer
+        strategy_analyzer = BusinessStrategyAnalyzer(ticker, financial_data)
+
+        # Get business strategy analysis
+        analysis_data = strategy_analyzer.analyze_business_strategy()
+
+        if "error" in analysis_data:
+            raise HTTPException(status_code=500, detail=analysis_data["error"])
+
+        return BusinessStrategyAnalysis(**analysis_data)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting business strategy analysis: {str(e)}",
+        )
+
+
+@router.get("/{ticker}/competitive-analysis-debug")
+async def debug_competitive_analysis(ticker: str):
+    """
+    Debug endpoint for competitive analysis to help troubleshoot issues.
+
+    Args:
+        ticker: Company ticker symbol
+
+    Returns:
+        Debug information about the competitive analysis process
+    """
+    try:
+        from src.app.core.competitive_analyzer import CompetitiveAnalyzer
+
+        analyzer = CompetitiveAnalyzer(ticker)
+
+        # Test each step individually
+        debug_info = {"ticker": ticker, "steps": {}}
+
+        # Step 1: Get sector info
+        try:
+            sector, industry = analyzer.get_company_sector_info()
+            debug_info["steps"]["sector_info"] = {
+                "success": True,
+                "sector": sector,
+                "industry": industry,
+            }
+        except Exception as e:
+            debug_info["steps"]["sector_info"] = {"success": False, "error": str(e)}
+
+        # Step 2: Identify competitors
+        try:
+            competitors = analyzer.identify_direct_competitors(5)
+            debug_info["steps"]["identify_competitors"] = {
+                "success": True,
+                "competitors": competitors,
+            }
+        except Exception as e:
+            debug_info["steps"]["identify_competitors"] = {
+                "success": False,
+                "error": str(e),
+            }
+
+        # Step 3: Get target company data
+        try:
+            target_data = analyzer.get_target_company_data()
+            debug_info["steps"]["target_company_data"] = {
+                "success": target_data is not None,
+                "data": target_data.__dict__ if target_data else None,
+            }
+        except Exception as e:
+            debug_info["steps"]["target_company_data"] = {
+                "success": False,
+                "error": str(e),
+            }
+
+        # Step 4: Test competitor data fetching
+        try:
+            test_competitors = ["AAPL", "MSFT", "GOOGL"]
+            competitor_results = []
+            for comp_ticker in test_competitors:
+                try:
+                    comp_data = analyzer.get_competitor_data(comp_ticker)
+                    competitor_results.append(
+                        {
+                            "ticker": comp_ticker,
+                            "success": comp_data is not None,
+                            "data": comp_data.__dict__ if comp_data else None,
+                        }
+                    )
+                except Exception as e:
+                    competitor_results.append(
+                        {"ticker": comp_ticker, "success": False, "error": str(e)}
+                    )
+
+            debug_info["steps"]["competitor_data_test"] = {
+                "success": True,
+                "results": competitor_results,
+            }
+        except Exception as e:
+            debug_info["steps"]["competitor_data_test"] = {
+                "success": False,
+                "error": str(e),
+            }
+
+        return debug_info
+
+    except Exception as e:
+        return {"error": f"Debug analysis failed: {str(e)}", "ticker": ticker}

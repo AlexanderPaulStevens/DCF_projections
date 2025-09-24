@@ -80,7 +80,12 @@ class DCFService:
 
         enterprise_value = self.dcf_calculator.calculate_enterprise_value(projections)
         equity_value = self.dcf_calculator.calculate_equity_value(enterprise_value)
-        per_share_value = self.dcf_calculator.calculate_per_share_value(equity_value)
+
+        # Get shares outstanding from financial data
+        shares_outstanding = self._get_shares_outstanding()
+        per_share_value = self.dcf_calculator.calculate_per_share_value(
+            equity_value, shares_outstanding
+        )
 
         return {
             "projections": projections,
@@ -89,6 +94,29 @@ class DCFService:
             "per_share_value": per_share_value,
             "growth_rate": earnings_growth_rate,
         }
+
+    def _get_shares_outstanding(self) -> Optional[float]:
+        """
+        Extract shares outstanding from financial data.
+
+        Returns:
+            Shares outstanding value or None if not found
+        """
+        if not self.dcf_calculator or not self.dcf_calculator.financial_data:
+            return None
+
+        # Get the most recent year's data
+        latest_year = max(self.dcf_calculator.financial_data.keys())
+        latest_data = self.dcf_calculator.financial_data[latest_year]
+
+        # Look for shares outstanding in various possible keys
+        shares_keys = ["Diluted", "Basic", "shares_outstanding", "Shares Outstanding"]
+
+        for key in shares_keys:
+            if key in latest_data:
+                return latest_data[key]
+
+        return None
 
     def run_sensitivity_analysis(self, steps: int = 11) -> Dict[str, Any]:
         """
@@ -104,5 +132,12 @@ class DCFService:
             raise ValueError(
                 "DCF calculator not initialized. Call create_dcf_calculator first."
             )
+
+        # Get shares outstanding for sensitivity analysis
+        shares_outstanding = self._get_shares_outstanding()
+
+        # Update the DCF calculator with the correct shares outstanding
+        if shares_outstanding:
+            self.dcf_calculator.shares_outstanding = shares_outstanding
 
         return self.dcf_calculator.run_sensitivity_analysis(steps=steps)

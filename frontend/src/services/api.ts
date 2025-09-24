@@ -214,6 +214,96 @@ export interface HistoricalData {
     Close: number;
     Volume: number;
   }>;
+  forecast?: {
+    forecast_dates: string[];
+    forecast_values: number[];
+    confidence_lower: number;
+    confidence_upper: number;
+    current_price: number;
+    forecast_price: number;
+    forecast_trend: number;
+  };
+  forecast_error?: string;
+}
+
+export interface CompetitorData {
+  ticker: string;
+  name: string;
+  market_cap: number;
+  sector: string;
+  industry: string;
+  pe_ratio?: number;
+  revenue?: number;
+  profit_margin?: number;
+  roe?: number;
+  debt_to_equity?: number;
+  current_ratio?: number;
+  revenue_growth?: number;
+  earnings_growth?: number;
+}
+
+export interface CompetitiveAnalysis {
+  target_company: {
+    ticker: string;
+    name: string;
+    sector: string;
+    industry: string;
+  };
+  competitors: CompetitorData[];
+  comparison_metrics: {
+    market_cap_rank?: number;
+    market_cap_percentile?: number;
+    pe_ratio_rank?: number;
+    pe_ratio_percentile?: number;
+    profit_margin_rank?: number;
+    profit_margin_percentile?: number;
+    roe_rank?: number;
+    roe_percentile?: number;
+    revenue_growth_rank?: number;
+    revenue_growth_percentile?: number;
+    competitive_position_score: number;
+  };
+  insights: {
+    competitive_position: string;
+    strengths: string[];
+    weaknesses: string[];
+    opportunities: string[];
+    threats: string[];
+    recommendations: string[];
+  };
+  analysis_date: string;
+}
+
+export interface StrategyInsight {
+  category: string;
+  insight: string;
+  confidence: number;
+  source: string;
+}
+
+export interface SurvivalMetrics {
+  altman_z_score?: number;
+  current_ratio?: number;
+  debt_to_equity?: number;
+  interest_coverage?: number;
+  cash_ratio?: number;
+  survival_probability: number;
+  risk_level: string;
+}
+
+export interface BusinessStrategyAnalysis {
+  ticker: string;
+  strategy_insights: StrategyInsight[];
+  business_model_analysis: {
+    revenue_diversification: number;
+    profitability_trends: number;
+    market_position: number;
+    innovation_level: number;
+    sustainability_score: number;
+  };
+  survival_metrics: SurvivalMetrics;
+  recommendations: string[];
+  analysis_date: string;
 }
 
 // API service class
@@ -288,10 +378,22 @@ export class APIService {
   }
 
   // Get historical stock data
-  static async getHistoricalData(ticker: string, period: string = '1y'): Promise<HistoricalData> {
-    console.log('🌐 API call: getHistoricalData', { ticker, period });
-    const response = await api.get(`/api/companies/${ticker}/historical-data?period=${period}`);
+  static async getHistoricalData(ticker: string, period: string = '1y', includeForecast: boolean = false): Promise<HistoricalData> {
+    console.log('🌐 API call: getHistoricalData', { ticker, period, includeForecast });
+    const response = await api.get(`/api/companies/${ticker}/historical-data?period=${period}&include_forecast=${includeForecast}`);
     console.log('📊 API response:', response.data);
+    return response.data;
+  }
+
+  // Get competitive analysis
+  static async getCompetitiveAnalysis(ticker: string, maxCompetitors: number = 5): Promise<CompetitiveAnalysis> {
+    const response = await api.get(`/api/companies/${ticker}/competitive-analysis?max_competitors=${maxCompetitors}`);
+    return response.data;
+  }
+
+  // Get business strategy analysis
+  static async getBusinessStrategyAnalysis(ticker: string): Promise<BusinessStrategyAnalysis> {
+    const response = await api.get(`/api/companies/${ticker}/business-strategy`);
     return response.data;
   }
 }

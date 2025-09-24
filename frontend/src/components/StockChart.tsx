@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Button, Typography, ToggleButton, ToggleButtonGroup, CircularProgress } from '@mui/material';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { Box, Button, Typography, ToggleButton, ToggleButtonGroup, CircularProgress, Switch, FormControlLabel, Chip } from '@mui/material';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ReferenceLine } from 'recharts';
 import { APIService, HistoricalData } from '../services/api';
 
 interface StockChartProps {
@@ -15,7 +15,9 @@ interface StockChartProps {
 export function StockChart({ stockData }: StockChartProps) {
   const [selectedPeriod, setSelectedPeriod] = useState('6M');
   const [chartType, setChartType] = useState('line');
-  const [showIndicators, setShowIndicators] = useState(true);
+  const [showIndicators, setShowIndicators] = useState(false);
+  const [showForecast, setShowForecast] = useState(true);
+  const [forecastScenario, setForecastScenario] = useState('base');
   const [historicalData, setHistoricalData] = useState<HistoricalData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export function StockChart({ stockData }: StockChartProps) {
       setError(null);
       const yahooPeriod = mapPeriod(period);
       console.log('🔍 Loading historical data for:', stockData.symbol, 'period:', period, '-> yahoo:', yahooPeriod);
-      const data = await APIService.getHistoricalData(stockData.symbol, yahooPeriod);
+      const data = await APIService.getHistoricalData(stockData.symbol, yahooPeriod, showForecast);
       console.log('✅ Historical data loaded:', data);
       setHistoricalData(data);
     } catch (err) {
@@ -55,7 +57,7 @@ export function StockChart({ stockData }: StockChartProps) {
     } finally {
       setLoading(false);
     }
-  }, [stockData?.symbol]);
+  }, [stockData?.symbol, showForecast]);
 
   useEffect(() => {
     if (stockData?.symbol) {
@@ -65,27 +67,10 @@ export function StockChart({ stockData }: StockChartProps) {
 
   // Convert historical data to chart format
   const convertToChartData = (data: HistoricalData) => {
-    return data.data.map((item, index) => {
+    const historicalPoints = data.data.map((item, index) => {
       const date = new Date(item.Date);
       const isIntraday = selectedPeriod === '1D';
 
-      // Calculate simple moving averages (simplified)
-      const sma20 = index >= 19 ?
-        data.data.slice(index - 19, index + 1).reduce((sum, d) => sum + d.Close, 0) / 20 :
-        item.Close;
-      const sma50 = index >= 49 ?
-        data.data.slice(index - 49, index + 1).reduce((sum, d) => sum + d.Close, 0) / 50 :
-        item.Close;
-
-      // Calculate RSI (simplified)
-      const rsi = Math.min(100, Math.max(0, 50 + (item.Close - sma20) / sma20 * 100));
-
-      // Calculate Bollinger Bands (simplified)
-      const stdDev = index >= 19 ?
-        Math.sqrt(data.data.slice(index - 19, index + 1).reduce((sum, d) => sum + Math.pow(d.Close - sma20, 2), 0) / 20) :
-        0;
-      const bollingerUpper = sma20 + (2 * stdDev);
-      const bollingerLower = sma20 - (2 * stdDev);
 
       return {
         [isIntraday ? 'time' : 'date']: isIntraday ?
@@ -93,14 +78,52 @@ export function StockChart({ stockData }: StockChartProps) {
           date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         price: parseFloat(item.Close.toFixed(2)),
         volume: item.Volume,
-        sma20: parseFloat(sma20.toFixed(2)),
-        sma50: parseFloat(sma50.toFixed(2)),
-        rsi: parseFloat(rsi.toFixed(1)),
-        macd: parseFloat((item.Close - sma20).toFixed(2)),
-        bollinger_upper: parseFloat(bollingerUpper.toFixed(2)),
-        bollinger_lower: parseFloat(bollingerLower.toFixed(2))
+        type: 'historical' as const
       };
     });
+
+    // Add forecast data if available
+    if (data.forecast && showForecast) {
+      // Get the last historical price to ensure continuity
+      const lastHistoricalPrice = historicalPoints[historicalPoints.length - 1]?.price || data.forecast.current_price;
+
+      const forecastPoints = data.forecast.forecast_dates.map((dateStr, index) => {
+        const date = new Date(dateStr);
+        const isIntraday = selectedPeriod === '1D';
+
+        // Start with the last historical price for the first forecast point
+        let basePrice = index === 0 ? lastHistoricalPrice : data.forecast!.forecast_values[index];
+
+        // Apply scenario adjustments
+        let price = basePrice;
+        let confidenceLower = data.forecast!.confidence_lower;
+        let confidenceUpper = data.forecast!.confidence_upper;
+
+        if (forecastScenario === 'conservative') {
+          price = basePrice * 0.95; // 5% lower
+          confidenceLower = confidenceLower * 0.9;
+          confidenceUpper = confidenceUpper * 0.9;
+        } else if (forecastScenario === 'optimistic') {
+          price = basePrice * 1.05; // 5% higher
+          confidenceLower = confidenceLower * 1.1;
+          confidenceUpper = confidenceUpper * 1.1;
+        }
+
+        return {
+          [isIntraday ? 'time' : 'date']: isIntraday ?
+            date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) :
+            date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          price: parseFloat(price.toFixed(2)),
+          confidence_lower: parseFloat(confidenceLower.toFixed(2)),
+          confidence_upper: parseFloat(confidenceUpper.toFixed(2)),
+          type: 'forecast' as const
+        };
+      });
+
+      return [...historicalPoints, ...forecastPoints];
+    }
+
+    return historicalPoints;
   };
 
 
@@ -112,7 +135,7 @@ export function StockChart({ stockData }: StockChartProps) {
 
     // Fallback data if API fails
     return [
-      { date: 'No Data', price: stockData?.price || 0, volume: 0, sma20: 0, sma50: 0, rsi: 50, macd: 0, bollinger_upper: 0, bollinger_lower: 0 }
+      { date: 'No Data', price: stockData?.price || 0, volume: 0 }
     ];
   };
 
@@ -144,20 +167,35 @@ export function StockChart({ stockData }: StockChartProps) {
 
   const renderChart = () => {
     const xAxisKey = selectedPeriod === '1D' ? 'time' : 'date';
+    const hasForecast = showForecast && historicalData?.forecast;
+
+    // Helper function to get the reference line value
+    const getReferenceLineValue = () => {
+      const forecastItem = (chartData as any[]).find((d: any) => d.type === 'forecast');
+      return forecastItem ? forecastItem[xAxisKey] : undefined;
+    };
 
     if (chartType === 'area') {
       return (
         <AreaChart data={chartData}>
+          <defs>
+            <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#00d4ff" stopOpacity={0.3}/>
+              <stop offset="95%" stopColor="#00d4ff" stopOpacity={0.05}/>
+            </linearGradient>
+            <linearGradient id="forecastGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#ff6b35" stopOpacity={0.3}/>
+              <stop offset="95%" stopColor="#ff6b35" stopOpacity={0.05}/>
+            </linearGradient>
+          </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#333333" />
           <XAxis dataKey={xAxisKey} stroke="#b0b0b0" fontSize={12} />
           <YAxis domain={['dataMin - 5', 'dataMax + 5']} stroke="#b0b0b0" fontSize={12} />
           <Tooltip
-            formatter={(value, name) => {
-              if (name === 'price') return [`$${value}`, 'Price'];
-              if (name === 'sma20') return [`$${value}`, 'SMA 20'];
-              if (name === 'sma50') return [`$${value}`, 'SMA 50'];
-              if (name === 'bollinger_upper') return [`$${value}`, 'BB Upper'];
-              if (name === 'bollinger_lower') return [`$${value}`, 'BB Lower'];
+            formatter={(value, name, props) => {
+              if (name === 'price') return [`$${value}`, props.payload.type === 'forecast' ? 'Forecast Price' : 'Historical Price'];
+              if (name === 'confidence_upper') return [`$${value}`, 'High Estimate'];
+              if (name === 'confidence_lower') return [`$${value}`, 'Low Estimate'];
               return [value, name];
             }}
             labelStyle={{ color: '#ffffff' }}
@@ -167,27 +205,54 @@ export function StockChart({ stockData }: StockChartProps) {
               borderRadius: '8px'
             }}
           />
+          {hasForecast && (
+            <>
+              <ReferenceLine x={getReferenceLineValue()} stroke="#666666" strokeDasharray="5 5" />
+              {/* Forecast uncertainty band */}
+              <Area
+                dataKey="confidence_upper"
+                stroke="none"
+                fill="url(#forecastGradient)"
+                fillOpacity={0.3}
+              />
+              <Area
+                dataKey="confidence_lower"
+                stroke="none"
+                fill="#111111"
+                fillOpacity={1}
+              />
+            </>
+          )}
           <Area
             type="monotone"
             dataKey="price"
             stroke="#00d4ff"
             fill="url(#colorGradient)"
             strokeWidth={2}
+            dot={(props) => {
+              const { payload } = props;
+              if (payload?.type === 'historical') {
+                return <circle cx={props.cx} cy={props.cy} r={3} fill="#00d4ff" strokeWidth={2} />;
+              }
+              return <circle cx={props.cx} cy={props.cy} r={0} fill="transparent" />;
+            }}
           />
-          {showIndicators && (
-            <>
-              <Line type="monotone" dataKey="sma20" stroke="#ff9800" strokeWidth={1} strokeDasharray="5 5" />
-              <Line type="monotone" dataKey="sma50" stroke="#4caf50" strokeWidth={1} strokeDasharray="5 5" />
-              <Line type="monotone" dataKey="bollinger_upper" stroke="#f44336" strokeWidth={1} strokeDasharray="3 3" />
-              <Line type="monotone" dataKey="bollinger_lower" stroke="#f44336" strokeWidth={1} strokeDasharray="3 3" />
-            </>
+          {hasForecast && (
+            <Line
+              type="monotone"
+              dataKey="price"
+              stroke="#ff6b35"
+              strokeWidth={2}
+              strokeDasharray="8 4"
+              dot={(props) => {
+                const { payload } = props;
+                if (payload?.type === 'forecast') {
+                  return <circle cx={props.cx} cy={props.cy} r={3} fill="#ff6b35" strokeWidth={2} />;
+                }
+                return <circle cx={props.cx} cy={props.cy} r={0} fill="transparent" />;
+              }}
+            />
           )}
-          <defs>
-            <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#00d4ff" stopOpacity={0.3}/>
-              <stop offset="95%" stopColor="#00d4ff" stopOpacity={0.05}/>
-            </linearGradient>
-          </defs>
         </AreaChart>
       );
     }
@@ -198,14 +263,10 @@ export function StockChart({ stockData }: StockChartProps) {
         <XAxis dataKey={xAxisKey} stroke="#b0b0b0" fontSize={12} />
         <YAxis domain={['dataMin - 5', 'dataMax + 5']} stroke="#b0b0b0" fontSize={12} />
         <Tooltip
-          formatter={(value, name) => {
-            if (name === 'price') return [`$${value}`, 'Price'];
-            if (name === 'sma20') return [`$${value}`, 'SMA 20'];
-            if (name === 'sma50') return [`$${value}`, 'SMA 50'];
-            if (name === 'bollinger_upper') return [`$${value}`, 'BB Upper'];
-            if (name === 'bollinger_lower') return [`$${value}`, 'BB Lower'];
-            if (name === 'rsi') return [`${value}`, 'RSI'];
-            if (name === 'macd') return [`${value}`, 'MACD'];
+          formatter={(value, name, props) => {
+            if (name === 'price') return [`$${value}`, props.payload.type === 'forecast' ? 'Forecast Price' : 'Historical Price'];
+            if (name === 'confidence_upper') return [`$${value}`, 'High Estimate'];
+            if (name === 'confidence_lower') return [`$${value}`, 'Low Estimate'];
             return [value, name];
           }}
           labelStyle={{ color: '#ffffff' }}
@@ -215,20 +276,37 @@ export function StockChart({ stockData }: StockChartProps) {
             borderRadius: '8px'
           }}
         />
+        {hasForecast && (
+          <ReferenceLine x={getReferenceLineValue()} stroke="#666666" strokeDasharray="5 5" />
+        )}
         <Line
           type="monotone"
           dataKey="price"
           stroke="#00d4ff"
           strokeWidth={3}
-          dot={{ fill: '#00d4ff', strokeWidth: 2, r: 4 }}
+          dot={(props) => {
+            const { payload } = props;
+            if (payload?.type === 'historical') {
+              return <circle cx={props.cx} cy={props.cy} r={4} fill="#00d4ff" strokeWidth={2} />;
+            }
+            return <circle cx={props.cx} cy={props.cy} r={0} fill="transparent" />;
+          }}
         />
-        {showIndicators && (
-          <>
-            <Line type="monotone" dataKey="sma20" stroke="#ff9800" strokeWidth={1} strokeDasharray="5 5" />
-            <Line type="monotone" dataKey="sma50" stroke="#4caf50" strokeWidth={1} strokeDasharray="5 5" />
-            <Line type="monotone" dataKey="bollinger_upper" stroke="#f44336" strokeWidth={1} strokeDasharray="3 3" />
-            <Line type="monotone" dataKey="bollinger_lower" stroke="#f44336" strokeWidth={1} strokeDasharray="3 3" />
-          </>
+        {hasForecast && (
+          <Line
+            type="monotone"
+            dataKey="price"
+            stroke="#ff6b35"
+            strokeWidth={2}
+            strokeDasharray="8 4"
+            dot={(props) => {
+              const { payload } = props;
+              if (payload?.type === 'forecast') {
+                return <circle cx={props.cx} cy={props.cy} r={4} fill="#ff6b35" strokeWidth={2} />;
+              }
+              return <circle cx={props.cx} cy={props.cy} r={0} fill="transparent" />;
+            }}
+          />
         )}
       </LineChart>
     );
@@ -236,136 +314,126 @@ export function StockChart({ stockData }: StockChartProps) {
 
   return (
     <Box sx={{
-      backgroundColor: 'rgba(17, 17, 17, 0.8)',
-      p: 3,
-      borderRadius: 2,
-      border: '1px solid #333333',
-      mb: 3
+      backgroundColor: 'transparent',
+      p: 0,
+      borderRadius: 0,
+      border: 'none',
+      mb: 0,
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column'
     }}>
+      {/* Google-style header with price info */}
       <Box sx={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        mb: 3
+        mb: 2,
+        px: 1
       }}>
-        <Typography variant="h6" sx={{
-          fontWeight: 600,
-          color: '#ffffff'
-        }}>
-          AAPL Technical Analysis
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <ToggleButtonGroup
-            value={chartType}
-            exclusive
-            onChange={(e, newType) => newType && setChartType(newType)}
-            size="small"
-            sx={{
-              '& .MuiToggleButton-root': {
-                color: '#b0b0b0',
-                borderColor: '#333333',
-                '&.Mui-selected': {
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Typography variant="h4" sx={{
+            fontWeight: 700,
+            color: '#ffffff',
+            fontSize: '1.8rem'
+          }}>
+            ${stockData?.price?.toFixed(2) || '0.00'}
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body1" sx={{
+              color: stockData?.change && stockData.change >= 0 ? '#4caf50' : '#f44336',
+              fontWeight: 600,
+              fontSize: '1rem'
+            }}>
+              {stockData?.change && stockData.change >= 0 ? '+' : ''}${stockData?.change?.toFixed(2) || '0.00'}
+            </Typography>
+            <Typography variant="body1" sx={{
+              color: stockData?.change && stockData.change >= 0 ? '#4caf50' : '#f44336',
+              fontWeight: 600,
+              fontSize: '1rem'
+            }}>
+              ({stockData?.changePercent && stockData.changePercent >= 0 ? '+' : ''}{stockData?.changePercent?.toFixed(2) || '0.00'}%)
+            </Typography>
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          {periods.map((period) => (
+            <Button
+              key={period}
+              variant={selectedPeriod === period ? 'contained' : 'text'}
+              size="small"
+              onClick={() => setSelectedPeriod(period)}
+              sx={{
+                minWidth: 32,
+                height: 32,
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                textTransform: 'none',
+                ...(selectedPeriod === period ? {
                   backgroundColor: '#00d4ff',
                   color: 'white',
                   '&:hover': {
                     backgroundColor: '#0099cc',
                   }
-                }
-              }
-            }}
-          >
-            <ToggleButton value="line">Line</ToggleButton>
-            <ToggleButton value="area">Area</ToggleButton>
-          </ToggleButtonGroup>
-          <Button
-            variant={showIndicators ? 'contained' : 'outlined'}
-            size="small"
-            onClick={() => setShowIndicators(!showIndicators)}
-            sx={{
-              minWidth: 100,
-              height: 32,
-              fontSize: '0.875rem',
-              ...(showIndicators ? {
-                backgroundColor: '#00d4ff',
-                color: 'white',
-                '&:hover': {
-                  backgroundColor: '#0099cc',
-                }
-              } : {
-                borderColor: '#333333',
-                color: '#b0b0b0',
-                '&:hover': {
-                  backgroundColor: 'rgba(0, 212, 255, 0.1)',
-                  borderColor: '#00d4ff',
-                }
-              })
-            }}
-          >
-            {showIndicators ? 'Hide Indicators' : 'Show Indicators'}
-          </Button>
+                } : {
+                  color: '#b0b0b0',
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                    color: '#00d4ff',
+                  }
+                })
+              }}
+            >
+              {period}
+            </Button>
+          ))}
         </Box>
       </Box>
 
-      <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-        {periods.map((period) => (
-          <Button
-            key={period}
-            variant={selectedPeriod === period ? 'contained' : 'outlined'}
-            size="small"
-            onClick={() => setSelectedPeriod(period)}
-            sx={{
-              minWidth: 40,
-              height: 28,
-              fontSize: '0.75rem',
-              ...(selectedPeriod === period ? {
-                backgroundColor: '#00d4ff',
-                color: 'white',
-                '&:hover': {
-                  backgroundColor: '#0099cc',
-                }
-              } : {
-                borderColor: '#333333',
-                color: '#b0b0b0',
-                '&:hover': {
-                  backgroundColor: 'rgba(0, 212, 255, 0.1)',
-                  borderColor: '#00d4ff',
-                }
-              })
-            }}
-          >
-            {period}
-          </Button>
-        ))}
-      </Box>
+      {/* Forecast toggle - simplified */}
+      {showForecast && (
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          mb: 2,
+          px: 1
+        }}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showForecast}
+                onChange={(e) => setShowForecast(e.target.checked)}
+                sx={{
+                  '& .MuiSwitch-switchBase.Mui-checked': {
+                    color: '#00d4ff',
+                    '& + .MuiSwitch-track': {
+                      backgroundColor: '#00d4ff',
+                    },
+                  },
+                }}
+              />
+            }
+            label={
+              <Typography variant="body2" sx={{ color: '#b0b0b0', fontSize: '0.875rem' }}>
+                Show Forecast
+              </Typography>
+            }
+          />
+          {historicalData?.forecast && (
+            <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
+              Target: ${historicalData.forecast.forecast_price.toFixed(2)}
+            </Typography>
+          )}
+        </Box>
+      )}
 
-      <Box sx={{ height: 400 }}>
+      {/* Chart container */}
+      <Box sx={{ flex: 1, minHeight: 0 }}>
         <ResponsiveContainer width="100%" height="100%">
           {renderChart()}
         </ResponsiveContainer>
       </Box>
-
-      {showIndicators && (
-        <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box sx={{ width: 12, height: 2, backgroundColor: '#ff9800' }} />
-            <Typography variant="body2" sx={{ color: '#b0b0b0', fontSize: '0.75rem' }}>
-              SMA 20
-            </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box sx={{ width: 12, height: 2, backgroundColor: '#4caf50' }} />
-            <Typography variant="body2" sx={{ color: '#b0b0b0', fontSize: '0.75rem' }}>
-              SMA 50
-            </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box sx={{ width: 12, height: 1, backgroundColor: '#f44336', borderTop: '1px dashed #f44336' }} />
-            <Typography variant="body2" sx={{ color: '#b0b0b0', fontSize: '0.75rem' }}>
-              Bollinger Bands
-            </Typography>
-          </Box>
-        </Box>
-      )}
     </Box>
   );
 }

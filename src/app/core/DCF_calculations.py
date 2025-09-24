@@ -19,6 +19,7 @@ class DCFCalculator:
         self.ticker = ticker
         self.financial_data = financial_data
         self.base_year = base_year or max(financial_data.keys())
+        self.shares_outstanding = None
 
         # DCF assumptions from configuration (can be customized)
         defaults = Settings.get_dcf_defaults()
@@ -172,7 +173,9 @@ class DCFCalculator:
             projections = self.project_financials(growth_rate)
             enterprise_value = self.calculate_enterprise_value(projections)
             equity_value = self.calculate_equity_value(enterprise_value)
-            per_share_value = self.calculate_per_share_value(equity_value)
+            per_share_value = self.calculate_per_share_value(
+                equity_value, self.shares_outstanding
+            )
 
             scenarios[scenario_name] = {
                 "growth_rate": growth_rate,
@@ -237,21 +240,28 @@ class DCFCalculator:
         equity_value = enterprise_value - net_debt
         return equity_value
 
-    def calculate_per_share_value(self, equity_value):
+    def calculate_per_share_value(self, equity_value, shares_outstanding=None):
         """
         Calculate per share value.
 
         Args:
             equity_value (float): Total equity value
+            shares_outstanding (float, optional): Number of shares outstanding.
+                                                 If None, uses default from settings.
 
         Returns:
             float: Per share value
         """
-        # Get shares outstanding from base year data (simplified assumption)
-
-        # Get shares outstanding from configuration
-
-        shares_outstanding = Settings.DEFAULT_SHARES_OUTSTANDING
+        # Use provided shares outstanding or fall back to default
+        if shares_outstanding is None:
+            shares_outstanding = Settings.DEFAULT_SHARES_OUTSTANDING
+        else:
+            # Convert from thousands to actual shares if needed
+            # (financial data often reports shares in thousands)
+            if (
+                shares_outstanding < 1000000
+            ):  # If less than 1 million, likely in thousands
+                shares_outstanding = shares_outstanding * 1000
 
         per_share_value = equity_value / shares_outstanding
         return per_share_value

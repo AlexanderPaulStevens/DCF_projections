@@ -45,6 +45,12 @@ class TestDCFService:
         mock_equity_value = 4500000
         mock_per_share_value = 45.0
 
+        # Mock financial_data with proper keys() method
+        mock_financial_data = Mock()
+        mock_financial_data.keys.return_value = [2023]
+        mock_financial_data.__getitem__ = Mock(return_value={"Diluted": 1000000})
+        mock_calculator.financial_data = mock_financial_data
+
         mock_calculator.project_financials.return_value = mock_projections
         mock_calculator.calculate_enterprise_value.return_value = mock_enterprise_value
         mock_calculator.calculate_equity_value.return_value = mock_equity_value
@@ -64,7 +70,7 @@ class TestDCFService:
             mock_enterprise_value
         )
         mock_calculator.calculate_per_share_value.assert_called_once_with(
-            mock_equity_value
+            mock_equity_value, 1000000
         )
 
     @patch("src.app.services.dcf_service.DCFCalculator")
@@ -77,6 +83,12 @@ class TestDCFService:
         mock_enterprise_value = 5000000
         mock_equity_value = 4500000
         mock_per_share_value = 45.0
+
+        # Mock financial_data with proper keys() method
+        mock_financial_data = Mock()
+        mock_financial_data.keys.return_value = [2023]
+        mock_financial_data.__getitem__ = Mock(return_value={"Diluted": 1000000})
+        mock_calculator.financial_data = mock_financial_data
 
         mock_calculator.project_financials.return_value = mock_projections
         mock_calculator.calculate_enterprise_value.return_value = mock_enterprise_value
@@ -97,6 +109,12 @@ class TestDCFService:
         """Test running sensitivity analysis."""
         mock_calculator = Mock()
         mock_dcf_calculator_class.return_value = mock_calculator
+
+        # Mock financial_data with proper keys() method
+        mock_financial_data = Mock()
+        mock_financial_data.keys.return_value = [2023]
+        mock_financial_data.__getitem__ = Mock(return_value={"Diluted": 1000000})
+        mock_calculator.financial_data = mock_financial_data
 
         # Mock sensitivity analysis results
         mock_sensitivity_results = {
@@ -122,6 +140,12 @@ class TestDCFService:
         """Test running sensitivity analysis with default parameters."""
         mock_calculator = Mock()
         mock_dcf_calculator_class.return_value = mock_calculator
+
+        # Mock financial_data with proper keys() method
+        mock_financial_data = Mock()
+        mock_financial_data.keys.return_value = [2023]
+        mock_financial_data.__getitem__ = Mock(return_value={"Diluted": 1000000})
+        mock_calculator.financial_data = mock_financial_data
 
         mock_sensitivity_results = {
             "variable": "earnings_growth_rate",
@@ -222,6 +246,12 @@ def test_dcf_service_integration(mock_dcf_calculator_class):
     """Test DCF service integration workflow."""
     mock_calculator = Mock()
     mock_dcf_calculator_class.return_value = mock_calculator
+
+    # Mock financial_data with proper keys() method
+    mock_financial_data = Mock()
+    mock_financial_data.keys.return_value = [2023]
+    mock_financial_data.__getitem__ = Mock(return_value={"Diluted": 1000000})
+    mock_calculator.financial_data = mock_financial_data
 
     # Mock all the methods
     mock_calculator.project_financials.return_value = {"2024": {"revenue": 1100000}}

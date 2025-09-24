@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Box, Tabs, Tab, Typography } from '@mui/material';
-import { ForecastTab } from './tabs/ForecastTab';
 import { DCFTab } from './tabs/DCFTab';
 import { AnalysisTab } from './tabs/AnalysisTab';
+import { CompetitiveTab } from './tabs/CompetitiveTab';
+import { BusinessStrategyTab } from './tabs/BusinessStrategyTab';
 
 interface StockData {
   symbol: string;
@@ -66,13 +67,10 @@ export function StockTabs({ stockData }: StockTabsProps) {
   };
 
   const tabs = [
-    { label: 'Summary', value: 'summary' },
-    { label: 'Chart', value: 'chart' },
-    { label: 'Statistics', value: 'statistics' },
-    { label: 'Analysis', value: 'analysis' },
-    { label: 'Stock Price Forecast', value: 'forecast' },
     { label: 'DCF Analysis', value: 'dcf' },
-    { label: 'Profile', value: 'profile' },
+    { label: 'Analysis', value: 'analysis' },
+    { label: 'Competitive Analysis', value: 'competitive' },
+    { label: 'Business Strategy', value: 'strategy' },
     { label: 'Financials', value: 'financials' },
   ];
 
@@ -111,82 +109,22 @@ export function StockTabs({ stockData }: StockTabsProps) {
       </Tabs>
 
       <TabPanel value={activeTab} index={0}>
-        <Box sx={{
-          backgroundColor: 'rgba(17, 17, 17, 0.8)',
-          p: 3,
-          borderRadius: 2,
-          border: '1px solid #333333'
-        }}>
-          <Typography variant="h6" sx={{ color: '#ffffff', fontWeight: 600, mb: 2 }}>
-            Summary
-          </Typography>
-          <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
-            Summary information would be displayed here.
-          </Typography>
-        </Box>
-      </TabPanel>
-
-      <TabPanel value={activeTab} index={1}>
-        <Box sx={{
-          backgroundColor: 'rgba(17, 17, 17, 0.8)',
-          p: 3,
-          borderRadius: 2,
-          border: '1px solid #333333'
-        }}>
-          <Typography variant="h6" sx={{ color: '#ffffff', fontWeight: 600, mb: 2 }}>
-            Chart
-          </Typography>
-          <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
-            Advanced charting tools would be displayed here.
-          </Typography>
-        </Box>
-      </TabPanel>
-
-      <TabPanel value={activeTab} index={2}>
-        <Box sx={{
-          backgroundColor: 'rgba(17, 17, 17, 0.8)',
-          p: 3,
-          borderRadius: 2,
-          border: '1px solid #333333'
-        }}>
-          <Typography variant="h6" sx={{ color: '#ffffff', fontWeight: 600, mb: 2 }}>
-            Statistics
-          </Typography>
-          <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
-            Statistical analysis would be displayed here.
-          </Typography>
-        </Box>
-      </TabPanel>
-
-      <TabPanel value={activeTab} index={3}>
-        <AnalysisTab stockData={stockData} />
-      </TabPanel>
-
-      <TabPanel value={activeTab} index={4}>
-        <ForecastTab stockData={{ price: stockData.price, symbol: stockData.symbol }} />
-      </TabPanel>
-
-      <TabPanel value={activeTab} index={5}>
         <DCFTab ticker={stockData.symbol} />
       </TabPanel>
 
-      <TabPanel value={activeTab} index={6}>
-        <Box sx={{
-          backgroundColor: 'rgba(17, 17, 17, 0.8)',
-          p: 3,
-          borderRadius: 2,
-          border: '1px solid #333333'
-        }}>
-          <Typography variant="h6" sx={{ color: '#ffffff', fontWeight: 600, mb: 2 }}>
-            Company Profile
-          </Typography>
-          <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
-            Company profile information would be displayed here.
-          </Typography>
-        </Box>
+      <TabPanel value={activeTab} index={1}>
+        <AnalysisTab stockData={stockData} />
       </TabPanel>
 
-      <TabPanel value={activeTab} index={7}>
+      <TabPanel value={activeTab} index={2}>
+        <CompetitiveTab stockData={{ price: stockData.price, symbol: stockData.symbol }} />
+      </TabPanel>
+
+      <TabPanel value={activeTab} index={3}>
+        <BusinessStrategyTab stockData={{ price: stockData.price, symbol: stockData.symbol }} />
+      </TabPanel>
+
+      <TabPanel value={activeTab} index={4}>
         <Box sx={{
           backgroundColor: 'rgba(17, 17, 17, 0.8)',
           p: 3,
