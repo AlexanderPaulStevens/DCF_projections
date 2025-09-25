@@ -4,12 +4,18 @@ import {
   Box,
   Container,
   Typography,
-  Paper,
+  Button,
+  Fade,
 } from '@mui/material';
-import { TrendingUp, AccountBalance, Calculate } from '@mui/icons-material';
+import {
+  Analytics,
+  LightMode,
+  DarkMode,
+} from '@mui/icons-material';
 
 const CompanySearch: React.FC = () => {
   const navigate = useNavigate();
+  const [darkMode, setDarkMode] = useState(true);
 
   // Moving lines animation
   const [lines, setLines] = useState<Array<{ id: number; x: number; y: number; speed: number; opacity: number }>>([]);
@@ -39,14 +45,27 @@ const CompanySearch: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Theme configuration
+  const theme = {
+    background: darkMode
+      ? 'linear-gradient(135deg, #000000 0%, #0a0a0a 50%, #000000 100%)'
+      : 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+    textPrimary: darkMode ? '#ffffff' : '#1a202c',
+    textSecondary: darkMode ? '#b0b0b0' : '#4a5568',
+    accent: darkMode ? '#00d4ff' : '#3182ce',
+    glowColor: darkMode ? 'rgba(0, 212, 255, 0.5)' : 'rgba(49, 130, 206, 0.5)',
+    topBar: darkMode ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)',
+    logoPath: darkMode ? '/logo_horizon.png' : '/logo_horizon_light.png',
+  };
+
   return (
     <Box sx={{
       minHeight: '100vh',
-      background: '#000000',
+      background: theme.background,
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {/* Moving Lines Background */}
+      {/* Enhanced Moving Lines Background */}
       <Box sx={{
         position: 'absolute',
         top: 0,
@@ -55,7 +74,6 @@ const CompanySearch: React.FC = () => {
         bottom: 0,
         pointerEvents: 'none',
       }}>
-        {/* Prominent Moving Lines */}
         {lines.map((line) => (
           <Box
             key={line.id}
@@ -63,180 +81,185 @@ const CompanySearch: React.FC = () => {
               position: 'absolute',
               left: `${line.x}%`,
               top: `${line.y}%`,
-              width: line.id % 3 === 0 ? '4px' : line.id % 2 === 0 ? '3px' : '2px',
-              height: line.id % 4 === 0 ? '150px' : line.id % 3 === 0 ? '120px' : '100px',
-              background: `linear-gradient(180deg,
-                transparent,
-                rgba(0, 212, 255, 0.4),
-                rgba(0, 212, 255, 0.8),
-                rgba(0, 212, 255, 1),
-                rgba(0, 212, 255, 0.8),
-                rgba(0, 212, 255, 0.4),
-                transparent
-              )`,
-              opacity: line.opacity * 1.5,
+              width: line.id % 3 === 0 ? '3px' : '2px',
+              height: line.id % 4 === 0 ? '120px' : '80px',
+               background: darkMode
+                 ? `linear-gradient(180deg,
+                     transparent,
+                     rgba(0, 212, 255, 0.2),
+                     rgba(0, 212, 255, 0.6),
+                     rgba(0, 212, 255, 0.8),
+                     rgba(0, 212, 255, 0.6),
+                     rgba(0, 212, 255, 0.2),
+                     transparent
+                   )`
+                 : `linear-gradient(180deg,
+                     transparent,
+                     rgba(49, 130, 206, 0.2),
+                     rgba(49, 130, 206, 0.6),
+                     rgba(49, 130, 206, 0.8),
+                     rgba(49, 130, 206, 0.6),
+                     rgba(49, 130, 206, 0.2),
+                     transparent
+                   )`,
+              opacity: line.opacity * 0.8,
               transform: `rotate(${45 + (line.id % 3) * 15}deg)`,
-              filter: 'blur(0.3px)',
-              boxShadow: `
-                0 0 15px rgba(0, 212, 255, 0.8),
-                0 0 30px rgba(0, 212, 255, 0.5),
-                0 0 45px rgba(0, 212, 255, 0.3)
-              `,
-              animation: 'pulse 3s ease-in-out infinite',
-              '@keyframes pulse': {
-                '0%, 100%': {
-                  opacity: line.opacity * 1.2,
-                  transform: `rotate(${45 + (line.id % 3) * 15}deg) scale(1)`,
-                },
-                '50%': {
-                  opacity: line.opacity * 2,
-                  transform: `rotate(${45 + (line.id % 3) * 15}deg) scale(1.1)`,
-                },
-              },
+              filter: 'blur(0.5px)',
+              boxShadow: darkMode
+                ? `0 0 20px rgba(0, 212, 255, 0.3)`
+                : `0 0 20px rgba(49, 130, 206, 0.3)`,
             }}
           />
         ))}
       </Box>
 
-      <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
+      {/* Top Bar */}
+      <Box sx={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 80,
+        backgroundColor: theme.topBar,
+        backdropFilter: 'blur(10px)',
+        borderBottom: `1px solid ${darkMode ? 'rgba(0, 212, 255, 0.2)' : 'rgba(49, 130, 206, 0.2)'}`,
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        px: 3,
+        pointerEvents: 'auto',
+      }}>
+        {/* Logo in top bar */}
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <img
+            src={theme.logoPath}
+            alt="Horizon Logo"
+            style={{
+              height: '40px',
+              width: 'auto',
+            }}
+          />
+        </Box>
+
+        {/* Theme Toggle Button */}
+        <Button
+          onClick={() => setDarkMode(!darkMode)}
+          variant="contained"
+          sx={{
+            minWidth: 56,
+            height: 56,
+            borderRadius: '50%',
+            backgroundColor: darkMode ? 'rgba(0, 212, 255, 0.3)' : 'rgba(49, 130, 206, 0.3)',
+            border: `3px solid ${theme.accent}`,
+            color: theme.accent,
+            cursor: 'pointer',
+            zIndex: 10001,
+            position: 'relative',
+            boxShadow: `0 0 20px ${theme.glowColor}`,
+            '&:hover': {
+              backgroundColor: darkMode ? 'rgba(0, 212, 255, 0.5)' : 'rgba(49, 130, 206, 0.5)',
+              transform: 'scale(1.15)',
+              boxShadow: `0 0 30px ${theme.glowColor}`,
+            },
+            transition: 'all 0.3s ease-in-out',
+            '&:active': {
+              transform: 'scale(0.9)',
+            },
+          }}
+        >
+          {darkMode ? <LightMode sx={{ fontSize: 28 }} /> : <DarkMode sx={{ fontSize: 28 }} />}
+        </Button>
+      </Box>
+
+      <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1, pt: 10 }}>
         {/* Hero Section */}
-        <Box sx={{
-          textAlign: 'center',
-          py: { xs: 8, md: 12 },
-          position: 'relative',
-          zIndex: 1,
-        }}>
-          <Typography
-            variant="h1"
-            sx={{
-              fontSize: { xs: '3rem', md: '4.5rem' },
-              fontWeight: 800,
-              background: 'linear-gradient(135deg, #00d4ff 0%, #4ddfff 100%)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              mb: 3,
-              textShadow: '0 0 30px rgba(0, 212, 255, 0.3)',
-            }}
-          >
-          </Typography>
-
-          {/* Logo */}
-          <Box sx={{ mb: 4, display: 'flex', justifyContent: 'center' }}>
-            <img
-              src="/logo_horizon.png"
-              alt="Horizon Logo"
+        <Fade in timeout={1000}>
+          <Box sx={{
+            textAlign: 'center',
+            py: { xs: 8, md: 12 },
+            position: 'relative',
+            zIndex: 1,
+          }}>
+            {/* Logo */}
+            <Box sx={{ mb: 4, display: 'flex', justifyContent: 'center' }}>
+              <img
+                src={theme.logoPath}
+                alt="Horizon Logo"
               style={{
-                width: '400px',
+                width: '350px',
                 height: 'auto',
-                filter: 'drop-shadow(0 0 20px rgba(0, 212, 255, 0.3))',
+                filter: `drop-shadow(0 0 30px ${theme.glowColor})`,
               }}
-            />
+              />
+            </Box>
+
+            <Typography
+              variant="h1"
+              sx={{
+                fontSize: { xs: '2.5rem', md: '4rem' },
+                fontWeight: 800,
+                background: darkMode
+                  ? 'linear-gradient(135deg, #00d4ff 0%, #4ddfff 50%, #ffffff 100%)'
+                  : 'linear-gradient(135deg, #3182ce 0%, #2c5aa0 50%, #1a202c 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                mb: 2,
+                textShadow: `0 0 40px ${theme.glowColor}`,
+              }}
+            >
+              Analyze, Understand, Invest
+            </Typography>
+
+
+            <Typography
+              variant="h5"
+              sx={{
+                color: theme.textSecondary,
+                mb: 4,
+                fontWeight: 400,
+                maxWidth: '700px',
+                mx: 'auto',
+                lineHeight: 1.6,
+              }}
+            >
+              <br />
+            </Typography>
+
+            {/* Main CTA Button */}
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 8 }}>
+              <Button
+                variant="contained"
+                size="large"
+                startIcon={<Analytics />}
+                onClick={() => navigate('/company/AAPL/analysis')}
+                sx={{
+                  background: darkMode
+                    ? 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)'
+                    : 'linear-gradient(135deg, #3182ce 0%, #2c5aa0 100%)',
+                  px: 8,
+                  py: 3,
+                  fontSize: '1.4rem',
+                  fontWeight: 700,
+                  borderRadius: 4,
+                  boxShadow: `0 12px 40px ${theme.glowColor}`,
+                  textTransform: 'none',
+                  minWidth: '300px',
+                  '&:hover': {
+                    background: darkMode
+                      ? 'linear-gradient(135deg, #0099cc 0%, #006699 100%)'
+                      : 'linear-gradient(135deg, #2c5aa0 0%, #2a4d8e 100%)',
+                    transform: 'translateY(-4px)',
+                    boxShadow: `0 16px 50px ${theme.glowColor}`,
+                  },
+                }}
+              >
+                Company Analysis
+              </Button>
+            </Box>
           </Box>
-
-          <Typography
-            variant="h4"
-            sx={{
-              color: '#b0b0b0',
-              mb: 4,
-              fontWeight: 400,
-              maxWidth: '800px',
-              mx: 'auto',
-              lineHeight: 1.4,
-            }}
-          >
-            Looking beyond noise to find future opportunities
-          </Typography>
-        </Box>
-
-        {/* Features Grid */}
-        <Box sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-          gap: 4,
-          mb: 6,
-        }}>
-          <Paper
-            sx={{
-              background: 'rgba(17, 17, 17, 0.8)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid #333333',
-              borderRadius: 4,
-              p: 4,
-              textAlign: 'center',
-              transition: 'all 0.3s ease',
-              cursor: 'pointer',
-              '&:hover': {
-                transform: 'translateY(-8px)',
-                borderColor: '#00d4ff',
-                boxShadow: '0 8px 32px rgba(0, 212, 255, 0.2)',
-              },
-            }}
-            onClick={() => navigate('/company/AAPL')}
-          >
-            <TrendingUp sx={{ fontSize: 48, color: '#00d4ff', mb: 2 }} />
-            <Typography variant="h6" sx={{ color: '#ffffff', mb: 2, fontWeight: 600 }}>
-              Company Analysis
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
-              Deep dive into company financials, ratios, and DCF valuations
-            </Typography>
-          </Paper>
-
-          <Paper
-            sx={{
-              background: 'rgba(17, 17, 17, 0.8)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid #333333',
-              borderRadius: 4,
-              p: 4,
-              textAlign: 'center',
-              transition: 'all 0.3s ease',
-              cursor: 'pointer',
-              '&:hover': {
-                transform: 'translateY(-8px)',
-                borderColor: '#00d4ff',
-                boxShadow: '0 8px 32px rgba(0, 212, 255, 0.2)',
-              },
-            }}
-            onClick={() => navigate('/portfolio')}
-          >
-            <AccountBalance sx={{ fontSize: 48, color: '#00d4ff', mb: 2 }} />
-            <Typography variant="h6" sx={{ color: '#ffffff', mb: 2, fontWeight: 600 }}>
-              Portfolio Optimization
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
-              AI-powered portfolio analysis and optimization strategies
-            </Typography>
-          </Paper>
-
-          <Paper
-            sx={{
-              background: 'rgba(17, 17, 17, 0.8)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid #333333',
-              borderRadius: 4,
-              p: 4,
-              textAlign: 'center',
-              transition: 'all 0.3s ease',
-              cursor: 'pointer',
-              '&:hover': {
-                transform: 'translateY(-8px)',
-                borderColor: '#00d4ff',
-                boxShadow: '0 8px 32px rgba(0, 212, 255, 0.2)',
-              },
-            }}
-            onClick={() => navigate('/company/AAPL/sensitivity')}
-          >
-            <Calculate sx={{ fontSize: 48, color: '#00d4ff', mb: 2 }} />
-            <Typography variant="h6" sx={{ color: '#ffffff', mb: 2, fontWeight: 600 }}>
-              Risk Analysis
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
-              Comprehensive risk assessment and sensitivity analysis
-            </Typography>
-          </Paper>
-        </Box>
+        </Fade>
       </Container>
     </Box>
   );

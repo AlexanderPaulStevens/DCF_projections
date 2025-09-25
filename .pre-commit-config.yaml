@@ -27,7 +27,7 @@ repos:
     hooks:
       - id: coverage-check
         name: Coverage Check (80% minimum)
-        entry: bash -c 'uv run coverage run -m pytest tests/ && uv run coverage report --fail-under=80'
+        entry: bash -c 'uv run coverage run -m pytest backend/tests/ && uv run coverage report --fail-under=80'
         language: system
         pass_filenames: false
         always_run: true
