@@ -6,7 +6,6 @@ import {
   Typography,
   Box,
   CircularProgress,
-  Alert,
   Chip,
   LinearProgress,
   Table,
@@ -15,29 +14,24 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
-  Grid,
   Divider,
   List,
   ListItem,
   ListItemIcon,
-  ListItemText,
-  Badge
+  ListItemText
 } from '@mui/material';
 import {
   TrendingUp,
-  TrendingDown,
   Business,
   Assessment,
   Warning,
-  CheckCircle,
   Error,
   Info,
   Star,
   StarBorder
 } from '@mui/icons-material';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, LineChart, Line } from 'recharts';
-import { APIService, CompetitiveAnalysis, CompetitorData } from '../../services/api';
+import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import { APIService, ComprehensiveAnalysis } from '../../services/api';
 
 interface StockData {
   price: number;
@@ -49,28 +43,28 @@ interface CompetitiveTabProps {
 }
 
 export function CompetitiveTab({ stockData }: CompetitiveTabProps) {
-  const [competitiveData, setCompetitiveData] = useState<CompetitiveAnalysis | null>(null);
+  const [comprehensiveData, setComprehensiveData] = useState<ComprehensiveAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadCompetitiveData = useCallback(async () => {
+  const loadComprehensiveData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const data = await APIService.getCompetitiveAnalysis(stockData.symbol, 5);
-      setCompetitiveData(data);
+      const data = await APIService.getComprehensiveAnalysis(stockData.symbol);
+      setComprehensiveData(data);
     } catch (err) {
-      console.error('Error loading competitive data:', err);
-      setError('Failed to load competitive analysis data');
+      console.error('Error loading comprehensive data:', err);
+      setError('Failed to load comprehensive analysis data');
     } finally {
       setLoading(false);
     }
   }, [stockData.symbol]);
 
   useEffect(() => {
-    loadCompetitiveData();
-  }, [loadCompetitiveData]);
+    loadComprehensiveData();
+  }, [loadComprehensiveData]);
 
   if (loading) {
     return (
@@ -120,7 +114,7 @@ export function CompetitiveTab({ stockData }: CompetitiveTabProps) {
     );
   }
 
-  if (!competitiveData) {
+  if (!comprehensiveData) {
     return (
       <Box sx={{
         display: 'flex',
@@ -144,16 +138,6 @@ export function CompetitiveTab({ stockData }: CompetitiveTabProps) {
     );
   }
 
-  const formatMarketCap = (marketCap: number) => {
-    if (marketCap >= 1e12) return `$${(marketCap / 1e12).toFixed(2)}T`;
-    if (marketCap >= 1e9) return `$${(marketCap / 1e9).toFixed(2)}B`;
-    if (marketCap >= 1e6) return `$${(marketCap / 1e6).toFixed(2)}M`;
-    return `$${marketCap.toFixed(0)}`;
-  };
-
-  const formatPercentage = (value: number) => {
-    return `${(value * 100).toFixed(1)}%`;
-  };
 
   const getPositionColor = (position: string) => {
     switch (position) {
@@ -166,53 +150,7 @@ export function CompetitiveTab({ stockData }: CompetitiveTabProps) {
     }
   };
 
-  const getRiskLevelColor = (level: string) => {
-    switch (level) {
-      case 'Low Risk': return '#4caf50';
-      case 'Moderate Risk': return '#ff9800';
-      case 'High Risk': return '#ff5722';
-      case 'Very High Risk': return '#f44336';
-      default: return '#b0b0b0';
-    }
-  };
 
-  // Prepare data for charts
-  const competitorChartData = competitiveData.competitors.map(comp => ({
-    name: comp.ticker,
-    marketCap: comp.market_cap / 1e9, // Convert to billions
-    peRatio: comp.pe_ratio || 0,
-    profitMargin: (comp.profit_margin || 0) * 100,
-    roe: (comp.roe || 0) * 100,
-    revenueGrowth: (comp.revenue_growth || 0) * 100
-  }));
-
-  const radarData = [
-    {
-      metric: 'Market Cap',
-      target: competitiveData.comparison_metrics.market_cap_percentile || 50,
-      average: 50
-    },
-    {
-      metric: 'P/E Ratio',
-      target: competitiveData.comparison_metrics.pe_ratio_percentile || 50,
-      average: 50
-    },
-    {
-      metric: 'Profit Margin',
-      target: competitiveData.comparison_metrics.profit_margin_percentile || 50,
-      average: 50
-    },
-    {
-      metric: 'ROE',
-      target: competitiveData.comparison_metrics.roe_percentile || 50,
-      average: 50
-    },
-    {
-      metric: 'Growth',
-      target: competitiveData.comparison_metrics.revenue_growth_percentile || 50,
-      average: 50
-    }
-  ];
 
   return (
     <Box sx={{ p: 3 }}>
@@ -225,15 +163,15 @@ export function CompetitiveTab({ stockData }: CompetitiveTabProps) {
           </Typography>
         </Box>
         <Typography variant="body1" sx={{ color: '#b0b0b0', mb: 3 }}>
-          Comprehensive analysis of {competitiveData.target_company.name} compared to industry competitors
+          Comprehensive analysis of {comprehensiveData.company_name} competitive advantage and market position
         </Typography>
 
         {/* Competitive Position Badge */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
           <Chip
-            label={competitiveData.insights.competitive_position}
+            label={comprehensiveData.competitive.moat_level}
             sx={{
-              backgroundColor: getPositionColor(competitiveData.insights.competitive_position),
+              backgroundColor: getPositionColor(comprehensiveData.competitive.moat_level),
               color: '#ffffff',
               fontWeight: 600,
               fontSize: '1rem',
@@ -242,7 +180,7 @@ export function CompetitiveTab({ stockData }: CompetitiveTabProps) {
             }}
           />
           <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
-            Competitive Position Score: {competitiveData.comparison_metrics.competitive_position_score.toFixed(1)}/100
+            Moat Strength Score: {comprehensiveData.competitive.overall_moat_score.toFixed(1)}/100
           </Typography>
         </Box>
       </Box>
@@ -274,23 +212,23 @@ export function CompetitiveTab({ stockData }: CompetitiveTabProps) {
             <CardContent>
               <Box sx={{ mb: 3 }}>
                 <Typography variant="body2" sx={{ color: '#b0b0b0', mb: 1 }}>
-                  Overall Score
+                  Overall Moat Strength
                 </Typography>
                 <LinearProgress
                   variant="determinate"
-                  value={competitiveData.comparison_metrics.competitive_position_score}
+                  value={comprehensiveData.competitive.overall_moat_score}
                   sx={{
                     height: 12,
                     borderRadius: 6,
                     backgroundColor: '#333333',
                     '& .MuiLinearProgress-bar': {
-                      backgroundColor: getPositionColor(competitiveData.insights.competitive_position),
+                      backgroundColor: getPositionColor(comprehensiveData.competitive.moat_level),
                       borderRadius: 6,
                     },
                   }}
                 />
                 <Typography variant="h6" sx={{ color: '#ffffff', mt: 1, textAlign: 'center' }}>
-                  {competitiveData.comparison_metrics.competitive_position_score.toFixed(1)}/100
+                  {comprehensiveData.competitive.overall_moat_score.toFixed(1)}/100
                 </Typography>
               </Box>
 
@@ -299,35 +237,35 @@ export function CompetitiveTab({ stockData }: CompetitiveTabProps) {
               {/* Key Metrics */}
               <Box sx={{ mb: 2 }}>
                 <Typography variant="body2" sx={{ color: '#b0b0b0', mb: 1 }}>
-                  Market Cap Rank
+                  Top Advantage
                 </Typography>
                 <Typography variant="h6" sx={{ color: '#ffffff' }}>
-                  #{competitiveData.comparison_metrics.market_cap_rank || 'N/A'} of {competitiveData.competitors.length + 1}
+                  {comprehensiveData.competitive.top_advantage}
                 </Typography>
               </Box>
 
               <Box sx={{ mb: 2 }}>
                 <Typography variant="body2" sx={{ color: '#b0b0b0', mb: 1 }}>
-                  Profit Margin Percentile
+                  Weakest Area
                 </Typography>
                 <Typography variant="h6" sx={{ color: '#ffffff' }}>
-                  {competitiveData.comparison_metrics.profit_margin_percentile?.toFixed(1) || 'N/A'}th percentile
+                  {comprehensiveData.competitive.weakest_area}
                 </Typography>
               </Box>
 
               <Box sx={{ mb: 2 }}>
                 <Typography variant="body2" sx={{ color: '#b0b0b0', mb: 1 }}>
-                  Revenue Growth Rank
+                  Industry Attractiveness
                 </Typography>
                 <Typography variant="h6" sx={{ color: '#ffffff' }}>
-                  #{competitiveData.comparison_metrics.revenue_growth_rank || 'N/A'} of {competitiveData.competitors.length + 1}
+                  {comprehensiveData.summary.industry_attractiveness}
                 </Typography>
               </Box>
             </CardContent>
           </Card>
         </Box>
 
-        {/* Competitor Comparison Chart */}
+        {/* Competitive Advantage Radar Chart */}
         <Box sx={{ flex: { xs: 1, lg: 1 } }}>
           <Card sx={{
             backgroundColor: 'rgba(17, 17, 17, 0.8)',
@@ -338,7 +276,7 @@ export function CompetitiveTab({ stockData }: CompetitiveTabProps) {
             <CardHeader
               title={
                 <Typography variant="h6" sx={{ color: '#ffffff', fontWeight: 600 }}>
-                  Market Cap Comparison
+                  Competitive Advantage Breakdown
                 </Typography>
               }
               sx={{
@@ -349,33 +287,45 @@ export function CompetitiveTab({ stockData }: CompetitiveTabProps) {
             <CardContent sx={{ p: 0 }}>
               <Box sx={{ height: 300, p: 2 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={competitorChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#333333" opacity={0.3} />
-                    <XAxis
-                      dataKey="name"
-                      stroke="#b0b0b0"
-                      fontSize={12}
-                      tick={{ fill: '#b0b0b0' }}
-                      axisLine={{ stroke: '#333333' }}
+                  <RadarChart data={[
+                    {
+                      advantage: 'Ecosystem',
+                      score: comprehensiveData.competitive.ecosystem_score,
+                      fullMark: 100
+                    },
+                    {
+                      advantage: 'Brand Power',
+                      score: comprehensiveData.competitive.brand_score,
+                      fullMark: 100
+                    },
+                    {
+                      advantage: 'Integration',
+                      score: comprehensiveData.competitive.integration_score,
+                      fullMark: 100
+                    },
+                    {
+                      advantage: 'Supply Chain',
+                      score: comprehensiveData.competitive.supply_chain_score,
+                      fullMark: 100
+                    },
+                    {
+                      advantage: 'Strategic',
+                      score: comprehensiveData.competitive.strategic_score,
+                      fullMark: 100
+                    }
+                  ]}>
+                    <PolarGrid stroke="#333333" />
+                    <PolarAngleAxis dataKey="advantage" tick={{ fill: '#b0b0b0', fontSize: 12 }} />
+                    <PolarRadiusAxis tick={{ fill: '#b0b0b0', fontSize: 10 }} />
+                    <Radar
+                      name="Score"
+                      dataKey="score"
+                      stroke="#00d4ff"
+                      fill="#00d4ff"
+                      fillOpacity={0.3}
+                      strokeWidth={2}
                     />
-                    <YAxis
-                      stroke="#b0b0b0"
-                      fontSize={12}
-                      tick={{ fill: '#b0b0b0' }}
-                      axisLine={{ stroke: '#333333' }}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#1a1a1a',
-                        border: '1px solid #00d4ff',
-                        borderRadius: '12px',
-                        color: '#ffffff',
-                        boxShadow: '0 8px 32px rgba(0, 212, 255, 0.2)'
-                      }}
-                      formatter={(value: any) => [`$${value.toFixed(2)}B`, 'Market Cap']}
-                    />
-                    <Bar dataKey="marketCap" fill="#00d4ff" radius={[4, 4, 0, 0]} />
-                  </BarChart>
+                  </RadarChart>
                 </ResponsiveContainer>
               </Box>
             </CardContent>
@@ -383,7 +333,7 @@ export function CompetitiveTab({ stockData }: CompetitiveTabProps) {
         </Box>
       </Box>
 
-      {/* Competitors Table */}
+      {/* Competitive Advantage Details */}
       <Box sx={{ mt: 3 }}>
           <Card sx={{
             backgroundColor: 'rgba(17, 17, 17, 0.8)',
@@ -393,7 +343,7 @@ export function CompetitiveTab({ stockData }: CompetitiveTabProps) {
             <CardHeader
               title={
                 <Typography variant="h6" sx={{ color: '#ffffff', fontWeight: 600 }}>
-                  Competitor Comparison
+                  Competitive Advantage Details
                 </Typography>
               }
               sx={{
@@ -406,41 +356,62 @@ export function CompetitiveTab({ stockData }: CompetitiveTabProps) {
                 <Table>
                   <TableHead>
                     <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.3)' }}>
-                      <TableCell sx={{ color: '#00d4ff', fontWeight: 600 }}>Company</TableCell>
-                      <TableCell sx={{ color: '#00d4ff', fontWeight: 600 }}>Market Cap</TableCell>
-                      <TableCell sx={{ color: '#00d4ff', fontWeight: 600 }}>P/E Ratio</TableCell>
-                      <TableCell sx={{ color: '#00d4ff', fontWeight: 600 }}>Profit Margin</TableCell>
-                      <TableCell sx={{ color: '#00d4ff', fontWeight: 600 }}>ROE</TableCell>
-                      <TableCell sx={{ color: '#00d4ff', fontWeight: 600 }}>Revenue Growth</TableCell>
+                      <TableCell sx={{ color: '#00d4ff', fontWeight: 600 }}>Advantage</TableCell>
+                      <TableCell sx={{ color: '#00d4ff', fontWeight: 600 }}>Score</TableCell>
+                      <TableCell sx={{ color: '#00d4ff', fontWeight: 600 }}>Description</TableCell>
+                      <TableCell sx={{ color: '#00d4ff', fontWeight: 600 }}>Evidence</TableCell>
+                      <TableCell sx={{ color: '#00d4ff', fontWeight: 600 }}>Sustainability</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {competitiveData.competitors.map((competitor, index) => (
-                      <TableRow key={competitor.ticker} sx={{ '&:hover': { backgroundColor: 'rgba(0, 212, 255, 0.05)' } }}>
+                    {Object.entries(comprehensiveData.competitive_advantage.competitive_advantages).map(([key, advantage]) => (
+                      <TableRow key={key} sx={{ '&:hover': { backgroundColor: 'rgba(0, 212, 255, 0.05)' } }}>
+                        <TableCell sx={{ color: '#ffffff', fontWeight: 600 }}>
+                          {advantage.category}
+                        </TableCell>
                         <TableCell sx={{ color: '#ffffff' }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                              {competitor.ticker}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="body2">
+                              {advantage.strength_score.toFixed(1)}/100
                             </Typography>
-                            <Typography variant="caption" sx={{ color: '#b0b0b0', ml: 1 }}>
-                              {competitor.name}
-                            </Typography>
+                            <LinearProgress
+                              variant="determinate"
+                              value={advantage.strength_score}
+                              sx={{
+                                width: 60,
+                                height: 6,
+                                borderRadius: 3,
+                                backgroundColor: '#333333',
+                                '& .MuiLinearProgress-bar': {
+                                  backgroundColor: advantage.strength_score >= 60 ? '#4caf50' : advantage.strength_score >= 40 ? '#ff9800' : '#f44336',
+                                  borderRadius: 3,
+                                },
+                              }}
+                            />
                           </Box>
                         </TableCell>
-                        <TableCell sx={{ color: '#ffffff' }}>
-                          {formatMarketCap(competitor.market_cap)}
+                        <TableCell sx={{ color: '#ffffff', maxWidth: 200 }}>
+                          <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
+                            {advantage.description}
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ color: '#ffffff', maxWidth: 200 }}>
+                          <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
+                            {advantage.evidence.slice(0, 2).join('; ')}
+                            {advantage.evidence.length > 2 && '...'}
+                          </Typography>
                         </TableCell>
                         <TableCell sx={{ color: '#ffffff' }}>
-                          {competitor.pe_ratio ? competitor.pe_ratio.toFixed(2) : 'N/A'}
-                        </TableCell>
-                        <TableCell sx={{ color: '#ffffff' }}>
-                          {competitor.profit_margin ? formatPercentage(competitor.profit_margin) : 'N/A'}
-                        </TableCell>
-                        <TableCell sx={{ color: '#ffffff' }}>
-                          {competitor.roe ? formatPercentage(competitor.roe) : 'N/A'}
-                        </TableCell>
-                        <TableCell sx={{ color: '#ffffff' }}>
-                          {competitor.revenue_growth ? formatPercentage(competitor.revenue_growth) : 'N/A'}
+                          <Chip
+                            label={advantage.sustainability}
+                            size="small"
+                            sx={{
+                              backgroundColor: advantage.sustainability === 'High' ? '#4caf50' :
+                                             advantage.sustainability === 'Medium' ? '#ff9800' : '#f44336',
+                              color: '#ffffff',
+                              fontSize: '0.75rem'
+                            }}
+                          />
                         </TableCell>
                       </TableRow>
                     ))}
@@ -474,31 +445,24 @@ export function CompetitiveTab({ stockData }: CompetitiveTabProps) {
             <CardContent>
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle1" sx={{ color: '#4caf50', fontWeight: 600, mb: 2 }}>
-                  Strengths
+                  Investment Thesis
                 </Typography>
-                <List dense>
-                  {competitiveData.insights.strengths.map((strength, index) => (
-                    <ListItem key={index} sx={{ px: 0 }}>
-                      <ListItemIcon sx={{ minWidth: 32 }}>
-                        <CheckCircle sx={{ color: '#4caf50', fontSize: 20 }} />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={strength}
-                        primaryTypographyProps={{ color: '#ffffff', fontSize: '0.9rem' }}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
+                <Typography variant="body2" sx={{ color: '#ffffff', mb: 2 }}>
+                  {comprehensiveData.competitive_advantage.investment_thesis.thesis}
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#4caf50', fontWeight: 600 }}>
+                  Recommendation: {comprehensiveData.competitive_advantage.investment_thesis.recommendation}
+                </Typography>
               </Box>
 
               <Divider sx={{ my: 2, borderColor: '#333333' }} />
 
               <Box>
                 <Typography variant="subtitle1" sx={{ color: '#00d4ff', fontWeight: 600, mb: 2 }}>
-                  Opportunities
+                  Growth Opportunities
                 </Typography>
                 <List dense>
-                  {competitiveData.insights.opportunities.map((opportunity, index) => (
+                  {comprehensiveData.opportunities.growth_opportunities.map((opportunity, index) => (
                     <ListItem key={index} sx={{ px: 0 }}>
                       <ListItemIcon sx={{ minWidth: 32 }}>
                         <TrendingUp sx={{ color: '#00d4ff', fontSize: 20 }} />
@@ -537,16 +501,16 @@ export function CompetitiveTab({ stockData }: CompetitiveTabProps) {
             <CardContent>
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle1" sx={{ color: '#ff9800', fontWeight: 600, mb: 2 }}>
-                  Weaknesses
+                  Risk Factors
                 </Typography>
                 <List dense>
-                  {competitiveData.insights.weaknesses.map((weakness, index) => (
+                  {comprehensiveData.competitive_advantage.investment_thesis.risk_factors.map((risk, index) => (
                     <ListItem key={index} sx={{ px: 0 }}>
                       <ListItemIcon sx={{ minWidth: 32 }}>
                         <Warning sx={{ color: '#ff9800', fontSize: 20 }} />
                       </ListItemIcon>
                       <ListItemText
-                        primary={weakness}
+                        primary={risk}
                         primaryTypographyProps={{ color: '#ffffff', fontSize: '0.9rem' }}
                       />
                     </ListItem>
@@ -558,21 +522,28 @@ export function CompetitiveTab({ stockData }: CompetitiveTabProps) {
 
               <Box>
                 <Typography variant="subtitle1" sx={{ color: '#f44336', fontWeight: 600, mb: 2 }}>
-                  Threats
+                  Porter's Five Forces
                 </Typography>
-                <List dense>
-                  {competitiveData.insights.threats.map((threat, index) => (
-                    <ListItem key={index} sx={{ px: 0 }}>
-                      <ListItemIcon sx={{ minWidth: 32 }}>
-                        <Error sx={{ color: '#f44336', fontSize: 20 }} />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={threat}
-                        primaryTypographyProps={{ color: '#ffffff', fontSize: '0.9rem' }}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
+                <Box sx={{ mb: 1 }}>
+                  <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
+                    Industry Attractiveness: {comprehensiveData.competitive_advantage.porters_five_forces.overall_industry_attractiveness}
+                  </Typography>
+                </Box>
+                <Box sx={{ mb: 1 }}>
+                  <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
+                    Supplier Power: {comprehensiveData.competitive_advantage.porters_five_forces.supplier_power.power_level}
+                  </Typography>
+                </Box>
+                <Box sx={{ mb: 1 }}>
+                  <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
+                    Buyer Power: {comprehensiveData.competitive_advantage.porters_five_forces.buyer_power.power_level}
+                  </Typography>
+                </Box>
+                <Box sx={{ mb: 1 }}>
+                  <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
+                    Competitive Rivalry: {comprehensiveData.competitive_advantage.porters_five_forces.competitive_rivalry.rivalry_level}
+                  </Typography>
+                </Box>
               </Box>
             </CardContent>
           </Card>
@@ -602,7 +573,7 @@ export function CompetitiveTab({ stockData }: CompetitiveTabProps) {
             />
             <CardContent>
               <List>
-                {competitiveData.insights.recommendations.map((recommendation, index) => (
+                {comprehensiveData.competitive_advantage.sector_insights.recommendations.map((recommendation, index) => (
                   <ListItem key={index} sx={{ px: 0, py: 1 }}>
                     <ListItemIcon sx={{ minWidth: 32 }}>
                       <StarBorder sx={{ color: '#00d4ff', fontSize: 20 }} />

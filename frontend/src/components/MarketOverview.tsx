@@ -17,8 +17,6 @@ import {
 import {
   TrendingUp,
   TrendingDown,
-  Star,
-  Add,
   MoreVert,
 } from '@mui/icons-material';
 

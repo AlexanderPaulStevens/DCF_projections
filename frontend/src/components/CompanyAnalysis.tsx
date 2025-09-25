@@ -3,79 +3,31 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { keyframes } from '@mui/system';
 import {
   Box,
-  Card,
-  CardContent,
   Typography,
   Button,
   CircularProgress,
   Alert,
   Container,
-  Avatar,
   Chip,
-  Tabs,
-  Tab,
-  Grid,
-  Paper,
-  Divider,
-  IconButton,
-  Breadcrumbs,
-  Link,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Switch,
   TextField,
   InputAdornment,
+  Tabs,
+  Tab,
+  Paper,
 } from '@mui/material';
 import {
-  ArrowBack,
-  Assessment,
-  TrendingDown,
-  TrendingFlat,
-  TrendingUp,
-  Star,
-  Share,
-  MoreVert,
-  Home,
-  ChevronRight,
-  BarChart,
-  ShowChart,
-  PieChart,
-  Timeline,
   Search,
+  Assessment,
+  ShowChart,
+  Business,
+  Timeline,
+  LightMode,
+  DarkMode,
 } from '@mui/icons-material';
-import { APIService, CompanyOverview as CompanyOverviewType, DCFAnalysis, StockData } from '../services/api';
-import { DCFTab } from './tabs/DCFTab';
+import { APIService, ComprehensiveAnalysis } from '../services/api';
 import { StockChart } from './StockChart';
-
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`analysis-tabpanel-${index}`}
-      aria-labelledby={`analysis-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Box sx={{ p: 0 }}>
-          {children}
-        </Box>
-      )}
-    </div>
-  );
-}
+import { generateCompetitiveAdvantageContent } from '../utils/competitiveAnalysis';
 
 // Floating animation keyframes
 const float = keyframes`
@@ -85,42 +37,39 @@ const float = keyframes`
   }
   50% {
     transform: translateY(-20px) rotate(45deg);
-    opacity: 0.6;
+    opacity: 0.4;
   }
 `;
 
 const CompanyAnalysis: React.FC = () => {
   const { ticker } = useParams<{ ticker: string }>();
   const navigate = useNavigate();
-  const [overview, setOverview] = useState<CompanyOverviewType | null>(null);
+  const [comprehensiveData, setComprehensiveData] = useState<ComprehensiveAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
-  const [dcfData, setDcfData] = useState<DCFAnalysis | null>(null);
-  const [stockData, setStockData] = useState<StockData | null>(null);
-  const [dcfLoading, setDcfLoading] = useState(false);
-  const [stockLoading, setStockLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
+  const [showForecast, setShowForecast] = useState(true);
+  const [darkMode, setDarkMode] = useState(true);
   const [lines, setLines] = useState<Array<{ id: number; x: number; y: number; speed: number; opacity: number }>>([]);
 
   // Initialize moving lines
   useEffect(() => {
     const initialLines = Array.from({ length: 20 }, (_, i) => ({
       id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      speed: 0.5 + Math.random() * 2,
-      opacity: 0.2 + Math.random() * 0.3,
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      speed: Math.random() * 2 + 0.5,
+      opacity: Math.random() * 0.3 + 0.1,
     }));
     setLines(initialLines);
 
-    // Animate lines
     const interval = setInterval(() => {
       setLines(prevLines =>
         prevLines.map(line => ({
           ...line,
-          y: (line.y - line.speed) % 100,
-          opacity: 0.2 + Math.sin(Date.now() * 0.001 + line.id) * 0.3,
+          y: line.y + line.speed,
+          x: line.x + Math.sin(Date.now() * 0.001 + line.id) * 0.5,
         }))
       );
     }, 50);
@@ -129,44 +78,26 @@ const CompanyAnalysis: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!ticker) return;
+  const fetchData = async () => {
+    if (!ticker) return;
 
     try {
       setLoading(true);
+      console.log('🚀 Starting to fetch comprehensive analysis for:', ticker);
+      const data = await APIService.getComprehensiveAnalysis(ticker);
+      console.log('✅ Comprehensive analysis data received:', data);
+      setComprehensiveData(data);
       setError(null);
-
-        // Fetch all data in parallel
-        const [overviewData, dcfAnalysis, stockInfo] = await Promise.allSettled([
-          APIService.getCompanyOverview(ticker),
-          APIService.getDCFAnalysis(ticker),
-          APIService.getStockData(ticker)
-        ]);
-
-        // Handle overview data
-        if (overviewData.status === 'fulfilled') {
-          setOverview(overviewData.value);
-        } else {
-          console.error('Error fetching overview:', overviewData.reason);
-        }
-
-        // Handle DCF data
-        if (dcfAnalysis.status === 'fulfilled') {
-          setDcfData(dcfAnalysis.value);
-        } else {
-          console.error('Error fetching DCF analysis:', dcfAnalysis.reason);
-        }
-
-        // Handle stock data
-        if (stockInfo.status === 'fulfilled') {
-          setStockData(stockInfo.value);
-        } else {
-          console.error('Error fetching stock data:', stockInfo.reason);
-        }
-
     } catch (err) {
-        setError('Failed to load company data');
-        console.error('Error fetching data:', err);
+        console.error('❌ Error fetching comprehensive analysis:', err);
+
+        // Check if we're on ngrok and provide helpful message
+        const isNgrok = window.location.hostname.includes('ngrok');
+        if (isNgrok) {
+          setError('Company analysis features are not available when accessing through ngrok. To use all features including company analysis, DCF calculations, and financial data, please access the app locally at http://localhost:3000');
+        } else {
+          setError(`Failed to load company analysis: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        }
     } finally {
       setLoading(false);
     }
@@ -175,27 +106,53 @@ const CompanyAnalysis: React.FC = () => {
     fetchData();
   }, [ticker]);
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setActiveTab(newValue);
-  };
-
   const handleSearch = (query: string) => {
     if (query.trim()) {
       navigate(`/company/${query.toUpperCase()}/analysis`);
     }
   };
 
-  const getPerformanceIcon = () => {
-    if (!overview) return <TrendingFlat />;
-    const change = overview.overview?.change || 0;
-    return change >= 0 ? <TrendingUp /> : <TrendingDown />;
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
   };
 
-  const getPerformanceColor = () => {
-    if (!overview) return 'default';
-    const change = overview.overview?.change || 0;
-    return change >= 0 ? 'success' : 'error';
+  // Generate dynamic competitive advantage content
+  const competitiveContent = generateCompetitiveAdvantageContent(ticker || '', comprehensiveData);
+
+  // Theme configuration
+  const theme = {
+    background: darkMode
+      ? 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%)'
+      : 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+    cardBackground: darkMode
+      ? 'rgba(0, 0, 0, 0.8)'
+      : 'rgba(255, 255, 255, 0.9)',
+    contentBackground: darkMode
+      ? 'rgba(0, 212, 255, 0.05)'
+      : 'rgba(49, 130, 206, 0.05)',
+    textPrimary: darkMode ? '#ffffff' : '#1a202c',
+    textSecondary: darkMode ? '#b0b0b0' : '#4a5568',
+    accent: darkMode ? '#00d4ff' : '#3182ce',
+    border: darkMode ? 'rgba(0, 212, 255, 0.2)' : 'rgba(49, 130, 206, 0.2)',
+    cardShadow: darkMode
+      ? '0 8px 32px rgba(0, 212, 255, 0.2)'
+      : '0 8px 32px rgba(0, 0, 0, 0.1)',
+    contentShadow: darkMode
+      ? '0 4px 20px rgba(0, 212, 255, 0.1)'
+      : '0 4px 20px rgba(49, 130, 206, 0.1)',
+    topBar: darkMode ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)',
+    logoPath: darkMode ? '/logo_horizon.png' : '/logo_horizon_light.png',
   };
+
+  // Helper function for content box styling
+  const getContentBoxStyle = () => ({
+    p: 4,
+    background: theme.contentBackground,
+    borderRadius: 3,
+    border: `1px solid ${theme.border}`,
+    boxShadow: theme.contentShadow,
+    mb: 4,
+  });
 
   if (loading) {
     return (
@@ -208,25 +165,7 @@ const CompanyAnalysis: React.FC = () => {
   if (error) {
     return (
       <Container maxWidth="xl" sx={{ py: 4 }}>
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-        <Button variant="contained" onClick={() => navigate('/')}>
-          Back to Home
-        </Button>
-      </Container>
-    );
-  }
-
-  if (!overview) {
-  return (
-      <Container maxWidth="xl" sx={{ py: 4 }}>
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          Company data not found
-        </Alert>
-        <Button variant="contained" onClick={() => navigate('/')}>
-          Back to Home
-        </Button>
+        <Alert severity="error">{error}</Alert>
       </Container>
     );
   }
@@ -234,55 +173,90 @@ const CompanyAnalysis: React.FC = () => {
   return (
     <Box sx={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #000000 0%, #0a0a0a 50%, #000000 100%)',
-          position: 'relative',
-          overflow: 'hidden',
-        }}>
-      {/* Moving Lines Background */}
-      <Box sx={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        pointerEvents: 'none',
-        zIndex: 0,
-      }}>
+      background: theme.background,
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      {/* Animated Background Lines */}
         {lines.map((line) => (
           <Box
             key={line.id}
             sx={{
               position: 'absolute',
-              left: `${line.x}%`,
-              top: `${line.y}%`,
-              width: line.id % 3 === 0 ? '3px' : '2px',
-              height: line.id % 4 === 0 ? '120px' : '80px',
-              background: `linear-gradient(180deg,
-                transparent,
-                rgba(0, 212, 255, 0.1),
-                rgba(0, 212, 255, 0.3),
-                rgba(0, 212, 255, 0.4),
-                rgba(0, 212, 255, 0.3),
-                rgba(0, 212, 255, 0.1),
-                transparent
-              )`,
+            width: '2px',
+            height: '100px',
+            background: 'linear-gradient(45deg, rgba(0, 212, 255, 0.1), rgba(0, 212, 255, 0.3))',
+            left: `${line.x}px`,
+            top: `${line.y}px`,
               opacity: line.opacity,
-              transform: `rotate(${45 + (line.id % 3) * 15}deg)`,
-              filter: 'blur(0.5px)',
-              boxShadow: `0 0 15px rgba(0, 212, 255, 0.2)`,
-              animation: `${float} ${3 + Math.random() * 4}s ease-in-out infinite`,
-              animationDelay: `${Math.random() * 2}s`,
+            animation: `${float} 3s ease-in-out infinite`,
+            animationDelay: `${line.id * 0.1}s`,
+            zIndex: 0,
             }}
           />
         ))}
+
+      {/* Top Bar */}
+      <Box sx={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 80,
+        backgroundColor: theme.topBar,
+        backdropFilter: 'blur(10px)',
+        borderBottom: `1px solid ${theme.border}`,
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        px: 3,
+      }}>
+        {/* Logo in top bar */}
+        <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => navigate('/')}>
+          <img
+            src={theme.logoPath}
+            alt="Horizon Logo"
+            style={{
+              height: '40px',
+              width: 'auto',
+            }}
+          />
+        </Box>
+
+        {/* Theme Toggle Button */}
+        <Button
+          onClick={() => setDarkMode(!darkMode)}
+          sx={{
+            minWidth: 48,
+            height: 48,
+            borderRadius: '50%',
+            backgroundColor: darkMode ? 'rgba(0, 212, 255, 0.1)' : 'rgba(49, 130, 206, 0.1)',
+            border: `1px solid ${theme.border}`,
+            color: theme.accent,
+            '&:hover': {
+              backgroundColor: darkMode ? 'rgba(0, 212, 255, 0.2)' : 'rgba(49, 130, 206, 0.2)',
+              transform: 'scale(1.05)',
+              boxShadow: `0 0 20px ${theme.accent}40`,
+            },
+            transition: 'all 0.2s ease-in-out',
+          }}
+        >
+          {darkMode ? <LightMode /> : <DarkMode />}
+        </Button>
       </Box>
 
-      <Box sx={{ maxWidth: '1400px', mx: 'auto', p: 4, position: 'relative', zIndex: 1 }}>
-        {/* Header with Logo and Search */}
-        <Box sx={{ mb: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          {/* Logo */}
-          <Box
-            sx={{
+      <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 1, pt: 10 }}>
+        {/* Header */}
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          py: 3,
+          mb: 4
+        }}>
+          {/* Company Name */}
+          <Box sx={{
               display: 'flex',
               alignItems: 'center',
               cursor: 'pointer',
@@ -305,7 +279,7 @@ const CompanyAnalysis: React.FC = () => {
             <Typography
               variant="h5"
                 sx={{
-                color: '#00d4ff',
+                color: theme.accent,
                 fontWeight: 700,
                 textShadow: '0 0 20px rgba(0, 212, 255, 0.5)',
               }}
@@ -313,6 +287,7 @@ const CompanyAnalysis: React.FC = () => {
               Horizon
             </Typography>
           </Box>
+
 
           {/* Search Bar */}
           <Box sx={{ maxWidth: 400, width: '100%' }}>
@@ -328,18 +303,18 @@ const CompanyAnalysis: React.FC = () => {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Search sx={{ color: '#00d4ff' }} />
+                    <Search sx={{ color: theme.accent }} />
                   </InputAdornment>
                 ),
               }}
               sx={{
                 width: '100%',
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                  backgroundColor: theme.cardBackground,
                   borderRadius: 3,
                   height: 48,
                   backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(0, 212, 255, 0.3)',
+                  border: `1px solid ${theme.border}`,
                   '& fieldset': {
                     border: 'none',
                   },
@@ -350,19 +325,19 @@ const CompanyAnalysis: React.FC = () => {
                     border: 'none',
                   },
                   '&:hover': {
-                    border: '1px solid rgba(0, 212, 255, 0.6)',
-                    boxShadow: '0 0 20px rgba(0, 212, 255, 0.3)',
+                    border: `1px solid ${theme.accent}80`,
+                    boxShadow: `0 0 20px ${theme.accent}50`,
                   },
                   '&.Mui-focused': {
-                    border: '1px solid rgba(0, 212, 255, 0.8)',
-                    boxShadow: '0 0 30px rgba(0, 212, 255, 0.4)',
+                    border: `1px solid ${theme.accent}`,
+                    boxShadow: `0 0 30px ${theme.accent}80`,
                   },
                 },
                 '& .MuiInputBase-input': {
-                  color: '#ffffff',
+                  color: theme.textPrimary,
                   fontSize: '1rem',
                   '&::placeholder': {
-                    color: '#b0b0b0',
+                    color: theme.textSecondary,
                     opacity: 1,
                   },
                 },
@@ -373,512 +348,343 @@ const CompanyAnalysis: React.FC = () => {
 
         {/* Header */}
         <Box sx={{ mb: 6, textAlign: 'center' }}>
-                <Typography
-                  variant="h2"
-                  sx={{
-              fontSize: { xs: '2.5rem', md: '3.5rem' },
-                    fontWeight: 800,
-              background: 'linear-gradient(135deg, #00d4ff 0%, #4ddfff 50%, #ffffff 100%)',
-                    backgroundClip: 'text',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-              mb: 2,
-              textShadow: '0 0 40px rgba(0, 212, 255, 0.3)',
-            }}
-          >
-            {ticker} Analysis
-          </Typography>
           <Typography
-            variant="h5"
+            variant="h2"
             sx={{
-              color: '#b0b0b0',
-              fontWeight: 400,
+              fontSize: { xs: '2.5rem', md: '3.5rem' },
+              fontWeight: 800,
+              background: darkMode
+                ? 'linear-gradient(135deg, #00d4ff 0%, #4ddfff 50%, #ffffff 100%)'
+                : 'linear-gradient(135deg, #3182ce 0%, #2c5aa0 50%, #1a202c 100%)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
               mb: 2,
+              textShadow: darkMode ? '0 0 30px rgba(0, 212, 255, 0.3)' : '0 0 30px rgba(49, 130, 206, 0.3)',
             }}
           >
-            {overview.overview?.name || 'Company Name'}
+            {comprehensiveData?.company_name || 'Company Name'}
           </Typography>
         </Box>
 
         {/* Main Content Layout */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' }, gap: 4, mb: 6 }}>
-          {/* Stock Price Chart - Larger */}
-          <Card sx={{
-            background: 'rgba(0, 0, 0, 0.8)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(0, 212, 255, 0.3)',
-            borderRadius: 3,
-            boxShadow: '0 8px 32px rgba(0, 212, 255, 0.2)',
-            overflow: 'hidden',
-          }}>
-            <Box sx={{
-              p: 3,
-              borderBottom: '1px solid rgba(0, 212, 255, 0.2)',
-              background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%)',
-            }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography
-                  variant="h5"
-                  sx={{
-                    color: '#00d4ff',
-                    fontWeight: 700,
-                    textShadow: '0 0 20px rgba(0, 212, 255, 0.5)',
-                  }}
-                >
-                  {ticker} Stock Price & Forecast
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Typography variant="body2" sx={{ color: '#b0b0b0' }}>Show Forecast</Typography>
+      <Box sx={{ mb: 6 }}>
+        {/* Tabbed Interface */}
+        <Paper sx={{
+          background: theme.cardBackground,
+          backdropFilter: 'blur(10px)',
+          border: `1px solid ${theme.border}`,
+          borderRadius: 3,
+          overflow: 'hidden',
+          boxShadow: theme.cardShadow,
+        }}>
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            sx={{
+              borderBottom: `1px solid ${theme.border}`,
+              '& .MuiTab-root': {
+                color: theme.textSecondary,
+                fontWeight: 600,
+                textTransform: 'none',
+                fontSize: '1rem',
+                minHeight: 60,
+                '&.Mui-selected': {
+                  color: theme.accent,
+                },
+              },
+              '& .MuiTabs-indicator': {
+                backgroundColor: theme.accent,
+                height: 3,
+              },
+            }}
+          >
+            <Tab
+              icon={<ShowChart />}
+              label="Chart"
+              iconPosition="start"
+            />
+            <Tab
+              icon={<Assessment />}
+              label="Analysis"
+              iconPosition="start"
+            />
+            <Tab
+              icon={<Business />}
+              label="Competitive"
+              iconPosition="start"
+            />
+            <Tab
+              icon={<Timeline />}
+              label="Financials"
+              iconPosition="start"
+            />
+          </Tabs>
+
+          {/* Tab Content */}
+          <Box sx={{ p: 0 }}>
+            {/* Chart Tab */}
+            {activeTab === 0 && (
+              <Box sx={{ p: 4 }}>
+                <Box sx={{ mb: 3 }}>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      color: theme.accent,
+                      mb: 3,
+                      fontWeight: 700,
+                      textShadow: `0 0 20px ${theme.accent}50`,
+                    }}
+                  >
+                    {ticker} Stock Price & Forecast
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                  <Typography variant="body2" sx={{ color: theme.textSecondary }}>Show Forecast</Typography>
                   <Switch
-                    defaultChecked
+                      checked={showForecast}
+                      onChange={(e) => setShowForecast(e.target.checked)}
                     sx={{
                       '& .MuiSwitch-switchBase.Mui-checked': {
-                      color: '#00d4ff',
+                      color: theme.accent,
                       },
                       '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                        backgroundColor: '#00d4ff',
+                        backgroundColor: theme.accent,
                       },
                       '& .MuiSwitch-track': {
-                        backgroundColor: 'rgba(0, 212, 255, 0.3)',
+                        backgroundColor: `${theme.accent}50`,
                       },
                     }}
                   />
                 </Box>
               </Box>
-            </Box>
-            <Box sx={{ p: 3 }}>
               <Box sx={{ height: '500px', width: '100%' }}>
-                {stockData ? (
                   <StockChart
                     stockData={{
-                      symbol: stockData.ticker,
-                      price: stockData.current_price,
-                      change: stockData.price_change,
-                      changePercent: stockData.price_change_percent
+                      symbol: ticker || '',
+                      price: comprehensiveData?.current_price || 0,
+                      change: comprehensiveData?.price_change || 0,
+                      changePercent: comprehensiveData?.price_change_percent || 0,
                     }}
+                    showForecast={showForecast}
+                    onForecastToggle={setShowForecast}
                   />
-                ) : (
-                  <Box sx={{
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: 'rgba(0, 212, 255, 0.05)',
-                    borderRadius: 2,
-                    border: '2px dashed rgba(0, 212, 255, 0.3)',
-                  }}>
-                    <CircularProgress sx={{ color: '#00d4ff' }} />
                   </Box>
-                )}
               </Box>
-            </Box>
-          </Card>
+            )}
 
-          {/* DCF Analysis - Smaller and Compact */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {/* DCF Summary Card */}
-            <Card sx={{
-              background: 'rgba(0, 0, 0, 0.8)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(0, 212, 255, 0.3)',
-              borderRadius: 3,
-              boxShadow: '0 8px 32px rgba(0, 212, 255, 0.2)',
-              overflow: 'hidden',
-            }}>
-              <Box sx={{
-                p: 3,
-                borderBottom: '1px solid rgba(0, 212, 255, 0.2)',
-                background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%)',
-              }}>
+            {/* Analysis Tab */}
+            {activeTab === 1 && (
+              <Box sx={{ p: 4 }}>
+                {/* Analysis Summary */}
+                <Box sx={getContentBoxStyle()}>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      color: theme.accent,
+                      mb: 3,
+                      fontWeight: 700,
+                      textShadow: `0 0 20px ${theme.accent}50`,
+                    }}
+                  >
+                    Analysis Summary
+                  </Typography>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 3 }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ color: theme.textSecondary, mb: 1 }}>
+                        DCF Value
+                      </Typography>
+                      <Typography variant="h6" sx={{ color: theme.textPrimary, fontWeight: 600 }}>
+                        ${comprehensiveData?.summary?.dcf_value?.toFixed(2) || 'N/A'}
+                </Typography>
+              </Box>
+                    <Box>
+                      <Typography variant="body2" sx={{ color: theme.textSecondary, mb: 1 }}>
+                        Current Price
+                      </Typography>
+                      <Typography variant="h6" sx={{ color: theme.textPrimary, fontWeight: 600 }}>
+                        ${comprehensiveData?.current_price?.toFixed(2) || 'N/A'}
+                    </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" sx={{ color: theme.textSecondary, mb: 1 }}>
+                        Upside/Downside
+                        </Typography>
                 <Typography
                   variant="h6"
                   sx={{
-                    color: '#00d4ff',
-                    fontWeight: 700,
-                    textShadow: '0 0 20px rgba(0, 212, 255, 0.5)',
-                  }}
-                >
-                  DCF Analysis
-                </Typography>
-              </Box>
-              <Box sx={{ p: 3 }}>
-                {dcfData ? (
-                  <Box sx={{ textAlign: 'center' }}>
-                    <Typography
-                      variant="h4"
-                      sx={{
-                        color: '#00d4ff',
-                        fontWeight: 700,
-                        mb: 1,
-                        textShadow: '0 0 30px rgba(0, 212, 255, 0.6)',
-                      }}
-                    >
-                      ${dcfData.base_results.per_share_value?.toFixed(2) || 'N/A'}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#b0b0b0', mb: 2 }}>
-                      DCF Value per Share
-                    </Typography>
-
-                    {stockData && dcfData.base_results.per_share_value && (
-                      <>
-                        <Typography variant="body1" sx={{ color: '#ffffff', mb: 1 }}>
-                          Current: ${stockData.current_price?.toFixed(2)}
-                        </Typography>
-                        {dcfData.base_results.per_share_value > stockData.current_price ? (
-                          <Chip
-                            label="UNDERVALUED"
-                            sx={{
-                              fontSize: '0.9rem',
-                              fontWeight: 600,
-                              px: 2,
-                              py: 1,
-                              backgroundColor: 'rgba(0, 212, 255, 0.2)',
-                              color: '#00d4ff',
-                              border: '1px solid rgba(0, 212, 255, 0.5)',
-                              textShadow: '0 0 10px rgba(0, 212, 255, 0.5)',
-                            }}
-                          />
-                        ) : (
-                          <Chip
-                            label="OVERVALUED"
-                            sx={{
-                              fontSize: '0.9rem',
-                              fontWeight: 600,
-                              px: 2,
-                              py: 1,
-                              backgroundColor: 'rgba(255, 0, 0, 0.2)',
-                              color: '#ff4444',
-                              border: '1px solid rgba(255, 0, 0, 0.5)',
-                              textShadow: '0 0 10px rgba(255, 0, 0, 0.5)',
-                            }}
-                          />
-                        )}
-                        <Typography variant="body2" sx={{ color: '#b0b0b0', mt: 1 }}>
-                          {dcfData.base_results.per_share_value > stockData.current_price ?
-                            `${(((dcfData.base_results.per_share_value - stockData.current_price) / stockData.current_price) * 100).toFixed(1)}% upside` :
-                            `${(((stockData.current_price - dcfData.base_results.per_share_value) / dcfData.base_results.per_share_value) * 100).toFixed(1)}% overvalued`
-                          }
-                        </Typography>
-                      </>
-                    )}
-                  </Box>
-                ) : (
-                  <Box sx={{
-                    height: '120px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: 'rgba(0, 212, 255, 0.05)',
-                    borderRadius: 2,
-                    border: '2px dashed rgba(0, 212, 255, 0.3)',
-                  }}>
-                    <CircularProgress sx={{ color: '#00d4ff' }} />
-                  </Box>
-                )}
-              </Box>
-            </Card>
-
-            {/* Quick Stats Card */}
-            <Card sx={{
-              background: 'rgba(0, 0, 0, 0.8)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(0, 212, 255, 0.3)',
-              borderRadius: 3,
-              boxShadow: '0 8px 32px rgba(0, 212, 255, 0.2)',
-              overflow: 'hidden',
-            }}>
-              <Box sx={{
-                p: 3,
-                borderBottom: '1px solid rgba(0, 212, 255, 0.2)',
-                background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%)',
-              }}>
-                <Typography
-                  variant="h6"
-                  sx={{
-                    color: '#00d4ff',
-                    fontWeight: 700,
-                    textShadow: '0 0 20px rgba(0, 212, 255, 0.5)',
-                  }}
-                >
-                  Key Metrics
-                </Typography>
-              </Box>
-              <Box sx={{ p: 3 }}>
-                {stockData ? (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2" sx={{ color: '#b0b0b0' }}>Market Cap:</Typography>
-                      <Typography variant="body2" sx={{ color: '#ffffff' }}>
-                        ${stockData.market_cap ? (stockData.market_cap / 1e9).toFixed(1) + 'B' : 'N/A'}
+                          color: comprehensiveData?.summary?.dcf_value && comprehensiveData?.current_price
+                            ? (comprehensiveData.summary.dcf_value > comprehensiveData.current_price ? '#4caf50' : '#f44336')
+                            : '#b0b0b0',
+                          fontWeight: 600
+                        }}
+                      >
+                        {comprehensiveData?.summary?.dcf_value && comprehensiveData?.current_price
+                          ? `${((comprehensiveData.summary.dcf_value - comprehensiveData.current_price) / comprehensiveData.current_price * 100).toFixed(1)}%`
+                          : 'N/A'
+                        }
                       </Typography>
                     </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2" sx={{ color: '#b0b0b0' }}>P/E Ratio:</Typography>
-                      <Typography variant="body2" sx={{ color: '#ffffff' }}>
-                        {stockData.pe_ratio?.toFixed(2) || 'N/A'}
+                    <Box>
+                      <Typography variant="body2" sx={{ color: theme.textSecondary, mb: 1 }}>
+                        Moat Strength
+                      </Typography>
+                      <Typography variant="h6" sx={{ color: theme.textPrimary, fontWeight: 600 }}>
+                        {comprehensiveData?.summary?.moat_strength_score?.toFixed(1) || 'N/A'}/100
                       </Typography>
                     </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2" sx={{ color: '#b0b0b0' }}>Volume:</Typography>
-                      <Typography variant="body2" sx={{ color: '#ffffff' }}>
-                        {stockData.volume ? (stockData.volume / 1e6).toFixed(1) + 'M' : 'N/A'}
-                      </Typography>
-                    </Box>
-                    {dcfData && (
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2" sx={{ color: '#b0b0b0' }}>Growth Rate:</Typography>
-                        <Typography variant="body2" sx={{ color: '#ffffff' }}>
-                          {(dcfData.base_results.growth_rate * 100).toFixed(1)}%
-                        </Typography>
-                      </Box>
-                    )}
-                  </Box>
-                ) : (
-                  <Box sx={{
-                    height: '100px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: 'rgba(0, 212, 255, 0.05)',
-                    borderRadius: 2,
-                    border: '2px dashed rgba(0, 212, 255, 0.3)',
-                  }}>
-                    <CircularProgress sx={{ color: '#00d4ff' }} />
-                  </Box>
-                )}
-              </Box>
-        </Card>
           </Box>
       </Box>
 
-        {/* Investment Recommendation */}
-      <Card sx={{
-          background: 'rgba(0, 0, 0, 0.8)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(0, 212, 255, 0.3)',
-          borderRadius: 3,
-          boxShadow: '0 8px 32px rgba(0, 212, 255, 0.2)',
-        overflow: 'hidden',
-      }}>
-          <Box sx={{
-            p: 4,
-            borderBottom: '1px solid rgba(0, 212, 255, 0.2)',
-            background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%)',
-          }}>
+                {/* Investment Recommendation */}
+          <Box sx={getContentBoxStyle()}>
             <Typography
               variant="h5"
               sx={{
-                color: '#00d4ff',
+                color: theme.accent,
+                      mb: 3,
                 fontWeight: 700,
-                textShadow: '0 0 20px rgba(0, 212, 255, 0.5)',
+                textShadow: `0 0 20px ${theme.accent}50`,
               }}
             >
               Investment Recommendation
             </Typography>
-          </Box>
-          <Box sx={{ p: 4 }}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 4, mb: 4 }}>
-              <Box sx={{
-                textAlign: 'center',
-                p: 4,
-                background: 'rgba(0, 212, 255, 0.1)',
-                borderRadius: 3,
-                border: '1px solid rgba(0, 212, 255, 0.3)',
-                boxShadow: '0 4px 20px rgba(0, 212, 255, 0.2)',
-              }}>
-                <Typography variant="h6" sx={{ color: '#00d4ff', mb: 2, fontWeight: 600 }}>
-                  Current Price
+                  {comprehensiveData?.summary?.investment_recommendation ? (
+                    <Box>
+                      <Typography variant="h6" sx={{ color: theme.textPrimary, mb: 2, fontWeight: 600 }}>
+                        {comprehensiveData.summary.investment_recommendation}
                 </Typography>
-                <Typography
-                  variant="h3"
-                  sx={{
-                    color: '#ffffff',
-                    fontWeight: 700,
-                    mb: 1,
-                    textShadow: '0 0 20px rgba(0, 212, 255, 0.5)',
-                  }}
-                >
-                  ${stockData?.current_price?.toFixed(2) || 'N/A'}
+                      <Typography variant="body1" sx={{ color: theme.textSecondary, lineHeight: 1.6 }}>
+                        Based on DCF analysis showing {comprehensiveData.summary.dcf_value && comprehensiveData.current_price
+                          ? (comprehensiveData.summary.dcf_value > comprehensiveData.current_price ? 'upside potential' : 'downside risk')
+                          : 'mixed signals'
+                        } and competitive moat analysis.
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
-                  Market price today
+                    </Box>
+                  ) : (
+                    <Typography variant="body1" sx={{ color: theme.textSecondary }}>
+                      Loading recommendation...
                 </Typography>
+                  )}
+                </Box>
               </Box>
-              <Box sx={{
-                textAlign: 'center',
-                p: 4,
-                background: 'rgba(0, 212, 255, 0.1)',
-                borderRadius: 3,
-                border: '1px solid rgba(0, 212, 255, 0.3)',
-                boxShadow: '0 4px 20px rgba(0, 212, 255, 0.2)',
-              }}>
-                <Typography variant="h6" sx={{ color: '#00d4ff', mb: 2, fontWeight: 600 }}>
-                  DCF Value
-                </Typography>
-                <Typography
-                  variant="h3"
-            sx={{
-                  color: '#00d4ff',
-                    fontWeight: 700,
-                    mb: 1,
-                    textShadow: '0 0 20px rgba(0, 212, 255, 0.5)',
-                  }}
-                >
-                  ${dcfData?.base_results?.per_share_value?.toFixed(2) || 'N/A'}
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
-                  Intrinsic value
-                </Typography>
-              </Box>
-        </Box>
+            )}
 
-            <Box sx={{ textAlign: 'center', mb: 4 }}>
-              {stockData && dcfData?.base_results?.per_share_value ? (
-                <>
+            {/* Competitive Tab */}
+            {activeTab === 2 && (
+              <Box sx={{ p: 4 }}>
+                {/* Competitive Advantage Card */}
+              <Box sx={getContentBoxStyle()}>
                   <Typography
-                    variant="h2"
+                    variant="h5"
                     sx={{
-                      color: dcfData.base_results.per_share_value > stockData.current_price ? '#00d4ff' : '#ff4444',
-                      fontWeight: 800,
-                      mb: 2,
-                      textShadow: dcfData.base_results.per_share_value > stockData.current_price ?
-                        '0 0 30px rgba(0, 212, 255, 0.6)' :
-                        '0 0 30px rgba(255, 68, 68, 0.6)',
+                      color: theme.accent,
+                      mb: 3,
+                      fontWeight: 700,
+                      textShadow: `0 0 20px ${theme.accent}50`,
                     }}
                   >
-                    {dcfData.base_results.per_share_value > stockData.current_price ? 'BUY' : 'SELL'}
+                    Competitive Advantage
                   </Typography>
-                  <Typography variant="h5" sx={{ color: '#b0b0b0', mb: 3 }}>
-                    {dcfData.base_results.per_share_value > stockData.current_price ?
-                      `The stock is undervalued by ${(((dcfData.base_results.per_share_value - stockData.current_price) / stockData.current_price) * 100).toFixed(1)}%` :
-                      `The stock is overvalued by ${(((stockData.current_price - dcfData.base_results.per_share_value) / dcfData.base_results.per_share_value) * 100).toFixed(1)}%`
-                    }
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                    <Typography variant="h6" sx={{ color: theme.textPrimary, fontWeight: 600 }}>
+                      {comprehensiveData?.competitive?.moat_level || 'N/A'}
                   </Typography>
-                  <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 3 }}>
-                    <Box sx={{
-                      width: 250,
-                      height: 10,
-                      background: 'rgba(0, 212, 255, 0.2)',
-                      borderRadius: 2,
-                      position: 'relative',
-                      border: '1px solid rgba(0, 212, 255, 0.3)',
-                    }}>
-                      <Box sx={{
-                        position: 'absolute',
-                        left: '0%',
-                        top: 0,
-                        width: `${Math.min(100, (dcfData.base_results.per_share_value / stockData.current_price) * 100)}%`,
-                        height: '100%',
-                        background: dcfData.base_results.per_share_value > stockData.current_price ?
-                          'linear-gradient(90deg, #00d4ff 0%, #4ddfff 100%)' :
-                          'linear-gradient(90deg, #ff4444 0%, #ff6666 100%)',
-                        borderRadius: 2,
-                        boxShadow: dcfData.base_results.per_share_value > stockData.current_price ?
-                          '0 0 20px rgba(0, 212, 255, 0.5)' :
-                          '0 0 20px rgba(255, 68, 68, 0.5)',
-                      }} />
-                      <Box sx={{
-                        position: 'absolute',
-                        left: '50%',
-                        top: -6,
-                        width: 6,
-                        height: 22,
-                        background: '#ffffff',
-                        borderRadius: 1,
-                        boxShadow: '0 0 10px rgba(255, 255, 255, 0.5)',
-                      }} />
-                    </Box>
+                    <Chip
+                      label={`${comprehensiveData?.competitive?.overall_moat_score?.toFixed(1) || 'N/A'}/100`}
+                      sx={{
+                        backgroundColor: `${theme.accent}20`,
+                        color: theme.accent,
+                        border: `1px solid ${theme.accent}80`,
+                        fontWeight: 600,
+                      }}
+                    />
                   </Box>
-                  <Typography variant="body1" sx={{ color: '#b0b0b0' }}>
-                    Current Price: ${stockData.current_price.toFixed(2)} | DCF Value: ${dcfData.base_results.per_share_value.toFixed(2)}
+                  <Typography variant="body1" sx={{ color: theme.textSecondary, mb: 3, lineHeight: 1.6 }}>
+                    Top Advantage: <strong style={{ color: theme.accent }}>{comprehensiveData?.competitive?.top_advantage || 'N/A'}</strong>
                   </Typography>
-                </>
-              ) : (
-                <Typography variant="h6" sx={{ color: '#b0b0b0' }}>
-                  Loading recommendation...
+                  <Typography variant="body1" sx={{ color: theme.textSecondary, lineHeight: 1.6 }}>
+                    Weakest Area: <strong style={{ color: '#ff9800' }}>{comprehensiveData?.competitive?.weakest_area || 'N/A'}</strong>
                 </Typography>
-              )}
             </Box>
 
+                {/* Detailed Competitive Analysis */}
             <Box sx={{
-              p: 4,
-              background: 'rgba(0, 212, 255, 0.05)',
-              borderRadius: 3,
-              border: '1px solid rgba(0, 212, 255, 0.2)',
-              boxShadow: '0 4px 20px rgba(0, 212, 255, 0.1)',
+              ...getContentBoxStyle(),
+              mb: 0,
             }}>
-              <Typography
-                variant="h6"
-                sx={{
-                  color: '#00d4ff',
-                  mb: 3,
-                  fontWeight: 700,
-                  textShadow: '0 0 20px rgba(0, 212, 255, 0.5)',
-                }}
-              >
-                Investment Analysis
-              </Typography>
-              <Typography variant="body1" sx={{ color: '#b0b0b0', mb: 3, lineHeight: 1.6 }}>
-                Based on our DCF analysis, {ticker} is currently trading {dcfData?.base_results?.per_share_value && stockData?.current_price ?
-                  (dcfData.base_results.per_share_value > stockData.current_price ? 'below' : 'above') : 'relative to'} its intrinsic value.
-                This means the market is {dcfData?.base_results?.per_share_value && stockData?.current_price ?
-                  (dcfData.base_results.per_share_value > stockData.current_price ? 'undervaluing' : 'overvaluing') : 'evaluating'} the company's future cash flows.
-              </Typography>
-              <Typography variant="body1" sx={{ color: '#b0b0b0', mb: 3, lineHeight: 1.6 }}>
-                Key factors supporting this valuation:
-              </Typography>
-              <Box sx={{ pl: 2 }}>
-                <Typography variant="body2" sx={{ color: '#b0b0b0', mb: 2, display: 'flex', alignItems: 'center' }}>
-                  <Box sx={{
-                    width: 8,
-                    height: 8,
-                    background: 'linear-gradient(135deg, #00d4ff 0%, #4ddfff 100%)',
-                    borderRadius: '50%',
-                    mr: 2,
-                    boxShadow: '0 0 10px rgba(0, 212, 255, 0.5)',
-                  }} />
-                  Strong recurring revenue from services and ecosystem
+                <Typography
+                  variant="h6"
+                  sx={{
+                    color: theme.accent,
+                    mb: 3,
+                    fontWeight: 700,
+                    textShadow: `0 0 20px ${theme.accent}50`,
+                  }}
+                >
+                  {competitiveContent.title}
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#b0b0b0', mb: 2, display: 'flex', alignItems: 'center' }}>
+                  <Typography variant="body1" sx={{ color: theme.textSecondary, mb: 3, lineHeight: 1.6 }}>
+                    {competitiveContent.introduction}
+                  </Typography>
+
+                  {competitiveContent.advantages.map((advantage, index) => (
+                    <Box key={index} sx={{ mb: 3 }}>
+                      <Typography variant="h6" sx={{ color: theme.accent, mb: 2, fontWeight: 600 }}>
+                        {advantage.title}
+                      </Typography>
+                      {advantage.points.map((point, pointIndex) => (
+                        <Typography key={pointIndex} variant="body2" sx={{ color: theme.textSecondary, mb: 2, lineHeight: 1.6 }}>
+                          • {point}
+                        </Typography>
+                      ))}
+                    </Box>
+                  ))}
+
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="h6" sx={{ color: theme.accent, mb: 2, fontWeight: 600 }}>
+                      {competitiveContent.competitorAnalysis.title}
+                    </Typography>
+                    {competitiveContent.competitorAnalysis.points.map((point, index) => (
+                      <Typography key={index} variant="body2" sx={{ color: theme.textSecondary, mb: 2, lineHeight: 1.6 }}>
+                        • {point}
+                      </Typography>
+                    ))}
+                  </Box>
+
                   <Box sx={{
-                    width: 8,
-                    height: 8,
-                    background: 'linear-gradient(135deg, #00d4ff 0%, #4ddfff 100%)',
-                    borderRadius: '50%',
-                    mr: 2,
-                    boxShadow: '0 0 10px rgba(0, 212, 255, 0.5)',
-                  }} />
-                  Premium pricing power and brand loyalty
+                    p: 3,
+                    background: darkMode ? 'rgba(0, 212, 255, 0.1)' : 'rgba(49, 130, 206, 0.1)',
+                    borderRadius: 2,
+                    border: `1px solid ${theme.accent}50`,
+                    mt: 3
+                  }}>
+                    <Typography variant="h6" sx={{ color: theme.accent, mb: 2, fontWeight: 600 }}>
+                      📌 In Summary
+                    </Typography>
+                    <Typography variant="body1" sx={{ color: theme.textPrimary, lineHeight: 1.6 }}>
+                      {competitiveContent.summary}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+            )}
+
+            {/* Financials Tab */}
+            {activeTab === 3 && (
+              <Box sx={{ p: 4 }}>
+                <Typography variant="h5" sx={{ color: theme.accent, mb: 3, fontWeight: 700 }}>
+                  Financial Data
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#b0b0b0', mb: 2, display: 'flex', alignItems: 'center' }}>
-                  <Box sx={{
-                    width: 8,
-                    height: 8,
-                    background: 'linear-gradient(135deg, #00d4ff 0%, #4ddfff 100%)',
-                    borderRadius: '50%',
-                    mr: 2,
-                    boxShadow: '0 0 10px rgba(0, 212, 255, 0.5)',
-                  }} />
-                  Consistent cash flow generation and shareholder returns
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#b0b0b0', display: 'flex', alignItems: 'center' }}>
-                  <Box sx={{
-                    width: 8,
-                    height: 8,
-                    background: 'linear-gradient(135deg, #00d4ff 0%, #4ddfff 100%)',
-                    borderRadius: '50%',
-                    mr: 2,
-                    boxShadow: '0 0 10px rgba(0, 212, 255, 0.5)',
-                  }} />
-                  Market leadership in multiple product categories
+                <Typography variant="body1" sx={{ color: theme.textSecondary }}>
+                  Financial data and metrics will be displayed here. This tab can be expanded to show detailed financial statements, ratios, and historical performance data.
                 </Typography>
               </Box>
-            </Box>
+            )}
           </Box>
-      </Card>
+        </Paper>
       </Box>
+      </Container>
     </Box>
-
   );
 };
 

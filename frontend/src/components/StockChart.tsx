@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Button, Typography, ToggleButton, ToggleButtonGroup, CircularProgress, Switch, FormControlLabel, Chip } from '@mui/material';
+import { Box, Button, Typography, CircularProgress, Switch, FormControlLabel } from '@mui/material';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ReferenceLine } from 'recharts';
 import { APIService, HistoricalData } from '../services/api';
 
@@ -10,14 +10,14 @@ interface StockChartProps {
     change: number;
     changePercent: number;
   };
+  showForecast?: boolean;
+  onForecastToggle?: (showForecast: boolean) => void;
 }
 
-export function StockChart({ stockData }: StockChartProps) {
+export function StockChart({ stockData, showForecast = true, onForecastToggle }: StockChartProps) {
   const [selectedPeriod, setSelectedPeriod] = useState('6M');
-  const [chartType, setChartType] = useState('line');
-  const [showIndicators, setShowIndicators] = useState(false);
-  const [showForecast, setShowForecast] = useState(true);
-  const [forecastScenario, setForecastScenario] = useState('base');
+  const [chartType] = useState('line');
+  const [forecastScenario] = useState('base');
   const [historicalData, setHistoricalData] = useState<HistoricalData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -403,7 +403,7 @@ export function StockChart({ stockData }: StockChartProps) {
             control={
               <Switch
                 checked={showForecast}
-                onChange={(e) => setShowForecast(e.target.checked)}
+                onChange={(e) => onForecastToggle?.(e.target.checked)}
                 sx={{
                   '& .MuiSwitch-switchBase.Mui-checked': {
                     color: '#00d4ff',

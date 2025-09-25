@@ -33,36 +33,36 @@ A comprehensive financial analysis tool for S&P 500 companies using Discounted C
    pre-commit run --all-files
 
    # Verify test coverage
-   uv run coverage run -m pytest tests/
+   uv run coverage run -m pytest backend/tests
    uv run coverage report
    ```
 
 4. **Run analysis**:
    ```bash
    # Basic company analysis
-   python src/main.py --ticker AAPL
+   python -m backend.cli --ticker AAPL
 
    # DCF analysis
-   python src/main.py --ticker AAPL --dcf --y 3 --eg 0.15 --steps 2 --s 0.10
+   python -m backend.cli --ticker AAPL --dcf --y 3 --eg 0.15 --steps 2 --s 0.10
 
    # Sensitivity analysis
-   python src/main.py --ticker AAPL --sensitivity --sensitivity-steps 11
+   python -m backend.cli --ticker AAPL --sensitivity --sensitivity-steps 11
    ```
 
 ## Usage Examples
 
 ```bash
 # Company overview
-python src/main.py --ticker AAPL --overview
+python -m backend.cli --ticker AAPL --overview
 
 # List available companies
-python src/main.py --list
+python -m backend.cli --list
 
 # Analyze all companies
-python src/main.py --all
+python -m backend.cli --all
 
 # DCF analysis with custom parameters
-python src/main.py --ticker AAPL --dcf --y 5 --eg 0.20 --steps 3 --s 0.05
+python -m backend.cli --ticker AAPL --dcf --y 5 --eg 0.20 --steps 3 --s 0.05
 ```
 
 ## Development
@@ -89,7 +89,7 @@ pre-commit run coverage-check
 
 ```bash
 # Check coverage
-uv run coverage run -m pytest tests/
+uv run coverage run -m pytest backend/tests
 uv run coverage report --show-missing
 
 # Generate HTML coverage report
@@ -106,25 +106,29 @@ ruff format .
 ruff check .
 
 # Run tests
-uv run pytest tests/
+uv run pytest backend/tests
 ```
 
 ## Project Structure
 
 ```
 DCF_projections/
-├── src/                          # Source code
-│   ├── app/                      # Main application
-│   │   ├── core/                 # Core business logic
-│   │   ├── services/             # Business logic layer
-│   │   └── __init__.py
-│   └── main.py                   # CLI entry point
-├── tests/                        # Test suite
-│   ├── unit/                     # Unit tests
-│   └── integration/              # Integration tests
-├── config/                       # Configuration
-│   └── settings.py               # App settings
-├── .pre-commit-config.yaml       # Pre-commit hooks
+├── backend/                      # FastAPI + CLI backend
+│   ├── app/                      # Application package
+│   │   ├── api/                  # API routers and endpoints
+│   │   │   └── endpoints/
+│   │   ├── core/                 # Core domain logic
+│   │   ├── schemas/              # Pydantic models
+│   │   ├── services/             # Service layer abstractions
+│   │   └── utils/                # Shared utilities
+│   ├── cli.py                    # CLI entry point
+│   ├── main.py                   # FastAPI entry point
+│   └── tests/                    # Backend tests
+├── frontend/                     # React application
+├── docs/                         # Documentation
+├── scripts/                      # Automation scripts
+├── config/                       # Legacy configuration shim
+├── run.sh                        # Full-stack launcher
 └── pyproject.toml                # Project configuration
 ```
 
@@ -154,12 +158,12 @@ Edit `config/settings.py` to customize:
 uv run pytest
 
 # Run with coverage
-uv run coverage run -m pytest tests/
+uv run coverage run -m pytest backend/tests
 uv run coverage report
 
 # Run specific test files
-uv run pytest tests/unit/test_dcf_calculations.py
-uv run pytest tests/unit/test_sensitivity_analysis.py
+uv run pytest backend/tests/unit/test_dcf_calculations.py
+uv run pytest backend/tests/unit/test_sensitivity_analysis.py
 ```
 
 **Note**: The UI file is excluded from the repository via `.gitignore` to keep it focused on CLI functionality.

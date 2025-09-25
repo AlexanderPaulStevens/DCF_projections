@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { Box } from '@mui/material';
+import { Box, Alert, AlertTitle } from '@mui/material';
 import CompanySearch from './components/CompanySearch';
 import CompanyOverview from './components/CompanyOverview';
 import CompanyAnalysis from './components/CompanyAnalysis';
@@ -11,7 +11,6 @@ import FinancialRatios from './components/FinancialRatios';
 import SensitivityAnalysis from './components/SensitivityAnalysis';
 import Header from './components/Header';
 import MarketsPage from './components/MarketsPage';
-// import PortfolioAnalyzer from './components/PortfolioAnalyzer'; // Backend functionality preserved
 import './App.css';
 
 // Create Yahoo Finance-style theme
@@ -120,10 +119,25 @@ const yahooTheme = createTheme({
 const AppContent = () => {
   const location = useLocation();
   const showHeader = !location.pathname.includes('/analysis');
+  const isNgrok = window.location.hostname.includes('ngrok');
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       {showHeader && <Header />}
+      {isNgrok && (
+        <Alert severity="info" sx={{
+          borderRadius: 0,
+          backgroundColor: '#e3f2fd',
+          borderBottom: '1px solid #2196f3',
+          '& .MuiAlert-message': {
+            width: '100%'
+          }
+        }}>
+          <AlertTitle>Limited Access Mode</AlertTitle>
+          You're accessing this app through ngrok. Some features like company analysis, DCF calculations, and financial data are not available.
+          For full functionality, please access the app locally at <strong>http://localhost:3000</strong>
+        </Alert>
+      )}
       <Box sx={{ flexGrow: 1, backgroundColor: '#f8f9fa' }}>
         <Routes>
           <Route path="/" element={<CompanySearch />} />
@@ -133,7 +147,6 @@ const AppContent = () => {
           <Route path="/company/:ticker/dcf" element={<DCFAnalysis />} />
           <Route path="/company/:ticker/ratios" element={<FinancialRatios />} />
           <Route path="/company/:ticker/sensitivity" element={<SensitivityAnalysis />} />
-          {/* <Route path="/portfolio" element={<PortfolioAnalyzer />} /> Backend functionality preserved */}
         </Routes>
       </Box>
     </Box>

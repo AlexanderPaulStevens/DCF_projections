@@ -1,53 +1,14 @@
-import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   AppBar,
   Toolbar,
   Typography,
   Box,
-  Button,
-  IconButton,
-  Menu,
-  MenuItem,
-  Divider,
-  Badge,
 } from '@mui/material';
-import {
-  Star,
-  Notifications,
-  AccountCircle,
-  BarChart,
-  ShowChart,
-  Timeline,
-  Settings,
-  Logout,
-} from '@mui/icons-material';
 
 const Header: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [notificationAnchor, setNotificationAnchor] = useState<null | HTMLElement>(null);
-
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleNotificationOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setNotificationAnchor(event.currentTarget);
-  };
-
-  const handleNotificationClose = () => {
-    setNotificationAnchor(null);
-  };
-
-  const isActiveRoute = (path: string) => {
-    return location.pathname.includes(path);
-  };
 
   return (
     <AppBar

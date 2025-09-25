@@ -57,10 +57,10 @@ test:
 
 # Testing and coverage
 test-coverage:
-	python -m pytest tests/ --cov=src --cov-report=term-missing
+	python -m pytest backend/tests --cov=backend --cov-report=term-missing
 
 coverage-report:
-	python -m pytest tests/ --cov=src --cov-report=html
+	python -m pytest backend/tests --cov=backend --cov-report=html
 	@echo "Coverage report generated in htmlcov/index.html"
 	@echo "Open htmlcov/index.html in your browser to view the report"
 
@@ -96,16 +96,16 @@ scrape-wikipedia:
 
 # Example runs
 run-demo:
-	uv run python src/main.py --ticker AAPL --overview
+	uv run python -m backend.cli --ticker AAPL --overview
 
 run-dcf:
-	uv run python src/main.py --ticker AAPL --dcf --y 3 --eg 0.15 --steps 2 --s 0.10
+	uv run python -m backend.cli --ticker AAPL --dcf --y 3 --eg 0.15 --steps 2 --s 0.10
 
 run-sensitivity:
-	uv run python src/main.py --ticker AAPL --sensitivity --sensitivity-steps 11
+	uv run python -m backend.cli --ticker AAPL --sensitivity --sensitivity-steps 11
 
 run-ratios:
-	uv run python src/main.py --ticker AAPL --ratios
+	uv run python -m backend.cli --ticker AAPL --ratios
 
 # Cleanup
 clean:

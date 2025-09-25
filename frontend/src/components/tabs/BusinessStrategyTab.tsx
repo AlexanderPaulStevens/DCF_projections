@@ -6,10 +6,8 @@ import {
   Typography,
   Box,
   CircularProgress,
-  Alert,
   Chip,
   LinearProgress,
-  Grid,
   Divider,
   List,
   ListItem,
@@ -22,20 +20,18 @@ import {
 import {
   Business,
   Assessment,
-  Warning,
   CheckCircle,
   Error,
   Info,
   TrendingUp,
-  TrendingDown,
   Security,
   Speed,
   Psychology,
   Lightbulb,
   ExpandMore
 } from '@mui/icons-material';
-import { RadialBarChart, RadialBar, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { APIService, BusinessStrategyAnalysis, StrategyInsight, SurvivalMetrics } from '../../services/api';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { APIService, BusinessStrategyAnalysis, StrategyInsight } from '../../services/api';
 
 interface StockData {
   price: number;
@@ -186,12 +182,6 @@ export function BusinessStrategyTab({ stockData }: BusinessStrategyTabProps) {
     { name: 'Innovation Level', value: strategyData.business_model_analysis.innovation_level, fill: '#9c27b0' }
   ];
 
-  const survivalMetricsData = [
-    { name: 'Current Ratio', value: strategyData.survival_metrics.current_ratio || 0, fill: '#00d4ff' },
-    { name: 'Debt to Equity', value: strategyData.survival_metrics.debt_to_equity || 0, fill: '#ff5722' },
-    { name: 'Interest Coverage', value: strategyData.survival_metrics.interest_coverage || 0, fill: '#4caf50' },
-    { name: 'Cash Ratio', value: strategyData.survival_metrics.cash_ratio || 0, fill: '#ff9800' }
-  ];
 
   // Group strategy insights by category
   const insightsByCategory = strategyData.strategy_insights.reduce((acc, insight) => {

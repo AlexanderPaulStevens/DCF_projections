@@ -10,9 +10,18 @@ if [ -f "config.env" ]; then
     echo "📍 API Host: $API_HOST"
     echo "🔌 API Port: $API_PORT"
     echo "🌐 Frontend Port: $FRONTEND_PORT"
+
+    # Check if IP address needs updating
+    CURRENT_IP=$(ifconfig | grep -E "inet [0-9]" | grep -v 127.0.0.1 | head -1 | awk '{print $2}')
+    if [ ! -z "$CURRENT_IP" ] && [ "$CURRENT_IP" != "$API_HOST" ]; then
+        echo "⚠️  IP address mismatch detected!"
+        echo "   Config file has: $API_HOST"
+        echo "   Current network IP: $CURRENT_IP"
+        echo "   Update config.env with: API_HOST=$CURRENT_IP"
+    fi
 else
     echo "⚠️ config.env not found, using default values"
-    API_HOST="192.168.0.115"
+    API_HOST="localhost"
     API_PORT="8000"
     FRONTEND_PORT="3000"
     BACKEND_HOST="0.0.0.0"
@@ -73,7 +82,7 @@ echo "   Health check: http://$BACKEND_HOST:$BACKEND_PORT/health"
 echo ""
 
 # Start the API in the background
-uv run uvicorn src.api.main:app \
+uv run uvicorn backend.main:app \
     --host $BACKEND_HOST \
     --port $BACKEND_PORT \
     --reload \
@@ -93,16 +102,6 @@ fi
 
 echo "✅ API is running on http://$BACKEND_HOST:$BACKEND_PORT"
 echo ""
-
-echo "🎨 Starting React frontend..."
-echo "   Frontend will be available at: http://localhost:$FRONTEND_PORT"
-echo ""
-
-# Change to frontend directory and start React
-cd frontend
-npm start &
-FRONTEND_PID=$!
-cd ..
 
 # Start ngrok for external access with robust error handling
 echo "🌐 Starting ngrok for external access..."
@@ -127,35 +126,61 @@ else
         echo "✅ Ngrok configuration verified"
     fi
 
-    # Start ngrok with proper logging
-    echo "🚀 Starting fresh ngrok tunnel..."
+    # Start ngrok tunnels for both frontend and API
+    echo "🚀 Starting ngrok tunnels..."
+    echo "   - Frontend tunnel (port $FRONTEND_PORT)"
+    echo "   - API tunnel (port $BACKEND_PORT)"
+
+    # Start frontend tunnel
     uv run ngrok http $FRONTEND_PORT --log=stdout &
-    NGROK_PID=$!
+    NGROK_FRONTEND_PID=$!
+
+    # Start API tunnel
+    uv run ngrok http $BACKEND_PORT --log=stdout &
+    NGROK_API_PID=$!
+
+    NGROK_PID="$NGROK_FRONTEND_PID $NGROK_API_PID"
 
     # Wait for ngrok to start and get the URL
     echo "⏳ Waiting for ngrok to start..."
     sleep 5
 
-    # Get ngrok URL with better error handling and retry logic
-    echo "🔍 Getting ngrok public URL..."
-    NGROK_URL=""
+    # Get ngrok URLs with better error handling and retry logic
+    echo "🔍 Getting ngrok public URLs..."
+    NGROK_FRONTEND_URL=""
+    NGROK_API_URL=""
     MAX_ATTEMPTS=15
     ATTEMPT=0
 
-    while [ $ATTEMPT -lt $MAX_ATTEMPTS ] && [ -z "$NGROK_URL" ]; do
+    while [ $ATTEMPT -lt $MAX_ATTEMPTS ] && ([ -z "$NGROK_FRONTEND_URL" ] || [ -z "$NGROK_API_URL" ]); do
         ATTEMPT=$((ATTEMPT + 1))
-        echo "   Attempt $ATTEMPT/$MAX_ATTEMPTS to get ngrok URL..."
+        echo "   Attempt $ATTEMPT/$MAX_ATTEMPTS to get ngrok URLs..."
 
         if command -v curl &> /dev/null; then
-            # Try to get the tunnel info from ngrok API
-            TUNNEL_INFO=$(curl -s http://localhost:4040/api/tunnels 2>/dev/null)
+            # Try to get the tunnel info from both ngrok API ports
+            TUNNEL_INFO_4040=$(curl -s http://localhost:4040/api/tunnels 2>/dev/null)
+            TUNNEL_INFO_4041=$(curl -s http://localhost:4041/api/tunnels 2>/dev/null)
 
-            if [ ! -z "$TUNNEL_INFO" ]; then
-                NGROK_URL=$(echo "$TUNNEL_INFO" | grep -o '"public_url":"[^"]*"' | head -1 | cut -d'"' -f4)
+            if [ ! -z "$TUNNEL_INFO_4040" ] || [ ! -z "$TUNNEL_INFO_4041" ]; then
+                # Extract URLs using jq if available, otherwise use grep
+                if command -v jq &> /dev/null; then
+                    # Use jq for more reliable JSON parsing
+                    NGROK_FRONTEND_URL=$(echo "$TUNNEL_INFO_4041" | jq -r '.tunnels[] | select(.config.addr == "http://localhost:3000") | .public_url' 2>/dev/null)
+                    NGROK_API_URL=$(echo "$TUNNEL_INFO_4040" | jq -r '.tunnels[] | select(.config.addr == "http://localhost:8000") | .public_url' 2>/dev/null)
+                else
+                    # Fallback to grep method
+                    NGROK_FRONTEND_URL=$(echo "$TUNNEL_INFO_4041" | grep -o '"public_url":"[^"]*"' | head -1 | cut -d'"' -f4)
+                    NGROK_API_URL=$(echo "$TUNNEL_INFO_4040" | grep -o '"public_url":"[^"]*"' | head -1 | cut -d'"' -f4)
+                fi
 
-                if [ ! -z "$NGROK_URL" ]; then
-                    echo "✅ External Access URL: $NGROK_URL"
-                    echo "   Share this URL with people on different networks!"
+                if [ ! -z "$NGROK_FRONTEND_URL" ] && [ ! -z "$NGROK_API_URL" ]; then
+                    echo "✅ Frontend URL: $NGROK_FRONTEND_URL"
+                    echo "✅ API URL: $NGROK_API_URL"
+                    echo "   Share the frontend URL with people on different networks!"
+
+                    # Export the ngrok API URL for the React app
+                    export REACT_APP_NGROK_API_URL="$NGROK_API_URL"
+                    echo "🔧 Set REACT_APP_NGROK_API_URL=$NGROK_API_URL"
                     break
                 fi
             else
@@ -169,8 +194,8 @@ else
         fi
     done
 
-    if [ -z "$NGROK_URL" ]; then
-        echo "⚠️  Could not get ngrok URL automatically"
+    if [ -z "$NGROK_FRONTEND_URL" ] || [ -z "$NGROK_API_URL" ]; then
+        echo "⚠️  Could not get ngrok URLs automatically"
         echo "   This might be due to:"
         echo "   - Ngrok still starting up (check http://localhost:4040)"
         echo "   - Network/firewall issues"
@@ -184,6 +209,17 @@ else
     fi
 fi
 
+# Start React frontend after ngrok URLs are obtained
+echo "🎨 Starting React frontend..."
+echo "   Frontend will be available at: http://localhost:$FRONTEND_PORT"
+echo ""
+
+# Change to frontend directory and start React with environment variables
+cd frontend
+REACT_APP_NGROK_API_URL="$NGROK_API_URL" REACT_APP_API_HOST="$API_HOST" REACT_APP_API_PORT="$API_PORT" npm start &
+FRONTEND_PID=$!
+cd ..
+
 # Function to cleanup background processes
 cleanup() {
     echo ""
@@ -192,10 +228,11 @@ cleanup() {
     # Kill processes by PID if they exist
     [ ! -z "$API_PID" ] && kill $API_PID 2>/dev/null || true
     [ ! -z "$FRONTEND_PID" ] && kill $FRONTEND_PID 2>/dev/null || true
-    [ ! -z "$NGROK_PID" ] && kill $NGROK_PID 2>/dev/null || true
+    [ ! -z "$NGROK_FRONTEND_PID" ] && kill $NGROK_FRONTEND_PID 2>/dev/null || true
+    [ ! -z "$NGROK_API_PID" ] && kill $NGROK_API_PID 2>/dev/null || true
 
     # Also kill by process name to ensure cleanup
-    pkill -f "uvicorn src.api.main:app" 2>/dev/null || true
+    pkill -f "uvicorn backend.main:app" 2>/dev/null || true
     pkill -f "npm start" 2>/dev/null || true
     pkill -f "ngrok" 2>/dev/null || true
 
