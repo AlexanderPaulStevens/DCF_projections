@@ -1,0 +1,41 @@
+# Backend-specific dockerignore
+.git/
+.gitignore
+README.md
+*.md
+.env
+.env.local
+.env.production
+.env.development
+
+# Exclude company data (use Cloud Storage instead)
+company_data/
+**/company_data/
+
+# Ignore test files
+tests/
+**/test_*.py
+**/*_test.py
+
+# Ignore development files
+.vscode/
+.idea/
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+.coverage
+htmlcov/

@@ -1,8 +1,6 @@
 ---
-alwaysApply: true
+alwaysApply: false
 ---
-
-
 # Cursor Rules for DCF Projections
 
 ## Import Rules

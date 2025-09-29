@@ -1,0 +1,31 @@
+# Ignore frontend directory for backend builds
+frontend/
+frontend/**
+
+# Ignore other unnecessary files
+.git/
+.gitignore
+README.md
+*.md
+node_modules/
+.env
+.env.local
+.env.production
+.env.development
+
+# Ignore test files
+tests/
+**/test_*.py
+**/*_test.py
+
+# Ignore development files
+.vscode/
+.idea/
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Ignore OS files
+.DS_Store
+Thumbs.db

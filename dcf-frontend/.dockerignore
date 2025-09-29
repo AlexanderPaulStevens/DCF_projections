@@ -1,0 +1,29 @@
+# Frontend-specific dockerignore
+.git/
+.gitignore
+README.md
+*.md
+.env
+.env.local
+.env.production
+.env.development
+
+# Ignore development files
+.vscode/
+.idea/
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore test files
+src/**/*.test.*
+src/**/*.spec.*
+__tests__/
+
+# build/
+# dist/

@@ -117,4 +117,22 @@ clean:
 	find . -type d -name ".pytest_cache" -exec rm -rf {} +
 	find . -type d -name ".ruff_cache" -exec rm -rf {} +
 	find . -type d -name ".mypy_cache" -exec rm -rf {} +
-	rm -rf build/ dist/ .eggs/x
+	rm -rf build/ dist/ .eggs/
+	# Frontend cache cleanup
+	rm -rf dcf-frontend/node_modules/.cache/
+	rm -rf dcf-frontend/build/
+	rm -rf frontend/node_modules/.cache/
+	rm -rf frontend/build/
+	# Additional cleanup
+	find . -name "*.log" -delete
+	find . -name ".eslintcache" -delete
+	find . -name ".stylelintcache" -delete
+	find . -name ".DS_Store" -delete
+	find . -name "Thumbs.db" -delete
+	find . -name "*.swp" -delete
+	find . -name "*.swo" -delete
+	find . -name "*~" -delete
+	rm -rf tmp/ temp/ logs/
+	rm -rf coverage/ .nyc_output/
+	rm -rf .parcel-cache/ .turbo/
+	rm -rf .vscode-test/
