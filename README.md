@@ -1,172 +1,87 @@
-# DCF Projections
+# Horizon - Financial Analysis Platform
 
-[![Code Coverage](https://img.shields.io/badge/coverage-84%25-brightgreen)](https://github.com/AlexanderPaulStevens/DCF_projections)
-[![Pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
-[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-
-A comprehensive financial analysis tool for S&P 500 companies using Discounted Cash Flow (DCF) calculations and sensitivity analysis.
+A comprehensive financial analysis platform for S&P 500 companies using Discounted Cash Flow (DCF) calculations and real-time market data.
 
 ## Features
 
-- **S&P 500 Data Scraping**: Automated collection of financial data from SEC EDGAR
+- **Real-time Data**: Yahoo Finance API integration for live stock data
 - **DCF Analysis**: Multi-scenario discounted cash flow calculations
-- **Sensitivity Analysis**: Comprehensive sensitivity analysis with customizable parameters
-- **Company Overview**: Detailed financial metrics and company information
-- **CLI Interface**: Command-line interface for batch processing and automation
-- **Data Export**: JSON export of all analysis results
+- **Company Search**: Real-time search across S&P 500 companies
+- **Modern Web Interface**: React-based frontend with interactive charts
+- **REST API**: FastAPI backend with comprehensive financial analysis endpoints
 
 ## Quick Start
 
 1. **Install dependencies**:
    ```bash
-   uv sync
+   make install
    ```
 
-2. **Set up pre-commit hooks** (required for development):
+2. **Run the application**:
    ```bash
-   pre-commit install
+   ./run.sh
    ```
 
-3. **Verify setup**:
-   ```bash
-   # Check that pre-commit hooks are working
-   pre-commit run --all-files
+3. **Access the application**:
+   - Frontend: http://localhost:3001
+   - Backend API: http://localhost:8001
+   - API Documentation: http://localhost:8001/docs
 
-   # Verify test coverage
-   uv run coverage run -m pytest backend/tests
-   uv run coverage report
-   ```
+## Architecture
 
-4. **Run analysis**:
-   ```bash
-   # Basic company analysis
-   python -m backend.cli --ticker AAPL
+- **Yahoo Finance API**: Primary data source for real-time financial data
+- **Google Cloud Storage**: S&P 500 companies list persistence
+- **FastAPI Backend**: Real-time financial data and DCF calculations
+- **React Frontend**: Modern UI with Material-UI components
 
-   # DCF analysis
-   python -m backend.cli --ticker AAPL --dcf --y 3 --eg 0.15 --steps 2 --s 0.10
+## Usage
 
-   # Sensitivity analysis
-   python -m backend.cli --ticker AAPL --sensitivity --sensitivity-steps 11
-   ```
-
-## Usage Examples
-
-```bash
-# Company overview
-python -m backend.cli --ticker AAPL --overview
-
-# List available companies
-python -m backend.cli --list
-
-# Analyze all companies
-python -m backend.cli --all
-
-# DCF analysis with custom parameters
-python -m backend.cli --ticker AAPL --dcf --y 5 --eg 0.20 --steps 3 --s 0.05
-```
+- **Search Companies**: Use the search bar to find any S&P 500 company
+- **Stock Analysis**: View detailed stock price charts and metrics
+- **DCF Analysis**: Run discounted cash flow calculations with custom parameters
+- **Financial Ratios**: Analyze key financial metrics and ratios
 
 ## Development
 
-### Code Quality & Testing
-
-This project enforces high code quality standards through automated checks:
-
-#### **Pre-commit Hooks**
 ```bash
-# Install pre-commit hooks
-pre-commit install
+# Install dependencies
+uv sync
 
-# Run all pre-commit checks
-pre-commit run --all-files
+# Run tests
+uv run pytest backend/tests
 
-# Run specific checks
-pre-commit run ruff-check
-pre-commit run coverage-check
-```
-
-#### **Code Coverage Requirements**
-- **Minimum Coverage: 80%** (enforced by pre-commit)
-
-```bash
-# Check coverage
-uv run coverage run -m pytest backend/tests
-uv run coverage report --show-missing
-
-# Generate HTML coverage report
-uv run coverage html
-open htmlcov/index.html
-```
-
-#### **Code Quality Tools**
-```bash
 # Format code
 ruff format .
 
 # Lint code
 ruff check .
-
-# Run tests
-uv run pytest backend/tests
 ```
 
 ## Project Structure
 
 ```
-DCF_projections/
-├── backend/                      # FastAPI + CLI backend
-│   ├── app/                      # Application package
-│   │   ├── api/                  # API routers and endpoints
-│   │   │   └── endpoints/
-│   │   ├── core/                 # Core domain logic
-│   │   ├── schemas/              # Pydantic models
-│   │   ├── services/             # Service layer abstractions
-│   │   └── utils/                # Shared utilities
-│   ├── cli.py                    # CLI entry point
-│   ├── main.py                   # FastAPI entry point
-│   └── tests/                    # Backend tests
-├── frontend/                     # React application
-├── docs/                         # Documentation
-├── scripts/                      # Automation scripts
-├── config/                       # Legacy configuration shim
-├── run.sh                        # Full-stack launcher
-└── pyproject.toml                # Project configuration
+horizon/
+├── backend/                          # FastAPI backend
+│   ├── app/                         # Application package
+│   │   ├── routers/                 # API endpoints
+│   │   ├── core/                    # Business logic
+│   │   ├── schemas/                 # Data models
+│   │   ├── services/                # Service layer
+│   │   └── utils/                   # Utilities
+│   ├── main.py                      # FastAPI entry point
+│   └── tests/                       # Backend tests
+├── frontend/                        # React application
+├── company_data/                    # S&P 500 companies data
+├── run.sh                           # Full-stack launcher
+└── pyproject.toml                   # Project configuration
 ```
 
 ## Configuration
 
-Edit `config/settings.py` to customize:
+Edit `config.env` to customize:
 - DCF parameters (growth rates, discount rates)
-- SEC API settings
-- File naming patterns
-- Logging configuration
-
-## Testing Strategy
-
-### **Test Coverage Goals**
-- **Minimum Coverage: 80%** (enforced by pre-commit hooks)
-- **Target Coverage: 90%** (stretch goal)
-- **Coverage Areas**: Core DCF logic, configuration, business services
-
-### **Test Types**
-- **Unit Tests**: Individual component testing
-- **Integration Tests**: End-to-end workflow testing
-- **Coverage Tests**: Automated coverage enforcement
-
-### **Running Tests**
-```bash
-# Run all tests
-uv run pytest
-
-# Run with coverage
-uv run coverage run -m pytest backend/tests
-uv run coverage report
-
-# Run specific test files
-uv run pytest backend/tests/unit/test_dcf_calculations.py
-uv run pytest backend/tests/unit/test_sensitivity_analysis.py
-```
-
-**Note**: The UI file is excluded from the repository via `.gitignore` to keep it focused on CLI functionality.
+- API endpoints and timeouts
+- Data source configurations
 
 ## Disclaimer
 

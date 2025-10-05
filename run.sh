@@ -1,161 +1,164 @@
 #!/bin/bash
 
-# Horizon - DCF Projections Local Development Runner
-# This script starts the backend and frontend for local development
+# Parse command line arguments
+PRODUCTION_MODE=false
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --production)
+            PRODUCTION_MODE=true
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: $0 [--production]"
+            echo "  --production    Build and serve production build instead of development mode"
+            echo "  --help, -h      Show this help message"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
 
-# Load configuration from central config file
+# Load config
 if [ -f "config.env" ]; then
-    echo "🔧 Loading configuration from config.env..."
     source config.env
-    echo "📍 API Host: $API_HOST"
-    echo "🔌 API Port: $API_PORT"
-    echo "🌐 Frontend Port: $FRONTEND_PORT"
 else
-    echo "⚠️ config.env not found, using default values"
     API_HOST="localhost"
-    API_PORT="8000"
-    FRONTEND_PORT="3000"
+    API_PORT="8001"
+    FRONTEND_PORT="3001"
     BACKEND_HOST="0.0.0.0"
-    BACKEND_PORT="8000"
+    BACKEND_PORT="8001"
 fi
 
-echo "=========================================="
-echo "🚀 Starting HORIZON - DCF Projections"
-echo "=========================================="
-echo "📍 Project directory: $(pwd)"
-echo "🌐 API will be available at: http://$API_HOST:$API_PORT"
-echo "🎨 Frontend will be available at: http://localhost:$FRONTEND_PORT"
-echo ""
-
-# Check if we're in the right directory
-if [ ! -f "pyproject.toml" ]; then
-    echo "❌ Error: pyproject.toml not found. Please run this script from the project root."
-    exit 1
-fi
-
-# Check if frontend directory exists
-if [ ! -d "dcf-frontend" ]; then
-    echo "❌ Error: dcf-frontend directory not found. Please create the React app first."
-    exit 1
-fi
-
-# Check if uv is available
-if ! command -v uv &> /dev/null; then
-    echo "❌ Error: uv is not installed. Please install it first:"
-    echo "   curl -LsSf https://astral.sh/uv/install.sh | sh"
-    exit 1
-fi
-
-# Check if npm is available
-if ! command -v npm &> /dev/null; then
-    echo "❌ Error: npm is not installed. Please install Node.js first."
-    exit 1
-fi
-
-# Check if dependencies are installed
-if [ ! -d ".venv" ] && [ ! -f "uv.lock" ]; then
-    echo "📦 Installing Python dependencies with uv..."
-    uv sync
-fi
-
-# Check if backend dependencies are installed
-if [ ! -d "dcf-backend/.venv" ] && [ ! -f "dcf-backend/uv.lock" ]; then
-    echo "📦 Installing backend dependencies..."
-    cd dcf-backend
-    uv sync
-    cd ..
-fi
-
-# Check if frontend dependencies are installed
-if [ ! -d "dcf-frontend/node_modules" ]; then
-    echo "📦 Installing frontend dependencies..."
-    cd dcf-frontend
-    npm install
-    cd ..
-fi
-
-echo "🔧 Starting FastAPI backend..."
-echo "   API will be available at: http://$BACKEND_HOST:$BACKEND_PORT"
-echo "   API docs: http://$BACKEND_HOST:$BACKEND_PORT/docs"
-echo "   Health check: http://$BACKEND_HOST:$BACKEND_PORT/health"
-echo ""
-
-# Start the API in the background
-cd dcf-backend
-uv run uvicorn backend.main:app \
-    --host $BACKEND_HOST \
-    --port $BACKEND_PORT \
-    --reload \
-    --log-level info &
-API_PID=$!
-cd ..
-
-# Wait for API to start
-echo "⏳ Waiting for API to start..."
-sleep 5
-
-# Check if API is running
-if ! curl -s http://localhost:$BACKEND_PORT/health > /dev/null 2>&1; then
-    echo "❌ API failed to start"
-    kill $API_PID 2>/dev/null || true
-    exit 1
-fi
-
-echo "✅ API is running on http://$BACKEND_HOST:$BACKEND_PORT"
-echo ""
-
-# Start React frontend
-echo "🎨 Starting React frontend..."
-echo "   Frontend will be available at: http://localhost:$FRONTEND_PORT"
-echo ""
-
-# Change to frontend directory and start React
-cd dcf-frontend
-REACT_APP_API_HOST="$API_HOST" REACT_APP_API_PORT="$API_PORT" npm start &
-FRONTEND_PID=$!
-cd ..
-
-# Function to cleanup background processes
-cleanup() {
-    echo ""
-    echo "🛑 Shutting down services..."
-
-    # Kill processes by PID if they exist
-    [ ! -z "$API_PID" ] && kill $API_PID 2>/dev/null || true
-    [ ! -z "$FRONTEND_PID" ] && kill $FRONTEND_PID 2>/dev/null || true
-
-    # Also kill by process name to ensure cleanup
-    pkill -f "uvicorn backend.main:app" 2>/dev/null || true
-    pkill -f "npm start" 2>/dev/null || true
-
-    echo "✅ Services stopped"
-    exit 0
+# Function to check if port is in use
+check_port() {
+    local port=$1
+    if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+        return 0  # Port is in use
+    else
+        return 1  # Port is free
+    fi
 }
 
-# Set up signal handlers
+# Function to check if process is running
+check_process() {
+    local pattern=$1
+    if pgrep -f "$pattern" >/dev/null 2>&1; then
+        return 0  # Process is running
+    else
+        return 1  # Process is not running
+    fi
+}
+
+# Function to kill existing processes
+kill_existing_processes() {
+    echo "Cleaning up existing processes..."
+
+    # Kill uvicorn processes
+    if check_process "uvicorn main:app"; then
+        echo "Killing existing uvicorn processes..."
+        pkill -f "uvicorn main:app" 2>/dev/null || true
+        pkill -f "uv run uvicorn" 2>/dev/null || true
+    fi
+
+    # Kill npm start processes
+    if check_process "npm start"; then
+        echo "Killing existing npm processes..."
+        pkill -f "npm start" 2>/dev/null || true
+    fi
+
+    # Kill serve processes (for production mode)
+    if check_process "serve"; then
+        echo "Killing existing serve processes..."
+        pkill -f "serve" 2>/dev/null || true
+    fi
+
+    # Force kill any processes using our ports
+    echo "Force killing processes on ports $BACKEND_PORT and $FRONTEND_PORT..."
+    lsof -ti:$BACKEND_PORT 2>/dev/null | xargs kill -9 2>/dev/null || true
+    lsof -ti:$FRONTEND_PORT 2>/dev/null | xargs kill -9 2>/dev/null || true
+
+    # Wait for processes to terminate
+    sleep 3
+}
+
+# Cleanup function for graceful shutdown
+cleanup() {
+    echo ""
+    echo "Shutting down services..."
+    kill_existing_processes
+    exit 0
+}
 trap cleanup SIGINT SIGTERM
 
-echo ""
-echo "🎉 Local development environment is ready!"
-echo ""
-echo "📱 Access your app:"
-echo "   - Frontend (Local):     http://localhost:$FRONTEND_PORT"
-echo "   - Frontend (Network):   http://$API_HOST:$FRONTEND_PORT"
-echo "   - API (Local):          http://localhost:$BACKEND_PORT"
-echo "   - API (Network):        http://$API_HOST:$BACKEND_PORT"
-echo "   - API Docs:             http://localhost:$BACKEND_PORT/docs"
-echo "   - Health Check:         http://localhost:$BACKEND_PORT/health"
-echo ""
-echo "🌐 From your phone (same WiFi):"
-echo "   - Frontend: http://$API_HOST:$FRONTEND_PORT"
-echo "   - API: http://$API_HOST:$BACKEND_PORT"
-echo ""
-echo "🌍 For public access, use your Cloud Run deployment:"
-echo "   - Frontend: https://dcf-frontend-355089933221.europe-west1.run.app"
-echo "   - Backend: https://dcf-backend-355089933221.europe-west1.run.app"
-echo ""
-echo "🛑 Press Ctrl+C to stop all services"
-echo ""
+# Check if processes are already running
+if check_process "uvicorn main:app" || check_process "npm start" || check_process "serve"; then
+    echo "Services appear to be already running"
+    echo "Killing existing processes and restarting..."
+    kill_existing_processes
+fi
 
-# Wait for user to stop
+# Start backend
+if [ "$PRODUCTION_MODE" = true ]; then
+    echo "Starting backend in PRODUCTION mode on port $BACKEND_PORT..."
+    cd backend
+    uv run uvicorn main:app --host $BACKEND_HOST --port $BACKEND_PORT &
+    BACKEND_PID=$!
+    cd ..
+else
+    echo "Starting backend in DEVELOPMENT mode on port $BACKEND_PORT..."
+    cd backend
+    uv run uvicorn main:app --host $BACKEND_HOST --port $BACKEND_PORT --reload &
+    BACKEND_PID=$!
+    cd ..
+fi
+
+# Wait a moment for backend to start
+sleep 3
+
+# Start frontend
+if [ "$PRODUCTION_MODE" = true ]; then
+    echo "Building and serving frontend in PRODUCTION mode on port $FRONTEND_PORT..."
+    cd frontend
+
+    # Build the production version
+    echo "Building production bundle..."
+    REACT_APP_API_HOST=$API_HOST REACT_APP_API_PORT=$API_PORT npm run build
+
+    # Check if serve is installed, install if not
+    if ! command -v serve &> /dev/null; then
+        echo "Installing serve package for production serving..."
+        npm install -g serve
+    fi
+
+    # Serve the production build
+    PORT=$FRONTEND_PORT serve -s build &
+    FRONTEND_PID=$!
+    cd ..
+else
+    echo "Starting frontend in DEVELOPMENT mode on port $FRONTEND_PORT..."
+    cd frontend
+    PORT=$FRONTEND_PORT REACT_APP_API_HOST=$API_HOST REACT_APP_API_PORT=$API_PORT npm start &
+    FRONTEND_PID=$!
+    cd ..
+fi
+
+echo ""
+if [ "$PRODUCTION_MODE" = true ]; then
+    echo "🚀 Services started successfully in PRODUCTION mode!"
+    echo "Backend: http://localhost:$BACKEND_PORT"
+    echo "Frontend: http://localhost:$FRONTEND_PORT"
+    echo "Mode: Production (optimized build, no hot reload)"
+else
+    echo "🔧 Services started successfully in DEVELOPMENT mode!"
+    echo "Backend: http://localhost:$BACKEND_PORT"
+    echo "Frontend: http://localhost:$FRONTEND_PORT"
+    echo "Mode: Development (hot reload enabled)"
+fi
+echo "Press Ctrl+C to stop"
+
+# Wait for processes
 wait

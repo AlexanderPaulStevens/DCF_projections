@@ -10,14 +10,14 @@ echo "🚀 Deploying DCF Projections..."
 # Deploy Backend
 echo "📦 Deploying backend..."
 cd dcf-backend
-chmod +x deploy.sh
+chmod +x deploy_backend.sh
 ./deploy.sh
 cd ..
 
 # Deploy Frontend
 echo "🌐 Deploying frontend..."
-cd dcf-frontend
-chmod +x deploy.sh
+cd frontend
+chmod +x deploy_frontend.sh
 ./deploy.sh
 cd ..
 

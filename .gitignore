@@ -15,7 +15,6 @@ __pycache__/
 
 # Environment variables
 .env
-config.env
 
 #company_data
 company_data/
