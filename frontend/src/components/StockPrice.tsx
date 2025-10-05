@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from "react";
+import { useParams } from "react-router-dom";
 import {
   Box,
   Typography,
@@ -9,8 +9,8 @@ import {
   Alert,
   Button,
   ButtonGroup,
-} from '@mui/material';
-import { APIService } from '../services/api';
+} from "@mui/material";
+import { APIService } from "../services/api";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -22,9 +22,9 @@ import {
   Tooltip,
   Legend,
   TimeScale,
-} from 'chart.js';
-import { Line } from 'react-chartjs-2';
-import 'chartjs-adapter-date-fns';
+} from "chart.js";
+import { Line } from "react-chartjs-2";
+import "chartjs-adapter-date-fns";
 
 // Register Chart.js components
 ChartJS.register(
@@ -36,7 +36,7 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  TimeScale
+  TimeScale,
 );
 
 const StockPrice: React.FC = () => {
@@ -47,36 +47,39 @@ const StockPrice: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [historicalLoading, setHistoricalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedPeriod, setSelectedPeriod] = useState('6mo');
+  const [selectedPeriod, setSelectedPeriod] = useState("6mo");
 
   const periods = [
-    { label: '1D', value: '1d' },
-    { label: '5D', value: '5d' },
-    { label: '1M', value: '1mo' },
-    { label: '3M', value: '3mo' },
-    { label: '6M', value: '6mo' },
-    { label: '1Y', value: '1y' },
-    { label: '2Y', value: '2y' },
-    { label: '5Y', value: '5y' },
+    { label: "1D", value: "1d" },
+    { label: "5D", value: "5d" },
+    { label: "1M", value: "1mo" },
+    { label: "3M", value: "3mo" },
+    { label: "6M", value: "6mo" },
+    { label: "1Y", value: "1y" },
+    { label: "2Y", value: "2y" },
+    { label: "5Y", value: "5y" },
   ];
 
   const handlePeriodChange = (period: string) => {
     setSelectedPeriod(period);
   };
 
-  const fetchHistoricalData = useCallback(async (period: string) => {
-    if (!ticker) return;
+  const fetchHistoricalData = useCallback(
+    async (period: string) => {
+      if (!ticker) return;
 
-    try {
-      setHistoricalLoading(true);
-      const data = await APIService.getHistoricalData(ticker, period);
-      setHistoricalData(data);
-    } catch (err) {
-      console.error('Error fetching historical data:', err);
-    } finally {
-      setHistoricalLoading(false);
-    }
-  }, [ticker]);
+      try {
+        setHistoricalLoading(true);
+        const data = await APIService.getHistoricalData(ticker, period);
+        setHistoricalData(data);
+      } catch (err) {
+        console.error("Error fetching historical data:", err);
+      } finally {
+        setHistoricalLoading(false);
+      }
+    },
+    [ticker],
+  );
 
   useEffect(() => {
     const fetchData = async () => {
@@ -86,15 +89,15 @@ const StockPrice: React.FC = () => {
         setLoading(true);
         const [stock, company] = await Promise.all([
           APIService.getStockData(ticker),
-          APIService.getCompanyInfo(ticker)
+          APIService.getCompanyInfo(ticker),
         ]);
 
         setStockData(stock);
         setCompanyData(company);
         setError(null);
       } catch (err) {
-        console.error('Error fetching stock data:', err);
-        setError('Failed to load stock price data');
+        console.error("Error fetching stock data:", err);
+        setError("Failed to load stock price data");
       } finally {
         setLoading(false);
       }
@@ -104,45 +107,47 @@ const StockPrice: React.FC = () => {
     fetchHistoricalData(selectedPeriod);
   }, [ticker, selectedPeriod, fetchHistoricalData]);
 
-
-
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(value);
   };
 
-
   // Chart configuration
   const getChartOptions = () => {
     // Determine the appropriate time unit based on data range
-    let timeUnit: 'minute' | 'hour' | 'day' = 'day';
+    let timeUnit: "minute" | "hour" | "day" = "day";
     let maxTicks = 6;
 
-    if (selectedPeriod === '1d' && historicalData?.data) {
+    if (selectedPeriod === "1d" && historicalData?.data) {
       // Check if we have intraday data (same day)
       const firstDate = new Date(historicalData.data[0]?.date);
-      const lastDate = new Date(historicalData.data[historicalData.data.length - 1]?.date);
+      const lastDate = new Date(
+        historicalData.data[historicalData.data.length - 1]?.date,
+      );
       const timeDiff = lastDate.getTime() - firstDate.getTime();
       const hoursDiff = timeDiff / (1000 * 60 * 60);
 
-      if (hoursDiff <= 24 && firstDate.toDateString() === lastDate.toDateString()) {
+      if (
+        hoursDiff <= 24 &&
+        firstDate.toDateString() === lastDate.toDateString()
+      ) {
         // Same day, use minute intervals
-        timeUnit = 'minute';
+        timeUnit = "minute";
         maxTicks = 12;
       } else {
         // Multiple days, use hour intervals
-        timeUnit = 'hour';
+        timeUnit = "hour";
         maxTicks = 8;
       }
-    } else if (selectedPeriod === '5d') {
-      timeUnit = 'hour';
+    } else if (selectedPeriod === "5d") {
+      timeUnit = "hour";
       maxTicks = 8;
     } else {
-      timeUnit = 'day';
+      timeUnit = "day";
       maxTicks = 6;
     }
 
@@ -151,20 +156,20 @@ const StockPrice: React.FC = () => {
       maintainAspectRatio: false,
       interaction: {
         intersect: false,
-        mode: 'index' as const,
+        mode: "index" as const,
       },
       plugins: {
         legend: {
           display: false,
         },
         tooltip: {
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          titleColor: '#ffffff',
-          bodyColor: '#ffffff',
-          borderColor: 'rgba(0, 212, 255, 0.3)',
+          backgroundColor: "rgba(0, 0, 0, 0.8)",
+          titleColor: "#ffffff",
+          bodyColor: "#ffffff",
+          borderColor: "rgba(0, 212, 255, 0.3)",
           borderWidth: 1,
           callbacks: {
-            label: function(context: any) {
+            label: function (context: any) {
               return `${context.dataset.label}: $${context.parsed.y.toFixed(2)}`;
             },
           },
@@ -172,34 +177,34 @@ const StockPrice: React.FC = () => {
       },
       scales: {
         x: {
-          type: 'time' as const,
+          type: "time" as const,
           time: {
             displayFormats: {
-              minute: 'HH:mm',
-              hour: 'HH:mm',
-              day: 'MMM dd',
-              week: 'MMM dd',
-              month: 'MMM yyyy',
-              year: 'yyyy',
+              minute: "HH:mm",
+              hour: "HH:mm",
+              day: "MMM dd",
+              week: "MMM dd",
+              month: "MMM yyyy",
+              year: "yyyy",
             },
             unit: timeUnit,
           },
           grid: {
-            color: 'rgba(255, 255, 255, 0.1)',
+            color: "rgba(255, 255, 255, 0.1)",
           },
           ticks: {
-            color: '#b0b0b0',
+            color: "#b0b0b0",
             maxTicksLimit: maxTicks,
           },
         },
         y: {
           grid: {
-            color: 'rgba(255, 255, 255, 0.1)',
+            color: "rgba(255, 255, 255, 0.1)",
           },
           ticks: {
-            color: '#b0b0b0',
-            callback: function(value: any) {
-              return '$' + value.toFixed(2);
+            color: "#b0b0b0",
+            callback: function (value: any) {
+              return "$" + value.toFixed(2);
             },
           },
         },
@@ -212,17 +217,17 @@ const StockPrice: React.FC = () => {
       return {
         datasets: [
           {
-            label: 'Price',
+            label: "Price",
             data: [],
-            borderColor: '#00d4ff',
-            backgroundColor: 'rgba(0, 212, 255, 0.1)',
+            borderColor: "#00d4ff",
+            backgroundColor: "rgba(0, 212, 255, 0.1)",
             borderWidth: 2,
             fill: true,
             tension: 0.1,
             pointRadius: 0,
             pointHoverRadius: 6,
-            pointHoverBackgroundColor: '#00d4ff',
-            pointHoverBorderColor: '#ffffff',
+            pointHoverBackgroundColor: "#00d4ff",
+            pointHoverBorderColor: "#ffffff",
             pointHoverBorderWidth: 2,
           },
         ],
@@ -231,7 +236,7 @@ const StockPrice: React.FC = () => {
 
     // For intraday data (1d), we might have too many points, so optimize display
     let data = historicalData.data;
-    if (selectedPeriod === '1d' && data.length > 200) {
+    if (selectedPeriod === "1d" && data.length > 200) {
       // Sample every 2nd point for better performance while maintaining detail
       data = data.filter((_: any, index: number) => index % 2 === 0);
     }
@@ -244,17 +249,17 @@ const StockPrice: React.FC = () => {
     return {
       datasets: [
         {
-          label: 'Price',
+          label: "Price",
           data: chartData,
-          borderColor: '#00d4ff',
-          backgroundColor: 'rgba(0, 212, 255, 0.1)',
-          borderWidth: selectedPeriod === '1d' ? 1.5 : 2,
+          borderColor: "#00d4ff",
+          backgroundColor: "rgba(0, 212, 255, 0.1)",
+          borderWidth: selectedPeriod === "1d" ? 1.5 : 2,
           fill: true,
-          tension: selectedPeriod === '1d' ? 0 : 0.1, // No smoothing for intraday
+          tension: selectedPeriod === "1d" ? 0 : 0.1, // No smoothing for intraday
           pointRadius: 0,
-          pointHoverRadius: selectedPeriod === '1d' ? 4 : 6,
-          pointHoverBackgroundColor: '#00d4ff',
-          pointHoverBorderColor: '#ffffff',
+          pointHoverRadius: selectedPeriod === "1d" ? 4 : 6,
+          pointHoverBackgroundColor: "#00d4ff",
+          pointHoverBorderColor: "#ffffff",
           pointHoverBorderWidth: 2,
         },
       ],
@@ -263,8 +268,8 @@ const StockPrice: React.FC = () => {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <CircularProgress sx={{ color: '#00d4ff' }} />
+      <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+        <CircularProgress sx={{ color: "#00d4ff" }} />
       </Box>
     );
   }
@@ -286,45 +291,48 @@ const StockPrice: React.FC = () => {
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
       {/* Main Stock Price Card */}
       <Card
         sx={{
-          background: 'rgba(0, 0, 0, 0.8)',
-          border: '1px solid rgba(0, 212, 255, 0.2)',
+          background: "rgba(0, 0, 0, 0.8)",
+          border: "1px solid rgba(0, 212, 255, 0.2)",
           borderRadius: 16,
-          backdropFilter: 'blur(10px)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-          transition: 'all 0.3s ease-in-out',
-          '&:hover': {
-            transform: 'translateY(-4px)',
-            boxShadow: '0 12px 40px rgba(0, 212, 255, 0.2)',
-            borderColor: 'rgba(0, 212, 255, 0.4)',
-          }
+          backdropFilter: "blur(10px)",
+          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+          transition: "all 0.3s ease-in-out",
+          "&:hover": {
+            transform: "translateY(-4px)",
+            boxShadow: "0 12px 40px rgba(0, 212, 255, 0.2)",
+            borderColor: "rgba(0, 212, 255, 0.4)",
+          },
         }}
       >
         <CardContent sx={{ p: 4 }}>
           {/* Time Period Selector */}
           <Box sx={{ mb: 4 }}>
-            <Typography variant="h6" sx={{ color: '#ffffff', mb: 2, fontWeight: 600 }}>
+            <Typography
+              variant="h6"
+              sx={{ color: "#ffffff", mb: 2, fontWeight: 600 }}
+            >
               Historical Price Chart
             </Typography>
             <ButtonGroup
               variant="outlined"
               sx={{
-                '& .MuiButton-root': {
-                  borderColor: 'rgba(0, 212, 255, 0.3)',
-                  color: '#b0b0b0',
-                  '&:hover': {
-                    borderColor: 'rgba(0, 212, 255, 0.6)',
-                    backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                "& .MuiButton-root": {
+                  borderColor: "rgba(0, 212, 255, 0.3)",
+                  color: "#b0b0b0",
+                  "&:hover": {
+                    borderColor: "rgba(0, 212, 255, 0.6)",
+                    backgroundColor: "rgba(0, 212, 255, 0.1)",
                   },
-                  '&.Mui-selected': {
-                    backgroundColor: 'rgba(0, 212, 255, 0.2)',
-                    borderColor: '#00d4ff',
-                    color: '#00d4ff',
-                    '&:hover': {
-                      backgroundColor: 'rgba(0, 212, 255, 0.3)',
+                  "&.Mui-selected": {
+                    backgroundColor: "rgba(0, 212, 255, 0.2)",
+                    borderColor: "#00d4ff",
+                    color: "#00d4ff",
+                    "&:hover": {
+                      backgroundColor: "rgba(0, 212, 255, 0.3)",
                     },
                   },
                 },
@@ -334,7 +342,9 @@ const StockPrice: React.FC = () => {
                 <Button
                   key={period.value}
                   onClick={() => handlePeriodChange(period.value)}
-                  variant={selectedPeriod === period.value ? 'contained' : 'outlined'}
+                  variant={
+                    selectedPeriod === period.value ? "contained" : "outlined"
+                  }
                 >
                   {period.label}
                 </Button>
@@ -347,29 +357,36 @@ const StockPrice: React.FC = () => {
       {/* Historical Price Chart */}
       <Card
         sx={{
-          background: 'rgba(0, 0, 0, 0.8)',
-          border: '1px solid rgba(0, 212, 255, 0.2)',
+          background: "rgba(0, 0, 0, 0.8)",
+          border: "1px solid rgba(0, 212, 255, 0.2)",
           borderRadius: 16,
-          backdropFilter: 'blur(10px)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-          transition: 'all 0.3s ease-in-out',
-          '&:hover': {
-            transform: 'translateY(-4px)',
-            boxShadow: '0 12px 40px rgba(0, 212, 255, 0.2)',
-            borderColor: 'rgba(0, 212, 255, 0.4)',
-          }
+          backdropFilter: "blur(10px)",
+          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+          transition: "all 0.3s ease-in-out",
+          "&:hover": {
+            transform: "translateY(-4px)",
+            boxShadow: "0 12px 40px rgba(0, 212, 255, 0.2)",
+            borderColor: "rgba(0, 212, 255, 0.4)",
+          },
         }}
       >
         <CardContent sx={{ p: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 3,
+            }}
+          >
             <Typography
               variant="h5"
               sx={{
                 fontWeight: 700,
-                background: 'linear-gradient(135deg, #00d4ff 0%, #4ddfff 100%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
+                background: "linear-gradient(135deg, #00d4ff 0%, #4ddfff 100%)",
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
               }}
             >
               Price Chart
@@ -379,41 +396,43 @@ const StockPrice: React.FC = () => {
             <ButtonGroup
               variant="outlined"
               sx={{
-                '& .MuiButton-root': {
-                  borderColor: 'rgba(0, 212, 255, 0.3)',
-                  color: '#b0b0b0',
+                "& .MuiButton-root": {
+                  borderColor: "rgba(0, 212, 255, 0.3)",
+                  color: "#b0b0b0",
                   fontWeight: 600,
                   px: 2,
                   py: 1,
-                  '&:hover': {
-                    borderColor: 'rgba(0, 212, 255, 0.6)',
-                    backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                  "&:hover": {
+                    borderColor: "rgba(0, 212, 255, 0.6)",
+                    backgroundColor: "rgba(0, 212, 255, 0.1)",
                   },
-                  '&.Mui-selected': {
-                    backgroundColor: 'rgba(0, 212, 255, 0.2)',
-                    borderColor: '#00d4ff',
-                    color: '#00d4ff',
-                    '&:hover': {
-                      backgroundColor: 'rgba(0, 212, 255, 0.3)',
+                  "&.Mui-selected": {
+                    backgroundColor: "rgba(0, 212, 255, 0.2)",
+                    borderColor: "#00d4ff",
+                    color: "#00d4ff",
+                    "&:hover": {
+                      backgroundColor: "rgba(0, 212, 255, 0.3)",
                     },
                   },
                 },
               }}
             >
               {[
-                { value: '1d', label: '1D' },
-                { value: '5d', label: '5D' },
-                { value: '1mo', label: '1M' },
-                { value: '3mo', label: '3M' },
-                { value: '6mo', label: '6M' },
-                { value: '1y', label: '1Y' },
-                { value: '2y', label: '2Y' },
-                { value: '5y', label: '5Y' },
+                { value: "1d", label: "1D" },
+                { value: "5d", label: "5D" },
+                { value: "1mo", label: "1M" },
+                { value: "3mo", label: "3M" },
+                { value: "6mo", label: "6M" },
+                { value: "1y", label: "1Y" },
+                { value: "2y", label: "2Y" },
+                { value: "5y", label: "5Y" },
               ].map((period) => (
                 <Button
                   key={period.value}
                   onClick={() => setSelectedPeriod(period.value)}
-                  variant={selectedPeriod === period.value ? 'contained' : 'outlined'}
+                  variant={
+                    selectedPeriod === period.value ? "contained" : "outlined"
+                  }
                 >
                   {period.label}
                 </Button>
@@ -423,38 +442,43 @@ const StockPrice: React.FC = () => {
 
           {/* Chart Content */}
           {historicalLoading ? (
-            <Box sx={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              py: 8,
-              color: '#00d4ff'
-            }}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                py: 8,
+                color: "#00d4ff",
+              }}
+            >
               <CircularProgress sx={{ mr: 2 }} />
-              <Typography variant="body1">
-                Loading chart data...
-              </Typography>
+              <Typography variant="body1">Loading chart data...</Typography>
             </Box>
           ) : historicalData && historicalData.data ? (
             <Box>
               {/* Interactive Chart */}
-              <Box sx={{
-                height: 400,
-                mb: 3,
-                background: 'rgba(25, 25, 25, 0.6)',
-                borderRadius: 2,
-                p: 2,
-                border: '1px solid rgba(0, 212, 255, 0.1)'
-              }}>
-                <Line
-                  data={getChartData()}
-                  options={getChartOptions()}
-                />
+              <Box
+                sx={{
+                  height: 400,
+                  mb: 3,
+                  background: "rgba(25, 25, 25, 0.6)",
+                  borderRadius: 2,
+                  p: 2,
+                  border: "1px solid rgba(0, 212, 255, 0.1)",
+                }}
+              >
+                <Line data={getChartData()} options={getChartOptions()} />
               </Box>
 
               {/* Price Summary */}
               <Box sx={{ mb: 3 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    mb: 2,
+                  }}
+                >
                   <Typography variant="body2" color="text.secondary">
                     Period: {selectedPeriod.toUpperCase()}
                   </Typography>
@@ -465,29 +489,58 @@ const StockPrice: React.FC = () => {
 
                 {/* Price Range */}
                 {historicalData.data.length > 0 && (
-                  <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  <Box sx={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                     <Box>
                       <Typography variant="body2" color="text.secondary">
                         Period High
                       </Typography>
-                      <Typography variant="h6" sx={{ color: '#10b981', fontWeight: 600 }}>
-                        {formatCurrency(Math.max(...historicalData.data.map((d: any) => d.high).filter(Boolean)))}
+                      <Typography
+                        variant="h6"
+                        sx={{ color: "#10b981", fontWeight: 600 }}
+                      >
+                        {formatCurrency(
+                          Math.max(
+                            ...historicalData.data
+                              .map((d: any) => d.high)
+                              .filter(Boolean),
+                          ),
+                        )}
                       </Typography>
                     </Box>
                     <Box>
                       <Typography variant="body2" color="text.secondary">
                         Period Low
                       </Typography>
-                      <Typography variant="h6" sx={{ color: '#ef4444', fontWeight: 600 }}>
-                        {formatCurrency(Math.min(...historicalData.data.map((d: any) => d.low).filter(Boolean)))}
+                      <Typography
+                        variant="h6"
+                        sx={{ color: "#ef4444", fontWeight: 600 }}
+                      >
+                        {formatCurrency(
+                          Math.min(
+                            ...historicalData.data
+                              .map((d: any) => d.low)
+                              .filter(Boolean),
+                          ),
+                        )}
                       </Typography>
                     </Box>
                     <Box>
                       <Typography variant="body2" color="text.secondary">
                         Avg Volume
                       </Typography>
-                      <Typography variant="h6" sx={{ color: '#00d4ff', fontWeight: 600 }}>
-                        {((historicalData.data.reduce((sum: number, d: any) => sum + (d.volume || 0), 0) / historicalData.data.length) / 1e6).toFixed(1)}M
+                      <Typography
+                        variant="h6"
+                        sx={{ color: "#00d4ff", fontWeight: 600 }}
+                      >
+                        {(
+                          historicalData.data.reduce(
+                            (sum: number, d: any) => sum + (d.volume || 0),
+                            0,
+                          ) /
+                          historicalData.data.length /
+                          1e6
+                        ).toFixed(1)}
+                        M
                       </Typography>
                     </Box>
                   </Box>
@@ -495,38 +548,44 @@ const StockPrice: React.FC = () => {
               </Box>
             </Box>
           ) : (
-            <Box sx={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              py: 8,
-              color: '#b0b0b0'
-            }}>
-              <Typography variant="body1">
-                No chart data available
-              </Typography>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                py: 8,
+                color: "#b0b0b0",
+              }}
+            >
+              <Typography variant="body1">No chart data available</Typography>
             </Box>
           )}
         </CardContent>
       </Card>
 
       {/* Stock Metrics Grid */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 3 }}>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" },
+          gap: 3,
+        }}
+      >
         {/* Market Cap */}
         <Box>
           <Card
             sx={{
-              background: 'rgba(0, 0, 0, 0.8)',
-              border: '1px solid rgba(0, 212, 255, 0.2)',
+              background: "rgba(0, 0, 0, 0.8)",
+              border: "1px solid rgba(0, 212, 255, 0.2)",
               borderRadius: 16,
-              backdropFilter: 'blur(10px)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.3s ease-in-out',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 12px 40px rgba(0, 212, 255, 0.2)',
-                borderColor: 'rgba(0, 212, 255, 0.4)',
-              }
+              backdropFilter: "blur(10px)",
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+              transition: "all 0.3s ease-in-out",
+              "&:hover": {
+                transform: "translateY(-4px)",
+                boxShadow: "0 12px 40px rgba(0, 212, 255, 0.2)",
+                borderColor: "rgba(0, 212, 255, 0.4)",
+              },
             }}
           >
             <CardContent sx={{ p: 3 }}>
@@ -534,10 +593,10 @@ const StockPrice: React.FC = () => {
                 variant="h6"
                 sx={{
                   fontWeight: 700,
-                  color: '#ffffff',
+                  color: "#ffffff",
                   mb: 2,
-                  display: 'flex',
-                  alignItems: 'center',
+                  display: "flex",
+                  alignItems: "center",
                   gap: 1,
                 }}
               >
@@ -545,9 +604,10 @@ const StockPrice: React.FC = () => {
                   sx={{
                     width: 4,
                     height: 20,
-                    background: 'linear-gradient(135deg, #00d4ff 0%, #4ddfff 100%)',
+                    background:
+                      "linear-gradient(135deg, #00d4ff 0%, #4ddfff 100%)",
                     borderRadius: 2,
-                    boxShadow: '0 0 10px rgba(0, 212, 255, 0.5)',
+                    boxShadow: "0 0 10px rgba(0, 212, 255, 0.5)",
                   }}
                 />
                 Market Cap
@@ -556,10 +616,11 @@ const StockPrice: React.FC = () => {
                 variant="h4"
                 sx={{
                   fontWeight: 800,
-                  background: 'linear-gradient(135deg, #00d4ff 0%, #4ddfff 100%)',
-                  backgroundClip: 'text',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
+                  background:
+                    "linear-gradient(135deg, #00d4ff 0%, #4ddfff 100%)",
+                  backgroundClip: "text",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
                   mb: 1,
                 }}
               >
@@ -576,17 +637,17 @@ const StockPrice: React.FC = () => {
         <Box>
           <Card
             sx={{
-              background: 'rgba(0, 0, 0, 0.8)',
-              border: '1px solid rgba(0, 212, 255, 0.2)',
+              background: "rgba(0, 0, 0, 0.8)",
+              border: "1px solid rgba(0, 212, 255, 0.2)",
               borderRadius: 16,
-              backdropFilter: 'blur(10px)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.3s ease-in-out',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 12px 40px rgba(0, 212, 255, 0.2)',
-                borderColor: 'rgba(0, 212, 255, 0.4)',
-              }
+              backdropFilter: "blur(10px)",
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+              transition: "all 0.3s ease-in-out",
+              "&:hover": {
+                transform: "translateY(-4px)",
+                boxShadow: "0 12px 40px rgba(0, 212, 255, 0.2)",
+                borderColor: "rgba(0, 212, 255, 0.4)",
+              },
             }}
           >
             <CardContent sx={{ p: 3 }}>
@@ -594,10 +655,10 @@ const StockPrice: React.FC = () => {
                 variant="h6"
                 sx={{
                   fontWeight: 700,
-                  color: '#ffffff',
+                  color: "#ffffff",
                   mb: 2,
-                  display: 'flex',
-                  alignItems: 'center',
+                  display: "flex",
+                  alignItems: "center",
                   gap: 1,
                 }}
               >
@@ -605,9 +666,10 @@ const StockPrice: React.FC = () => {
                   sx={{
                     width: 4,
                     height: 20,
-                    background: 'linear-gradient(135deg, #00d4ff 0%, #4ddfff 100%)',
+                    background:
+                      "linear-gradient(135deg, #00d4ff 0%, #4ddfff 100%)",
                     borderRadius: 2,
-                    boxShadow: '0 0 10px rgba(0, 212, 255, 0.5)',
+                    boxShadow: "0 0 10px rgba(0, 212, 255, 0.5)",
                   }}
                 />
                 Volume
@@ -616,10 +678,11 @@ const StockPrice: React.FC = () => {
                 variant="h4"
                 sx={{
                   fontWeight: 800,
-                  background: 'linear-gradient(135deg, #00d4ff 0%, #4ddfff 100%)',
-                  backgroundClip: 'text',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
+                  background:
+                    "linear-gradient(135deg, #00d4ff 0%, #4ddfff 100%)",
+                  backgroundClip: "text",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
                   mb: 1,
                 }}
               >
@@ -636,17 +699,17 @@ const StockPrice: React.FC = () => {
         <Box>
           <Card
             sx={{
-              background: 'rgba(0, 0, 0, 0.8)',
-              border: '1px solid rgba(0, 212, 255, 0.2)',
+              background: "rgba(0, 0, 0, 0.8)",
+              border: "1px solid rgba(0, 212, 255, 0.2)",
               borderRadius: 16,
-              backdropFilter: 'blur(10px)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.3s ease-in-out',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 12px 40px rgba(0, 212, 255, 0.2)',
-                borderColor: 'rgba(0, 212, 255, 0.4)',
-              }
+              backdropFilter: "blur(10px)",
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+              transition: "all 0.3s ease-in-out",
+              "&:hover": {
+                transform: "translateY(-4px)",
+                boxShadow: "0 12px 40px rgba(0, 212, 255, 0.2)",
+                borderColor: "rgba(0, 212, 255, 0.4)",
+              },
             }}
           >
             <CardContent sx={{ p: 3 }}>
@@ -654,10 +717,10 @@ const StockPrice: React.FC = () => {
                 variant="h6"
                 sx={{
                   fontWeight: 700,
-                  color: '#ffffff',
+                  color: "#ffffff",
                   mb: 2,
-                  display: 'flex',
-                  alignItems: 'center',
+                  display: "flex",
+                  alignItems: "center",
                   gap: 1,
                 }}
               >
@@ -665,9 +728,10 @@ const StockPrice: React.FC = () => {
                   sx={{
                     width: 4,
                     height: 20,
-                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    background:
+                      "linear-gradient(135deg, #10b981 0%, #059669 100%)",
                     borderRadius: 2,
-                    boxShadow: '0 0 10px rgba(16, 185, 129, 0.5)',
+                    boxShadow: "0 0 10px rgba(16, 185, 129, 0.5)",
                   }}
                 />
                 52 Week High
@@ -676,7 +740,7 @@ const StockPrice: React.FC = () => {
                 variant="h4"
                 sx={{
                   fontWeight: 800,
-                  color: '#10b981',
+                  color: "#10b981",
                   mb: 1,
                 }}
               >
@@ -693,17 +757,17 @@ const StockPrice: React.FC = () => {
         <Box>
           <Card
             sx={{
-              background: 'rgba(0, 0, 0, 0.8)',
-              border: '1px solid rgba(0, 212, 255, 0.2)',
+              background: "rgba(0, 0, 0, 0.8)",
+              border: "1px solid rgba(0, 212, 255, 0.2)",
               borderRadius: 16,
-              backdropFilter: 'blur(10px)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-              transition: 'all 0.3s ease-in-out',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 12px 40px rgba(0, 212, 255, 0.2)',
-                borderColor: 'rgba(0, 212, 255, 0.4)',
-              }
+              backdropFilter: "blur(10px)",
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+              transition: "all 0.3s ease-in-out",
+              "&:hover": {
+                transform: "translateY(-4px)",
+                boxShadow: "0 12px 40px rgba(0, 212, 255, 0.2)",
+                borderColor: "rgba(0, 212, 255, 0.4)",
+              },
             }}
           >
             <CardContent sx={{ p: 3 }}>
@@ -711,10 +775,10 @@ const StockPrice: React.FC = () => {
                 variant="h6"
                 sx={{
                   fontWeight: 700,
-                  color: '#ffffff',
+                  color: "#ffffff",
                   mb: 2,
-                  display: 'flex',
-                  alignItems: 'center',
+                  display: "flex",
+                  alignItems: "center",
                   gap: 1,
                 }}
               >
@@ -722,9 +786,10 @@ const StockPrice: React.FC = () => {
                   sx={{
                     width: 4,
                     height: 20,
-                    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                    background:
+                      "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
                     borderRadius: 2,
-                    boxShadow: '0 0 10px rgba(239, 68, 68, 0.5)',
+                    boxShadow: "0 0 10px rgba(239, 68, 68, 0.5)",
                   }}
                 />
                 52 Week Low
@@ -733,7 +798,7 @@ const StockPrice: React.FC = () => {
                 variant="h4"
                 sx={{
                   fontWeight: 800,
-                  color: '#ef4444',
+                  color: "#ef4444",
                   mb: 1,
                 }}
               >

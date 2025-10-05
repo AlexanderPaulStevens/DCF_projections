@@ -1,18 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import {
-  Container,
-  Typography,
-  Box,
-  Tabs,
-  Tab,
-} from '@mui/material';
-import { StockHeader } from './StockHeader';
-import { APIService } from '../services/api';
-import StockPrice from './StockPrice';
-import DCFAnalysis from './DCFAnalysis';
-import FinancialRatios from './FinancialRatios';
-import AnalystRecommendation from './AnalystRecommendation';
+import React, { useState, useEffect, useCallback } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { Container, Typography, Box, Tabs, Tab } from "@mui/material";
+import { StockHeader } from "./StockHeader";
+import { APIService } from "../services/api";
+import StockPrice from "./StockPrice";
+import DCFAnalysis from "./DCFAnalysis";
+import FinancialRatios from "./FinancialRatios";
+import AnalystRecommendation from "./AnalystRecommendation";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -31,11 +25,7 @@ function TabPanel(props: TabPanelProps) {
       aria-labelledby={`analysis-tab-${index}`}
       {...other}
     >
-      {value === index && (
-        <Box sx={{ py: 3 }}>
-          {children}
-        </Box>
-      )}
+      {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
     </div>
   );
 }
@@ -48,9 +38,9 @@ const CompanyAnalysis: React.FC = () => {
   // Tab state - determine initial tab based on URL
   const getInitialTab = useCallback(() => {
     const path = location.pathname;
-    if (path.includes('/dcf')) return 1;
-    if (path.includes('/ratios')) return 2;
-    if (path.includes('/analyst')) return 3;
+    if (path.includes("/dcf")) return 1;
+    if (path.includes("/ratios")) return 2;
+    if (path.includes("/analyst")) return 3;
     return 0; // default to stock price
   }, [location.pathname]);
 
@@ -62,7 +52,9 @@ const CompanyAnalysis: React.FC = () => {
   const [headerLoading, setHeaderLoading] = useState(true);
 
   // Moving lines animation (matching landing page)
-  const [lines, setLines] = useState<Array<{ id: number; x: number; y: number; speed: number; opacity: number }>>([]);
+  const [lines, setLines] = useState<
+    Array<{ id: number; x: number; y: number; speed: number; opacity: number }>
+  >([]);
 
   useEffect(() => {
     // Initialize moving lines
@@ -77,12 +69,12 @@ const CompanyAnalysis: React.FC = () => {
 
     // Animate lines
     const interval = setInterval(() => {
-      setLines(prevLines =>
-        prevLines.map(line => ({
+      setLines((prevLines) =>
+        prevLines.map((line) => ({
           ...line,
           y: (line.y - line.speed) % 100,
           opacity: 0.2 + Math.sin(Date.now() * 0.001 + line.id) * 0.3,
-        }))
+        })),
       );
     }, 50);
 
@@ -98,13 +90,13 @@ const CompanyAnalysis: React.FC = () => {
         setHeaderLoading(true);
         const [stock, company] = await Promise.all([
           APIService.getStockData(ticker),
-          APIService.getCompanyInfo(ticker)
+          APIService.getCompanyInfo(ticker),
         ]);
 
         setStockData(stock);
         setCompanyData(company);
       } catch (err) {
-        console.error('Error fetching header data:', err);
+        console.error("Error fetching header data:", err);
       } finally {
         setHeaderLoading(false);
       }
@@ -122,44 +114,49 @@ const CompanyAnalysis: React.FC = () => {
     setActiveTab(newValue);
 
     // Update URL without page reload
-    const tabRoutes = ['stock-price', 'dcf', 'ratios', 'analyst'];
+    const tabRoutes = ["stock-price", "dcf", "ratios", "analyst"];
     const newRoute = tabRoutes[newValue];
     navigate(`/company/${ticker}/${newRoute}`, { replace: true });
   };
 
   const tabs = [
-    { label: 'Stock Price', component: <StockPrice /> },
-    { label: 'DCF Analysis', component: <DCFAnalysis /> },
-    { label: 'Financial Ratios', component: <FinancialRatios /> },
-    { label: 'AI Analyst', component: <AnalystRecommendation /> },
+    { label: "Stock Price", component: <StockPrice /> },
+    { label: "DCF Analysis", component: <DCFAnalysis /> },
+    { label: "Financial Ratios", component: <FinancialRatios /> },
+    { label: "AI Analyst", component: <AnalystRecommendation /> },
   ];
 
   return (
-    <Box sx={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #000000 0%, #0a0a0a 50%, #000000 100%)',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        background:
+          "linear-gradient(135deg, #000000 0%, #0a0a0a 50%, #000000 100%)",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
       {/* Moving lines background */}
-      <Box sx={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        pointerEvents: 'none',
-        zIndex: 0,
-      }}>
+      <Box
+        sx={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      >
         {lines.map((line) => (
           <Box
             key={line.id}
             sx={{
-              position: 'absolute',
+              position: "absolute",
               left: `${line.x}%`,
               top: `${line.y}%`,
-              width: '2px',
-              height: '100px',
+              width: "2px",
+              height: "100px",
               background: `linear-gradient(
                 180deg,
                 transparent,
@@ -168,20 +165,20 @@ const CompanyAnalysis: React.FC = () => {
               )`,
               opacity: line.opacity,
               transform: `rotate(${45 + (line.id % 3) * 15}deg)`,
-              filter: 'blur(0.5px)',
+              filter: "blur(0.5px)",
               boxShadow: `0 0 10px rgba(0, 212, 255, 0.2)`,
             }}
           />
         ))}
       </Box>
 
-      <Container maxWidth="xl" sx={{ py: 4, position: 'relative', zIndex: 1 }}>
+      <Container maxWidth="xl" sx={{ py: 4, position: "relative", zIndex: 1 }}>
         {/* Stock Header */}
         {!headerLoading && stockData && companyData && (
           <StockHeader
             stockData={{
-              symbol: ticker?.toUpperCase() || '',
-              name: companyData.name || '',
+              symbol: ticker?.toUpperCase() || "",
+              name: companyData.name || "",
               price: stockData.current_price || 0,
               change: stockData.price_change || 0,
               changePercent: stockData.price_change_percent || 0,
@@ -190,7 +187,6 @@ const CompanyAnalysis: React.FC = () => {
           />
         )}
 
-
         {/* Page Header */}
         <Box sx={{ mb: 4 }}>
           <Typography
@@ -198,13 +194,14 @@ const CompanyAnalysis: React.FC = () => {
             component="h1"
             gutterBottom
             sx={{
-              background: 'linear-gradient(135deg, #00d4ff 0%, #4ddfff 50%, #ffffff 100%)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
+              background:
+                "linear-gradient(135deg, #00d4ff 0%, #4ddfff 50%, #ffffff 100%)",
+              backgroundClip: "text",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
               fontWeight: 800,
-              letterSpacing: '-0.025em',
-              textShadow: '0 0 40px rgba(0, 212, 255, 0.5)',
+              letterSpacing: "-0.025em",
+              textShadow: "0 0 40px rgba(0, 212, 255, 0.5)",
             }}
           >
             {companyData?.name || `${ticker?.toUpperCase()} Analysis`}
@@ -214,10 +211,10 @@ const CompanyAnalysis: React.FC = () => {
             color="text.secondary"
             sx={{
               mb: 3,
-              fontSize: '1rem',
+              fontSize: "1rem",
               lineHeight: 1.6,
-              maxWidth: '600px',
-              color: '#b0b0b0',
+              maxWidth: "600px",
+              color: "#b0b0b0",
             }}
           >
             Comprehensive financial analysis and valuation
@@ -225,32 +222,34 @@ const CompanyAnalysis: React.FC = () => {
         </Box>
 
         {/* Tabs */}
-        <Box sx={{
-          borderBottom: 1,
-          borderColor: 'rgba(0, 212, 255, 0.2)',
-          mb: 3
-        }}>
+        <Box
+          sx={{
+            borderBottom: 1,
+            borderColor: "rgba(0, 212, 255, 0.2)",
+            mb: 3,
+          }}
+        >
           <Tabs
             value={activeTab}
             onChange={handleTabChange}
             sx={{
-              '& .MuiTabs-indicator': {
-                backgroundColor: '#00d4ff',
+              "& .MuiTabs-indicator": {
+                backgroundColor: "#00d4ff",
                 height: 3,
-                borderRadius: '2px 2px 0 0',
+                borderRadius: "2px 2px 0 0",
               },
-              '& .MuiTab-root': {
-                color: '#b0b0b0',
+              "& .MuiTab-root": {
+                color: "#b0b0b0",
                 fontWeight: 600,
-                fontSize: '0.875rem',
-                textTransform: 'none',
+                fontSize: "0.875rem",
+                textTransform: "none",
                 minHeight: 48,
-                '&.Mui-selected': {
-                  color: '#00d4ff',
+                "&.Mui-selected": {
+                  color: "#00d4ff",
                 },
-                '&:hover': {
-                  color: '#00d4ff',
-                  backgroundColor: 'rgba(0, 212, 255, 0.05)',
+                "&:hover": {
+                  color: "#00d4ff",
+                  backgroundColor: "rgba(0, 212, 255, 0.05)",
                 },
               },
             }}

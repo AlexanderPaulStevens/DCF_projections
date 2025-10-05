@@ -5,11 +5,13 @@ React frontend for DCF Projections application.
 ## 🚀 Quick Start
 
 ### Deploy to Cloud Run
+
 ```bash
 ./deploy.sh
 ```
 
 ### Local Development
+
 ```bash
 # Install dependencies
 npm install

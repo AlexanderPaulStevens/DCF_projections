@@ -1,41 +1,45 @@
 // API Service for DCF Projections Frontend
-import axios from 'axios';
+import axios from "axios";
 
 // Base API configuration
 const getApiBaseUrl = () => {
   // Check if we're running in production (App Engine)
-  const isProduction = process.env.NODE_ENV === 'production';
-  const isAppEngine = window.location.hostname.includes('appspot.com') ||
-                      window.location.hostname.includes('googleusercontent.com');
+  const isProduction = process.env.NODE_ENV === "production";
+  const isAppEngine =
+    window.location.hostname.includes("appspot.com") ||
+    window.location.hostname.includes("googleusercontent.com");
 
   if (isProduction || isAppEngine) {
     // In production, use the Cloud Run backend URL
-    const productionApiUrl = process.env.REACT_APP_PRODUCTION_API_URL ||
-                            'https://dcf-backend-355089933221.europe-west1.run.app';
-    console.log('🚀 Using production API URL:', productionApiUrl);
+    const productionApiUrl =
+      process.env.REACT_APP_PRODUCTION_API_URL ||
+      "https://dcf-backend-355089933221.europe-west1.run.app";
+    console.log("🚀 Using production API URL:", productionApiUrl);
     return productionApiUrl;
-  } else if (window.location.hostname.includes('ngrok')) {
+  } else if (window.location.hostname.includes("ngrok")) {
     // When on ngrok, we need to get the API URL from the ngrok API
     // This will be set by the run.sh script or we'll try to detect it
     const ngrokApiUrl = process.env.REACT_APP_NGROK_API_URL;
 
     if (ngrokApiUrl) {
-      console.log('🔍 Using ngrok API URL from env:', ngrokApiUrl);
+      console.log("🔍 Using ngrok API URL from env:", ngrokApiUrl);
       return ngrokApiUrl;
     } else {
       // Try to detect the API URL automatically
-      console.log('🔍 Attempting to auto-detect ngrok API URL...');
+      console.log("🔍 Attempting to auto-detect ngrok API URL...");
       // For now, use the known API URL from the terminal output
-      const detectedApiUrl = process.env.REACT_APP_NGROK_API_URL || 'https://your-ngrok-url.ngrok-free.app';
-      console.log('🔍 Using detected ngrok API URL:', detectedApiUrl);
+      const detectedApiUrl =
+        process.env.REACT_APP_NGROK_API_URL ||
+        "https://your-ngrok-url.ngrok-free.app";
+      console.log("🔍 Using detected ngrok API URL:", detectedApiUrl);
       return detectedApiUrl;
     }
   } else {
     // When running locally, use the local network API from config
-    const apiHost = process.env.REACT_APP_API_HOST || 'localhost';
-    const apiPort = process.env.REACT_APP_API_PORT || '8001';
+    const apiHost = process.env.REACT_APP_API_HOST || "localhost";
+    const apiPort = process.env.REACT_APP_API_PORT || "8001";
     const localApiUrl = `http://${apiHost}:${apiPort}`;
-    console.log('🏠 Using local API URL:', localApiUrl);
+    console.log("🏠 Using local API URL:", localApiUrl);
     return localApiUrl;
   }
 };
@@ -45,7 +49,7 @@ const api = axios.create({
   baseURL: getApiBaseUrl(),
   timeout: 30000,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
@@ -56,7 +60,7 @@ export class APIService {
       const response = await api.get(`/companies/${ticker}/company-info`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching company info:', error);
+      console.error("Error fetching company info:", error);
       throw error;
     }
   }
@@ -66,18 +70,17 @@ export class APIService {
       const response = await api.get(`/companies/${ticker}/stock-data`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching stock data:', error);
+      console.error("Error fetching stock data:", error);
       throw error;
     }
   }
-
 
   static async getFinancialRatios(ticker: string): Promise<FinancialRatios> {
     try {
       const response = await api.get(`/companies/${ticker}/financial-ratios`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching financial ratios:', error);
+      console.error("Error fetching financial ratios:", error);
       throw error;
     }
   }
@@ -87,33 +90,41 @@ export class APIService {
       const response = await api.get(`/companies/${ticker}/DCF`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching DCF analysis:', error);
+      console.error("Error fetching DCF analysis:", error);
       throw error;
     }
   }
 
-  static async getAnalystRecommendation(ticker: string): Promise<AnalystRecommendation> {
+  static async getAnalystRecommendation(
+    ticker: string,
+  ): Promise<AnalystRecommendation> {
     try {
-      const response = await api.get(`/companies/${ticker}/analyst-recommendation`);
+      const response = await api.get(
+        `/companies/${ticker}/analyst-recommendation`,
+      );
       return response.data;
     } catch (error) {
-      console.error('Error fetching analyst recommendation:', error);
+      console.error("Error fetching analyst recommendation:", error);
       throw error;
     }
   }
 
-
-  static async getHistoricalData(ticker: string, period: string = '6mo'): Promise<any> {
+  static async getHistoricalData(
+    ticker: string,
+    period: string = "6mo",
+  ): Promise<any> {
     try {
-      const response = await api.get(`/companies/${ticker}/stock-data?period=${period}`);
+      const response = await api.get(
+        `/companies/${ticker}/stock-data?period=${period}`,
+      );
       return {
         ticker: response.data.ticker,
         period: response.data.period,
         data: response.data.historical_data || [],
-        count: response.data.historical_data?.length || 0
+        count: response.data.historical_data?.length || 0,
       };
     } catch (error) {
-      console.error('Error fetching historical data:', error);
+      console.error("Error fetching historical data:", error);
       throw error;
     }
   }
@@ -123,7 +134,7 @@ export class APIService {
       const response = await api.get(`/companies/${ticker}/risk-assessment`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching risk assessment:', error);
+      console.error("Error fetching risk assessment:", error);
       throw error;
     }
   }
@@ -133,28 +144,28 @@ export class APIService {
       const response = await api.get(`/companies/${ticker}/opportunities`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching growth opportunities:', error);
+      console.error("Error fetching growth opportunities:", error);
       throw error;
     }
   }
 
-
-
   static async searchCompanies(query: string): Promise<any[]> {
     try {
-      const response = await api.get('/companies/list');
+      const response = await api.get("/companies/list");
       const companies = response.data.companies || [];
 
       // Filter companies based on query (case-insensitive)
-      const filteredCompanies = companies.filter((company: any) =>
-        company.ticker.toLowerCase().includes(query.toLowerCase()) ||
-        company.name.toLowerCase().includes(query.toLowerCase()) ||
-        (company.sector && company.sector.toLowerCase().includes(query.toLowerCase()))
+      const filteredCompanies = companies.filter(
+        (company: any) =>
+          company.ticker.toLowerCase().includes(query.toLowerCase()) ||
+          company.name.toLowerCase().includes(query.toLowerCase()) ||
+          (company.sector &&
+            company.sector.toLowerCase().includes(query.toLowerCase())),
       );
 
       return filteredCompanies;
     } catch (error) {
-      console.error('Error searching companies:', error);
+      console.error("Error searching companies:", error);
       throw error;
     }
   }
@@ -224,7 +235,6 @@ export interface HistoricalData {
     confidence: number;
   }>;
 }
-
 
 export interface CompanyOverview {
   ticker: string;
@@ -296,8 +306,6 @@ export interface DCFAnalysis {
   scraping_status?: string;
 }
 
-
-
 export interface CompetitiveAnalysis {
   ticker: string;
   competitors: Array<{
@@ -324,8 +332,6 @@ export interface CompetitiveAnalysis {
     impact: number;
   }>;
 }
-
-
 
 export interface TechnicalAnalysisRequest {
   indicators: Array<{
@@ -452,12 +458,12 @@ export interface MarketRisk {
 
 export interface AnalystRecommendation {
   ticker: string;
-  recommendation: 'STRONG_BUY' | 'BUY' | 'HOLD' | 'SELL' | 'STRONG_SELL';
+  recommendation: "STRONG_BUY" | "BUY" | "HOLD" | "SELL" | "STRONG_SELL";
   target_price: number;
   current_price: number;
   upside_potential: number;
   confidence_score: number;
-  risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
+  risk_level: "LOW" | "MEDIUM" | "HIGH" | "VERY_HIGH";
   reasoning: string[];
   key_risks: string[];
   key_opportunities: string[];
