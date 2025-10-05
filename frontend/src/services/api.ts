@@ -149,6 +149,16 @@ export class APIService {
     }
   }
 
+  static async getStockForecast(ticker: string): Promise<any> {
+    try {
+      const response = await api.get(`/companies/${ticker}/forecast`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching stock forecast:", error);
+      throw error;
+    }
+  }
+
   static async searchCompanies(query: string): Promise<any[]> {
     try {
       const response = await api.get("/companies/list");

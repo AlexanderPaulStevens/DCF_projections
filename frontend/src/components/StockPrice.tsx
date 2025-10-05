@@ -49,21 +49,6 @@ const StockPrice: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState("6mo");
 
-  const periods = [
-    { label: "1D", value: "1d" },
-    { label: "5D", value: "5d" },
-    { label: "1M", value: "1mo" },
-    { label: "3M", value: "3mo" },
-    { label: "6M", value: "6mo" },
-    { label: "1Y", value: "1y" },
-    { label: "2Y", value: "2y" },
-    { label: "5Y", value: "5y" },
-  ];
-
-  const handlePeriodChange = (period: string) => {
-    setSelectedPeriod(period);
-  };
-
   const fetchHistoricalData = useCallback(
     async (period: string) => {
       if (!ticker) return;
@@ -293,66 +278,6 @@ const StockPrice: React.FC = () => {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
       {/* Main Stock Price Card */}
-      <Card
-        sx={{
-          background: "rgba(0, 0, 0, 0.8)",
-          border: "1px solid rgba(0, 212, 255, 0.2)",
-          borderRadius: 16,
-          backdropFilter: "blur(10px)",
-          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
-          transition: "all 0.3s ease-in-out",
-          "&:hover": {
-            transform: "translateY(-4px)",
-            boxShadow: "0 12px 40px rgba(0, 212, 255, 0.2)",
-            borderColor: "rgba(0, 212, 255, 0.4)",
-          },
-        }}
-      >
-        <CardContent sx={{ p: 4 }}>
-          {/* Time Period Selector */}
-          <Box sx={{ mb: 4 }}>
-            <Typography
-              variant="h6"
-              sx={{ color: "#ffffff", mb: 2, fontWeight: 600 }}
-            >
-              Historical Price Chart
-            </Typography>
-            <ButtonGroup
-              variant="outlined"
-              sx={{
-                "& .MuiButton-root": {
-                  borderColor: "rgba(0, 212, 255, 0.3)",
-                  color: "#b0b0b0",
-                  "&:hover": {
-                    borderColor: "rgba(0, 212, 255, 0.6)",
-                    backgroundColor: "rgba(0, 212, 255, 0.1)",
-                  },
-                  "&.Mui-selected": {
-                    backgroundColor: "rgba(0, 212, 255, 0.2)",
-                    borderColor: "#00d4ff",
-                    color: "#00d4ff",
-                    "&:hover": {
-                      backgroundColor: "rgba(0, 212, 255, 0.3)",
-                    },
-                  },
-                },
-              }}
-            >
-              {periods.map((period) => (
-                <Button
-                  key={period.value}
-                  onClick={() => handlePeriodChange(period.value)}
-                  variant={
-                    selectedPeriod === period.value ? "contained" : "outlined"
-                  }
-                >
-                  {period.label}
-                </Button>
-              ))}
-            </ButtonGroup>
-          </Box>
-        </CardContent>
-      </Card>
 
       {/* Historical Price Chart */}
       <Card
@@ -389,7 +314,7 @@ const StockPrice: React.FC = () => {
                 WebkitTextFillColor: "transparent",
               }}
             >
-              Price Chart
+              Historical Price Chart
             </Typography>
 
             {/* Time Period Selector */}
@@ -571,7 +496,7 @@ const StockPrice: React.FC = () => {
           gap: 3,
         }}
       >
-        {/* Market Cap */}
+        {/* Enhanced Market Cap & Valuation */}
         <Box>
           <Card
             sx={{
@@ -610,7 +535,7 @@ const StockPrice: React.FC = () => {
                     boxShadow: "0 0 10px rgba(0, 212, 255, 0.5)",
                   }}
                 />
-                Market Cap
+                Market Cap & Valuation
               </Typography>
               <Typography
                 variant="h4"
@@ -621,19 +546,52 @@ const StockPrice: React.FC = () => {
                   backgroundClip: "text",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
-                  mb: 1,
+                  mb: 2,
                 }}
               >
                 ${(stockData.market_cap / 1e9).toFixed(2)}B
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Total market value
-              </Typography>
+
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                  <Typography variant="body2" color="text.secondary">
+                    P/E Ratio
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: "#ffffff", fontWeight: 600 }}
+                  >
+                    {stockData.pe_ratio ? stockData.pe_ratio.toFixed(2) : "N/A"}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Beta
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: "#ffffff", fontWeight: 600 }}
+                  >
+                    {stockData.beta ? stockData.beta.toFixed(2) : "N/A"}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                  <Typography variant="body2" color="text.secondary">
+                    EPS
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: "#ffffff", fontWeight: 600 }}
+                  >
+                    {stockData.eps ? `$${stockData.eps.toFixed(2)}` : "N/A"}
+                  </Typography>
+                </Box>
+              </Box>
             </CardContent>
           </Card>
         </Box>
 
-        {/* Volume */}
+        {/* Enhanced Volume & Trading */}
         <Box>
           <Card
             sx={{
@@ -672,7 +630,7 @@ const StockPrice: React.FC = () => {
                     boxShadow: "0 0 10px rgba(0, 212, 255, 0.5)",
                   }}
                 />
-                Volume
+                Volume & Trading
               </Typography>
               <Typography
                 variant="h4"
@@ -683,14 +641,54 @@ const StockPrice: React.FC = () => {
                   backgroundClip: "text",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
-                  mb: 1,
+                  mb: 2,
                 }}
               >
                 {(stockData.volume / 1e6).toFixed(2)}M
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Shares traded today
-              </Typography>
+
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Avg Volume
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: "#ffffff", fontWeight: 600 }}
+                  >
+                    {stockData.avg_volume
+                      ? `${(stockData.avg_volume / 1e6).toFixed(2)}M`
+                      : "N/A"}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Day Range
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: "#ffffff", fontWeight: 600 }}
+                  >
+                    {stockData.day_low && stockData.day_high
+                      ? `$${stockData.day_low.toFixed(2)} - $${stockData.day_high.toFixed(2)}`
+                      : "N/A"}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                  <Typography variant="body2" color="text.secondary">
+                    52W Range
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: "#ffffff", fontWeight: 600 }}
+                  >
+                    {stockData.fifty_two_week_low &&
+                    stockData.fifty_two_week_high
+                      ? `$${stockData.fifty_two_week_low.toFixed(2)} - $${stockData.fifty_two_week_high.toFixed(2)}`
+                      : "N/A"}
+                  </Typography>
+                </Box>
+              </Box>
             </CardContent>
           </Card>
         </Box>

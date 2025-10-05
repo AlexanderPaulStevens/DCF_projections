@@ -7,6 +7,7 @@ import StockPrice from "./StockPrice";
 import DCFAnalysis from "./DCFAnalysis";
 import FinancialRatios from "./FinancialRatios";
 import AnalystRecommendation from "./AnalystRecommendation";
+import Forecast from "./Forecast";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -25,7 +26,26 @@ function TabPanel(props: TabPanelProps) {
       aria-labelledby={`analysis-tab-${index}`}
       {...other}
     >
-      {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
+      {value === index && (
+        <Box
+          sx={{
+            py: 4,
+            animation: "fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
+            "@keyframes fadeInUp": {
+              "0%": {
+                opacity: 0,
+                transform: "translateY(20px)",
+              },
+              "100%": {
+                opacity: 1,
+                transform: "translateY(0)",
+              },
+            },
+          }}
+        >
+          {children}
+        </Box>
+      )}
     </div>
   );
 }
@@ -41,6 +61,7 @@ const CompanyAnalysis: React.FC = () => {
     if (path.includes("/dcf")) return 1;
     if (path.includes("/ratios")) return 2;
     if (path.includes("/analyst")) return 3;
+    if (path.includes("/forecast")) return 4;
     return 0; // default to stock price
   }, [location.pathname]);
 
@@ -114,7 +135,7 @@ const CompanyAnalysis: React.FC = () => {
     setActiveTab(newValue);
 
     // Update URL without page reload
-    const tabRoutes = ["stock-price", "dcf", "ratios", "analyst"];
+    const tabRoutes = ["stock-price", "dcf", "ratios", "analyst", "forecast"];
     const newRoute = tabRoutes[newValue];
     navigate(`/company/${ticker}/${newRoute}`, { replace: true });
   };
@@ -124,19 +145,37 @@ const CompanyAnalysis: React.FC = () => {
     { label: "DCF Analysis", component: <DCFAnalysis /> },
     { label: "Financial Ratios", component: <FinancialRatios /> },
     { label: "AI Analyst", component: <AnalystRecommendation /> },
+    { label: "Forecasts", component: <Forecast /> },
   ];
 
   return (
     <Box
       sx={{
         minHeight: "100vh",
-        background:
-          "linear-gradient(135deg, #000000 0%, #0a0a0a 50%, #000000 100%)",
+        background: `
+          radial-gradient(circle at 20% 80%, rgba(0, 212, 255, 0.12) 0%, transparent 50%),
+          radial-gradient(circle at 80% 20%, rgba(99, 102, 241, 0.12) 0%, transparent 50%),
+          radial-gradient(circle at 40% 40%, rgba(0, 212, 255, 0.06) 0%, transparent 50%),
+          radial-gradient(circle at 60% 60%, rgba(16, 185, 129, 0.04) 0%, transparent 50%),
+          linear-gradient(135deg, #0a0a0a 0%, #000000 50%, #0a0a0a 100%)
+        `,
         position: "relative",
         overflow: "hidden",
+        "&::before": {
+          content: '""',
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: `
+            radial-gradient(circle at 50% 50%, rgba(0, 212, 255, 0.02) 0%, transparent 70%)
+          `,
+          pointerEvents: "none",
+        },
       }}
     >
-      {/* Moving lines background */}
+      {/* Enhanced Moving lines background */}
       <Box
         sx={{
           position: "absolute",
@@ -155,18 +194,25 @@ const CompanyAnalysis: React.FC = () => {
               position: "absolute",
               left: `${line.x}%`,
               top: `${line.y}%`,
-              width: "2px",
-              height: "100px",
+              width: "1px",
+              height: "120px",
               background: `linear-gradient(
                 180deg,
                 transparent,
-                rgba(0, 212, 255, 0.1),
+                rgba(0, 212, 255, 0.15),
+                rgba(0, 212, 255, 0.25),
+                rgba(0, 212, 255, 0.15),
                 transparent
               )`,
               opacity: line.opacity,
-              transform: `rotate(${45 + (line.id % 3) * 15}deg)`,
-              filter: "blur(0.5px)",
-              boxShadow: `0 0 10px rgba(0, 212, 255, 0.2)`,
+              transform: `rotate(${45 + (line.id % 4) * 12}deg)`,
+              filter: "blur(0.8px)",
+              boxShadow: `0 0 15px rgba(0, 212, 255, 0.3)`,
+              animation: `lineGlow ${2 + line.id * 0.1}s ease-in-out infinite alternate`,
+              "@keyframes lineGlow": {
+                "0%": { opacity: line.opacity * 0.5 },
+                "100%": { opacity: line.opacity * 1.2 },
+              },
             }}
           />
         ))}
@@ -187,46 +233,76 @@ const CompanyAnalysis: React.FC = () => {
           />
         )}
 
-        {/* Page Header */}
-        <Box sx={{ mb: 4 }}>
-          <Typography
-            variant="h4"
-            component="h1"
-            gutterBottom
-            sx={{
-              background:
-                "linear-gradient(135deg, #00d4ff 0%, #4ddfff 50%, #ffffff 100%)",
-              backgroundClip: "text",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              fontWeight: 800,
-              letterSpacing: "-0.025em",
-              textShadow: "0 0 40px rgba(0, 212, 255, 0.5)",
-            }}
-          >
-            {companyData?.name || `${ticker?.toUpperCase()} Analysis`}
-          </Typography>
-          <Typography
-            variant="body1"
-            color="text.secondary"
-            sx={{
-              mb: 3,
-              fontSize: "1rem",
-              lineHeight: 1.6,
-              maxWidth: "600px",
-              color: "#b0b0b0",
-            }}
-          >
-            Comprehensive financial analysis and valuation
-          </Typography>
-        </Box>
+        {/* Page Title - Only show if no StockHeader */}
+        {(!stockData || !companyData) && (
+          <Box sx={{ mb: 6 }}>
+            <Typography
+              variant="h3"
+              component="h1"
+              gutterBottom
+              sx={{
+                background:
+                  "linear-gradient(135deg, #00d4ff 0%, #4ddfff 30%, #ffffff 70%, #00d4ff 100%)",
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                fontWeight: 800,
+                letterSpacing: "-0.03em",
+                textShadow: "0 0 50px rgba(0, 212, 255, 0.6)",
+                fontSize: { xs: "2rem", md: "3rem" },
+                lineHeight: 1.2,
+                animation: "headerGlow 3s ease-in-out infinite alternate",
+                "@keyframes headerGlow": {
+                  "0%": {
+                    filter: "drop-shadow(0 0 20px rgba(0, 212, 255, 0.4))",
+                  },
+                  "100%": {
+                    filter: "drop-shadow(0 0 40px rgba(0, 212, 255, 0.8))",
+                  },
+                },
+              }}
+            >
+              {companyData?.name || `${ticker?.toUpperCase()} Analysis`}
+            </Typography>
+            <Typography
+              variant="h6"
+              sx={{
+                mb: 4,
+                fontSize: "1.125rem",
+                lineHeight: 1.7,
+                maxWidth: "700px",
+                color: "#a1a1aa",
+                fontWeight: 400,
+                background:
+                  "linear-gradient(135deg, #a1a1aa 0%, #ffffff 50%, #a1a1aa 100%)",
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
+              Comprehensive financial analysis and valuation powered by advanced
+              AI
+            </Typography>
+          </Box>
+        )}
 
-        {/* Tabs */}
+        {/* Enhanced Tabs */}
         <Box
           sx={{
             borderBottom: 1,
-            borderColor: "rgba(0, 212, 255, 0.2)",
-            mb: 3,
+            borderColor: "rgba(0, 212, 255, 0.15)",
+            mb: 4,
+            position: "relative",
+            "&::before": {
+              content: '""',
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: "1px",
+              background:
+                "linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.5), transparent)",
+            },
           }}
         >
           <Tabs
@@ -235,21 +311,46 @@ const CompanyAnalysis: React.FC = () => {
             sx={{
               "& .MuiTabs-indicator": {
                 backgroundColor: "#00d4ff",
-                height: 3,
+                height: 4,
                 borderRadius: "2px 2px 0 0",
+                boxShadow: "0 0 20px rgba(0, 212, 255, 0.5)",
+                background: "linear-gradient(135deg, #00d4ff 0%, #4ddfff 100%)",
               },
               "& .MuiTab-root": {
-                color: "#b0b0b0",
+                color: "#a1a1aa",
                 fontWeight: 600,
-                fontSize: "0.875rem",
+                fontSize: "1rem",
                 textTransform: "none",
-                minHeight: 48,
+                minHeight: 56,
+                px: 3,
+                py: 2,
+                borderRadius: "12px 12px 0 0",
+                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                position: "relative",
                 "&.Mui-selected": {
                   color: "#00d4ff",
+                  backgroundColor: "rgba(0, 212, 255, 0.08)",
+                  backdropFilter: "blur(10px)",
                 },
                 "&:hover": {
                   color: "#00d4ff",
                   backgroundColor: "rgba(0, 212, 255, 0.05)",
+                  transform: "translateY(-2px)",
+                },
+                "&::before": {
+                  content: '""',
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: "1px",
+                  background:
+                    "linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.3), transparent)",
+                  opacity: 0,
+                  transition: "opacity 0.3s ease",
+                },
+                "&:hover::before": {
+                  opacity: 1,
                 },
               },
             }}

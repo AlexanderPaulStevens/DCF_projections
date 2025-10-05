@@ -109,9 +109,27 @@ const CompanySearch: React.FC = () => {
     <Box
       sx={{
         minHeight: "100vh",
-        background: theme.background,
+        background: `
+          radial-gradient(circle at 20% 80%, rgba(0, 212, 255, 0.15) 0%, transparent 50%),
+          radial-gradient(circle at 80% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+          radial-gradient(circle at 40% 40%, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
+          radial-gradient(circle at 60% 60%, rgba(16, 185, 129, 0.05) 0%, transparent 50%),
+          linear-gradient(135deg, #0a0a0a 0%, #000000 50%, #0a0a0a 100%)
+        `,
         position: "relative",
         overflow: "hidden",
+        "&::before": {
+          content: '""',
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: `
+            radial-gradient(circle at 50% 50%, rgba(0, 212, 255, 0.02) 0%, transparent 70%)
+          `,
+          pointerEvents: "none",
+        },
       }}
     >
       {/* Enhanced Moving Lines Background */}
@@ -194,15 +212,46 @@ const CompanySearch: React.FC = () => {
               zIndex: 1,
             }}
           >
-            {/* Logo */}
-            <Box sx={{ mb: 4, display: "flex", justifyContent: "center" }}>
+            {/* Enhanced Logo */}
+            <Box
+              sx={{
+                mb: 6,
+                display: "flex",
+                justifyContent: "center",
+                position: "relative",
+                "&::before": {
+                  content: '""',
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  width: "400px",
+                  height: "400px",
+                  background:
+                    "radial-gradient(circle, rgba(0, 212, 255, 0.1) 0%, transparent 70%)",
+                  transform: "translate(-50%, -50%)",
+                  borderRadius: "50%",
+                  animation: "pulse 3s ease-in-out infinite",
+                  "@keyframes pulse": {
+                    "0%, 100%": {
+                      transform: "translate(-50%, -50%) scale(1)",
+                      opacity: 0.3,
+                    },
+                    "50%": {
+                      transform: "translate(-50%, -50%) scale(1.1)",
+                      opacity: 0.6,
+                    },
+                  },
+                },
+              }}
+            >
               <img
                 src={theme.logoPath}
                 alt="Horizon Logo"
                 style={{
-                  width: "350px",
+                  width: "380px",
                   height: "auto",
-                  filter: `drop-shadow(0 0 30px ${theme.glowColor})`,
+                  filter: `drop-shadow(0 0 40px ${theme.glowColor})`,
+                  transition: "all 0.3s ease",
                 }}
               />
             </Box>
@@ -210,33 +259,49 @@ const CompanySearch: React.FC = () => {
             <Typography
               variant="h1"
               sx={{
-                fontSize: { xs: "2.5rem", md: "4rem" },
+                fontSize: { xs: "3rem", md: "5rem" },
                 fontWeight: 800,
                 background:
-                  "linear-gradient(135deg, #00d4ff 0%, #4ddfff 50%, #ffffff 100%)",
+                  "linear-gradient(135deg, #00d4ff 0%, #4ddfff 30%, #ffffff 70%, #00d4ff 100%)",
                 backgroundClip: "text",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
-                mb: 2,
-                textShadow: `0 0 40px ${theme.glowColor}`,
+                mb: 3,
+                textShadow: `0 0 60px ${theme.glowColor}`,
+                letterSpacing: "-0.02em",
+                lineHeight: 1.1,
+                animation: "textGlow 2s ease-in-out infinite alternate",
+                "@keyframes textGlow": {
+                  "0%": {
+                    filter: "drop-shadow(0 0 20px rgba(0, 212, 255, 0.3))",
+                  },
+                  "100%": {
+                    filter: "drop-shadow(0 0 40px rgba(0, 212, 255, 0.6))",
+                  },
+                },
               }}
             >
               Analyze, Understand, Invest.
             </Typography>
 
             <Typography
-              variant="h5"
+              variant="h4"
               sx={{
-                color: theme.textSecondary,
-                mb: 4,
-                fontWeight: 400,
+                color: "#a1a1aa",
+                mb: 6,
                 maxWidth: "700px",
                 mx: "auto",
-                lineHeight: 1.6,
+                lineHeight: 1.7,
+                fontWeight: 400,
+                fontSize: { xs: "1.25rem", md: "1.5rem" },
+                textAlign: "center",
+                background:
+                  "linear-gradient(135deg, #a1a1aa 0%, #ffffff 50%, #a1a1aa 100%)",
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
               }}
-            >
-              <br />
-            </Typography>
+            ></Typography>
 
             {/* Search Bar */}
             <Box
@@ -261,30 +326,45 @@ const CompanySearch: React.FC = () => {
                     <InputAdornment position="start">
                       {isSearching ? (
                         <CircularProgress
-                          size={24}
-                          sx={{ color: theme.accent }}
+                          size={28}
+                          sx={{
+                            color: theme.accent,
+                            filter:
+                              "drop-shadow(0 0 12px rgba(0, 212, 255, 0.6))",
+                          }}
                         />
                       ) : (
-                        <Search sx={{ color: theme.accent }} />
+                        <Search
+                          sx={{
+                            color: theme.accent,
+                            fontSize: "1.5rem",
+                            filter:
+                              "drop-shadow(0 0 8px rgba(0, 212, 255, 0.4))",
+                          }}
+                        />
                       )}
                     </InputAdornment>
                   ),
                 }}
                 sx={{
                   "& .MuiOutlinedInput-root": {
-                    backgroundColor: "rgba(0, 0, 0, 0.8)",
-                    border: `2px solid ${theme.accent}`,
-                    borderRadius: 4,
-                    fontSize: "1.2rem",
-                    py: 1,
-                    boxShadow: `0 8px 32px ${theme.glowColor}`,
+                    backgroundColor: "rgba(10, 10, 10, 0.9)",
+                    border: `2px solid rgba(0, 212, 255, 0.3)`,
+                    borderRadius: 16,
+                    fontSize: "1.25rem",
+                    py: 1.5,
+                    backdropFilter: "blur(20px)",
+                    boxShadow: `0 12px 40px rgba(0, 212, 255, 0.2)`,
+                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                     "&:hover": {
-                      borderColor: theme.accent,
-                      boxShadow: `0 12px 40px ${theme.glowColor}`,
+                      borderColor: "rgba(0, 212, 255, 0.5)",
+                      boxShadow: `0 16px 60px rgba(0, 212, 255, 0.3)`,
+                      backgroundColor: "rgba(10, 10, 10, 0.95)",
                     },
                     "&.Mui-focused": {
                       borderColor: theme.accent,
-                      boxShadow: `0 16px 50px ${theme.glowColor}`,
+                      boxShadow: `0 20px 80px rgba(0, 212, 255, 0.4)`,
+                      backgroundColor: "rgba(10, 10, 10, 0.98)",
                     },
                     "& fieldset": {
                       border: "none",

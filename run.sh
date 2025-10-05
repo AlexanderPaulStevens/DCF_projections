@@ -36,7 +36,7 @@ fi
 # Function to check if port is in use
 check_port() {
     local port=$1
-    if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+    if lsof -Pi :$port -sTCP:LISTEN -t 2>&1; then
         return 0  # Port is in use
     else
         return 1  # Port is free
@@ -46,7 +46,7 @@ check_port() {
 # Function to check if process is running
 check_process() {
     local pattern=$1
-    if pgrep -f "$pattern" >/dev/null 2>&1; then
+    if pgrep -f "$pattern" 2>&1; then
         return 0  # Process is running
     else
         return 1  # Process is not running
@@ -60,26 +60,26 @@ kill_existing_processes() {
     # Kill uvicorn processes
     if check_process "uvicorn main:app"; then
         echo "Killing existing uvicorn processes..."
-        pkill -f "uvicorn main:app" 2>/dev/null || true
-        pkill -f "uv run uvicorn" 2>/dev/null || true
+        pkill -f "uvicorn main:app" || true
+        pkill -f "uv run uvicorn" || true
     fi
 
     # Kill npm start processes
     if check_process "npm start"; then
         echo "Killing existing npm processes..."
-        pkill -f "npm start" 2>/dev/null || true
+        pkill -f "npm start" || true
     fi
 
     # Kill serve processes (for production mode)
     if check_process "serve"; then
         echo "Killing existing serve processes..."
-        pkill -f "serve" 2>/dev/null || true
+        pkill -f "serve" || true
     fi
 
     # Force kill any processes using our ports
     echo "Force killing processes on ports $BACKEND_PORT and $FRONTEND_PORT..."
-    lsof -ti:$BACKEND_PORT 2>/dev/null | xargs kill -9 2>/dev/null || true
-    lsof -ti:$FRONTEND_PORT 2>/dev/null | xargs kill -9 2>/dev/null || true
+    lsof -ti:$BACKEND_PORT | xargs kill -9 || true
+    lsof -ti:$FRONTEND_PORT | xargs kill -9 || true
 
     # Wait for processes to terminate
     sleep 3

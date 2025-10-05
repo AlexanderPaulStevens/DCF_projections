@@ -28,6 +28,16 @@ dependencies = [
     # Cloud dependencies
     "google-cloud-storage>=2.10.0",
     "litserve==0.2.0",
+    "scikit-learn>=1.7.2",
+    "statsmodels>=0.14.5",
+    "pydantic-settings>=2.11.0",
+    "holidays==0.40",
+    "statsforecast==1.7.0",
+    "plotly==5.17.0",
+    "xgboost==2.0.3",
+    "jinja2>=3.1.6",
+    "google-generativeai>=0.8.5",
+    "darts>=0.38.0",
 ]
 
 [project.optional-dependencies]

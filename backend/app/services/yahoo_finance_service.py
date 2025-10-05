@@ -645,21 +645,71 @@ class YahooFinanceService:
                 return []
 
             data_points = []
-            for date, row in hist_data.iterrows():
-                data_points.append(
-                    {
-                        "date": date.strftime("%Y-%m-%d"),
-                        "open": float(row["Open"]) if pd.notna(row["Open"]) else None,
-                        "high": float(row["High"]) if pd.notna(row["High"]) else None,
-                        "low": float(row["Low"]) if pd.notna(row["Low"]) else None,
-                        "close": (
-                            float(row["Close"]) if pd.notna(row["Close"]) else None
-                        ),
-                        "volume": (
-                            int(row["Volume"]) if pd.notna(row["Volume"]) else None
-                        ),
-                    }
-                )
+
+            # Check if Date is a column (after reset_index) or in the index
+            if "Date" in hist_data.columns:
+                # Date is a column
+                for _, row in hist_data.iterrows():
+                    date = row["Date"]
+                    # Handle different date formats
+                    if hasattr(date, "strftime"):
+                        date_str = date.strftime("%Y-%m-%d")
+                    else:
+                        # Convert to datetime if it's not already
+                        try:
+                            date_str = pd.to_datetime(date).strftime("%Y-%m-%d")
+                        except:
+                            date_str = str(date)
+
+                    data_points.append(
+                        {
+                            "date": date_str,
+                            "open": (
+                                float(row["Open"]) if pd.notna(row["Open"]) else None
+                            ),
+                            "high": (
+                                float(row["High"]) if pd.notna(row["High"]) else None
+                            ),
+                            "low": float(row["Low"]) if pd.notna(row["Low"]) else None,
+                            "close": (
+                                float(row["Close"]) if pd.notna(row["Close"]) else None
+                            ),
+                            "volume": (
+                                int(row["Volume"]) if pd.notna(row["Volume"]) else None
+                            ),
+                        }
+                    )
+            else:
+                # Date is in the index
+                for date, row in hist_data.iterrows():
+                    # Handle different date formats
+                    if hasattr(date, "strftime"):
+                        date_str = date.strftime("%Y-%m-%d")
+                    else:
+                        # Convert to datetime if it's not already
+                        try:
+                            date_str = pd.to_datetime(date).strftime("%Y-%m-%d")
+                        except:
+                            date_str = str(date)
+
+                    data_points.append(
+                        {
+                            "date": date_str,
+                            "open": (
+                                float(row["Open"]) if pd.notna(row["Open"]) else None
+                            ),
+                            "high": (
+                                float(row["High"]) if pd.notna(row["High"]) else None
+                            ),
+                            "low": float(row["Low"]) if pd.notna(row["Low"]) else None,
+                            "close": (
+                                float(row["Close"]) if pd.notna(row["Close"]) else None
+                            ),
+                            "volume": (
+                                int(row["Volume"]) if pd.notna(row["Volume"]) else None
+                            ),
+                        }
+                    )
 
             return data_points
 

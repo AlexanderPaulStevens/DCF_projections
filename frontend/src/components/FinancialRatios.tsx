@@ -9,7 +9,6 @@ import {
   CircularProgress,
   Alert,
   Container,
-  Avatar,
   Chip,
   Table,
   TableBody,
@@ -116,76 +115,6 @@ const FinancialRatios: React.FC = () => {
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        {/* Company Header Card */}
-        <Card
-          sx={{
-            background: "rgba(17, 17, 17, 0.8)",
-            border: "1px solid #333333",
-            borderRadius: 2,
-            mb: 4,
-          }}
-        >
-          <CardContent sx={{ p: 4 }}>
-            <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
-              <Avatar
-                sx={{
-                  width: 64,
-                  height: 64,
-                  mr: 3,
-                  background:
-                    "linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)",
-                  fontSize: "1.5rem",
-                  fontWeight: 700,
-                  border: "3px solid rgba(255, 255, 255, 0.2)",
-                  boxShadow: "0 4px 16px rgba(0, 212, 255, 0.3)",
-                }}
-              >
-                {ticker?.charAt(0)}
-              </Avatar>
-              <Box sx={{ flexGrow: 1 }}>
-                <Typography
-                  variant="h3"
-                  sx={{
-                    fontWeight: 700,
-                    background:
-                      "linear-gradient(135deg, #00d4ff 0%, #4ddfff 100%)",
-                    backgroundClip: "text",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                    mb: 1,
-                    letterSpacing: "-0.025em",
-                  }}
-                >
-                  Financial Ratios Analysis
-                </Typography>
-                <Typography variant="h5" sx={{ color: "#b0b0b0", mb: 2 }}>
-                  {ticker} - Comprehensive Financial Metrics
-                </Typography>
-                <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-                  <Chip
-                    icon={<TrendingUp />}
-                    label="Financial Analysis"
-                    size="small"
-                    sx={{
-                      background:
-                        "linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)",
-                      color: "white",
-                      fontWeight: 500,
-                      "& .MuiChip-icon": {
-                        color: "#ffffff",
-                        fontSize: "1rem",
-                      },
-                    }}
-                  />
-                </Box>
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
-      </Box>
-
       {/* Key Metrics Summary */}
       <Card
         sx={{

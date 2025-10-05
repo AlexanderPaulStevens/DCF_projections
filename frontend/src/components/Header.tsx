@@ -68,23 +68,53 @@ const Header: React.FC = () => {
     <AppBar
       position="static"
       sx={{
-        backgroundColor: "rgba(0, 0, 0, 0.8)",
-        backdropFilter: "blur(10px)",
-        borderBottom: "1px solid rgba(0, 212, 255, 0.2)",
-        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+        backgroundColor: "rgba(10, 10, 10, 0.95)",
+        backdropFilter: "blur(20px)",
+        borderBottom: "1px solid rgba(0, 212, 255, 0.15)",
+        boxShadow:
+          "0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
         zIndex: 1200,
+        position: "relative",
+        "&::before": {
+          content: '""',
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: "1px",
+          background:
+            "linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.5), transparent)",
+        },
       }}
     >
       <Toolbar sx={{ minHeight: 80, px: 3, justifyContent: "space-between" }}>
-        {/* Logo matching landing page */}
+        {/* Enhanced Logo */}
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
             cursor: "pointer",
-            transition: "all 0.3s ease-in-out",
+            transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+            position: "relative",
             "&:hover": {
-              transform: "scale(1.05)",
+              transform: "scale(1.08)",
+            },
+            "&::after": {
+              content: '""',
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              width: "100%",
+              height: "100%",
+              background:
+                "radial-gradient(circle, rgba(0, 212, 255, 0.2) 0%, transparent 70%)",
+              transform: "translate(-50%, -50%) scale(0)",
+              transition: "transform 0.3s ease",
+              borderRadius: "50%",
+              pointerEvents: "none",
+            },
+            "&:hover::after": {
+              transform: "translate(-50%, -50%) scale(1.5)",
             },
           }}
           onClick={() => navigate("/")}
@@ -93,50 +123,68 @@ const Header: React.FC = () => {
             src="/logo_horizon.png"
             alt="Horizon Logo"
             style={{
-              height: "40px",
+              height: "48px",
               width: "auto",
-              filter: "drop-shadow(0 0 20px rgba(0, 212, 255, 0.4))",
+              filter: "drop-shadow(0 0 24px rgba(0, 212, 255, 0.5))",
+              transition: "filter 0.3s ease",
             }}
           />
         </Box>
 
-        {/* Search Bar */}
+        {/* Enhanced Search Bar */}
         <Box
           sx={{
             position: "relative",
-            width: "400px",
+            width: "450px",
             maxWidth: "50%",
           }}
         >
           <TextField
             fullWidth
-            placeholder="Search for another company..."
+            placeholder="Search companies, tickers, or sectors..."
             value={searchQuery}
             onChange={handleSearchChange}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
                   {isSearching ? (
-                    <CircularProgress size={20} sx={{ color: "#00d4ff" }} />
+                    <CircularProgress
+                      size={22}
+                      sx={{
+                        color: "#00d4ff",
+                        filter: "drop-shadow(0 0 8px rgba(0, 212, 255, 0.5))",
+                      }}
+                    />
                   ) : (
-                    <Search sx={{ color: "#00d4ff" }} />
+                    <Search
+                      sx={{
+                        color: "#00d4ff",
+                        filter: "drop-shadow(0 0 8px rgba(0, 212, 255, 0.3))",
+                        transition: "all 0.3s ease",
+                      }}
+                    />
                   )}
                 </InputAdornment>
               ),
             }}
             sx={{
               "& .MuiOutlinedInput-root": {
-                backgroundColor: "rgba(0, 0, 0, 0.6)",
-                border: "1px solid rgba(0, 212, 255, 0.3)",
-                borderRadius: 2,
-                fontSize: "0.9rem",
-                py: 0.5,
+                backgroundColor: "rgba(10, 10, 10, 0.8)",
+                border: "1.5px solid rgba(0, 212, 255, 0.2)",
+                borderRadius: 16,
+                fontSize: "0.95rem",
+                py: 1,
+                backdropFilter: "blur(10px)",
+                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                 "&:hover": {
-                  borderColor: "rgba(0, 212, 255, 0.5)",
+                  borderColor: "rgba(0, 212, 255, 0.4)",
+                  backgroundColor: "rgba(10, 10, 10, 0.9)",
+                  boxShadow: "0 0 20px rgba(0, 212, 255, 0.1)",
                 },
                 "&.Mui-focused": {
                   borderColor: "#00d4ff",
-                  boxShadow: "0 0 10px rgba(0, 212, 255, 0.3)",
+                  backgroundColor: "rgba(10, 10, 10, 0.95)",
+                  boxShadow: "0 0 24px rgba(0, 212, 255, 0.25)",
                 },
                 "& fieldset": {
                   border: "none",
@@ -144,15 +192,17 @@ const Header: React.FC = () => {
               },
               "& .MuiInputBase-input": {
                 color: "#ffffff",
+                fontWeight: 500,
                 "&::placeholder": {
-                  color: "#b0b0b0",
+                  color: "#a1a1aa",
                   opacity: 1,
+                  fontWeight: 400,
                 },
               },
             }}
           />
 
-          {/* Search Results Dropdown */}
+          {/* Enhanced Search Results Dropdown */}
           {showResults && searchResults.length > 0 && (
             <Paper
               sx={{
@@ -160,25 +210,43 @@ const Header: React.FC = () => {
                 top: "100%",
                 left: 0,
                 right: 0,
-                mt: 1,
-                backgroundColor: "rgba(0, 0, 0, 0.95)",
-                backdropFilter: "blur(10px)",
-                border: "1px solid rgba(0, 212, 255, 0.3)",
-                borderRadius: 2,
-                boxShadow: "0 8px 32px rgba(0, 212, 255, 0.2)",
+                mt: 2,
+                backgroundColor: "rgba(10, 10, 10, 0.98)",
+                backdropFilter: "blur(20px)",
+                border: "1px solid rgba(0, 212, 255, 0.2)",
+                borderRadius: 16,
+                boxShadow:
+                  "0 20px 60px rgba(0, 212, 255, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
                 zIndex: 1000,
-                maxHeight: "250px",
+                maxHeight: "300px",
                 overflow: "auto",
+                animation: "slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                "@keyframes slideDown": {
+                  from: {
+                    opacity: 0,
+                    transform: "translateY(-10px)",
+                  },
+                  to: {
+                    opacity: 1,
+                    transform: "translateY(0)",
+                  },
+                },
               }}
             >
-              <List>
+              <List sx={{ py: 1 }}>
                 {searchResults.slice(0, 8).map((company, index) => (
                   <ListItem key={company.ticker || index} disablePadding>
                     <ListItemButton
                       onClick={() => handleCompanySelect(company.ticker)}
                       sx={{
+                        borderRadius: 2,
+                        mx: 1,
+                        my: 0.5,
+                        transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
                         "&:hover": {
-                          backgroundColor: "rgba(0, 212, 255, 0.1)",
+                          backgroundColor: "rgba(0, 212, 255, 0.15)",
+                          transform: "translateX(4px)",
+                          boxShadow: "0 4px 16px rgba(0, 212, 255, 0.1)",
                         },
                       }}
                     >
