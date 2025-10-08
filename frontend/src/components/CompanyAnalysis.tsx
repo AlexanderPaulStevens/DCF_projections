@@ -4,10 +4,10 @@ import { Container, Typography, Box, Tabs, Tab } from "@mui/material";
 import { StockHeader } from "./StockHeader";
 import { APIService } from "../services/api";
 import StockPrice from "./StockPrice";
-import DCFAnalysis from "./DCFAnalysis";
+import ValuationAnalysis from "./ValuationAnalysis";
 import FinancialRatios from "./FinancialRatios";
 import AnalystRecommendation from "./AnalystRecommendation";
-import Forecast from "./Forecast";
+import RevenueAnalysis from "./RevenueAnalysis";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -58,10 +58,10 @@ const CompanyAnalysis: React.FC = () => {
   // Tab state - determine initial tab based on URL
   const getInitialTab = useCallback(() => {
     const path = location.pathname;
-    if (path.includes("/dcf")) return 1;
+    if (path.includes("/valuation")) return 1;
     if (path.includes("/ratios")) return 2;
     if (path.includes("/analyst")) return 3;
-    if (path.includes("/forecast")) return 4;
+    if (path.includes("/revenue")) return 4;
     return 0; // default to stock price
   }, [location.pathname]);
 
@@ -135,17 +135,23 @@ const CompanyAnalysis: React.FC = () => {
     setActiveTab(newValue);
 
     // Update URL without page reload
-    const tabRoutes = ["stock-price", "dcf", "ratios", "analyst", "forecast"];
+    const tabRoutes = [
+      "stock-price",
+      "valuation",
+      "ratios",
+      "analyst",
+      "revenue",
+    ];
     const newRoute = tabRoutes[newValue];
     navigate(`/company/${ticker}/${newRoute}`, { replace: true });
   };
 
   const tabs = [
     { label: "Stock Price", component: <StockPrice /> },
-    { label: "DCF Analysis", component: <DCFAnalysis /> },
+    { label: "Valuation", component: <ValuationAnalysis /> },
     { label: "Financial Ratios", component: <FinancialRatios /> },
     { label: "AI Analyst", component: <AnalystRecommendation /> },
-    { label: "Forecasts", component: <Forecast /> },
+    { label: "Revenue Analysis", component: <RevenueAnalysis /> },
   ];
 
   return (

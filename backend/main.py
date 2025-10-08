@@ -5,6 +5,7 @@ from app.exceptions.handlers import register_exception_handlers
 from app.routers.analyst_router import router as analyst_router
 from app.routers.companies_router import router as companies_router
 from app.routers.dcf_analysis_router import router as dcf_analysis_router
+from app.routers.edgar_router import router as edgar_router
 from app.routers.forecast_router import router as forecast_router
 from app.routers.health_router import router as health_router
 from fastapi import FastAPI
@@ -36,3 +37,4 @@ app.include_router(companies_router)
 app.include_router(dcf_analysis_router)
 app.include_router(analyst_router)
 app.include_router(forecast_router)
+app.include_router(edgar_router)

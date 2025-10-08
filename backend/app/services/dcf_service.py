@@ -3,6 +3,7 @@ DCF Service Layer - Orchestrates DCF calculations and analysis
 """
 
 import logging
+from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
 from app.core.DCF_calculations import DCFCalculator
@@ -37,32 +38,64 @@ class DCFService:
             Complete DCF analysis results with cache status
         """
         try:
-            # 1. Always try to get cached DCF analysis first
-            cached_dcf = self._get_cached_dcf_analysis(ticker)
-            if cached_dcf:
-                logger.info(f"Using cached DCF analysis for {ticker}")
-                cached_dcf["cache_status"] = "cached"
-                cached_dcf["cache_warning"] = False
-                cached_dcf["analysis_warning"] = None
-
-                # Validate cached intrinsic value
-                intrinsic_value = cached_dcf.get("base_results", {}).get(
-                    "intrinsic_value", 0
+            # 0. Check if cloud storage is available
+            if not self.cloud_storage_service.is_available():
+                logger.warning(
+                    f"Cloud Storage not available for {ticker} - proceeding with fresh analysis"
                 )
-                if intrinsic_value == 0:
-                    logger.warning(
-                        f"Cached DCF analysis for {ticker} has zero intrinsic value"
-                    )
-                    cached_dcf["analysis_warning"] = (
-                        f"Cached DCF analysis shows zero intrinsic value. Consider using the overwrite endpoint to re-scrape and recalculate."
-                    )
+                cloud_storage_unavailable = True
+            else:
+                cloud_storage_unavailable = False
 
-                return cached_dcf
+            # 1. Always try to get cached DCF analysis first (only if cloud storage is available)
+            try:
+                if not cloud_storage_unavailable:
+                    cached_dcf = self._get_cached_dcf_analysis(ticker)
+                    if cached_dcf:
+                        logger.info(f"Using cached DCF analysis for {ticker}")
+                        cached_dcf["cache_status"] = "cached"
+                        cached_dcf["cache_warning"] = False
+                        cached_dcf["analysis_warning"] = None
+
+                        # Validate cached intrinsic value
+                        intrinsic_value = cached_dcf.get("base_results", {}).get(
+                            "intrinsic_value", 0
+                        )
+                        if intrinsic_value == 0:
+                            logger.warning(
+                                f"Cached DCF analysis for {ticker} has zero intrinsic value"
+                            )
+                            cached_dcf["analysis_warning"] = (
+                                f"Cached DCF analysis shows zero intrinsic value. Consider using the overwrite endpoint to re-scrape and recalculate."
+                            )
+
+                        return cached_dcf
+                else:
+                    logger.info(
+                        f"Skipping cache retrieval for {ticker} - Cloud Storage unavailable"
+                    )
+            except ValueError as cache_error:
+                # Cache retrieval failed - show error and proceed with fresh calculation
+                logger.warning(
+                    f"Cache retrieval failed for {ticker}: {str(cache_error)}"
+                )
+                cache_error_message = f"⚠️ Cache retrieval failed: {str(cache_error)}. Proceeding with fresh analysis."
 
             # 2. If no cache, perform real-time calculation with warning
             logger.info(
                 f"No cached DCF found for {ticker}, performing real-time calculation"
             )
+
+            # Set warning message to indicate analysis was rerun (not cached)
+            # Use cache error message if cache retrieval failed, otherwise use default message
+            if cloud_storage_unavailable:
+                analysis_warning = (
+                    "⚠️ Cloud Storage unavailable - analysis completed using fresh data."
+                )
+            elif "cache_error_message" in locals():
+                analysis_warning = cache_error_message
+            else:
+                analysis_warning = "Analysis completed - data was recalculated (no cached data available)."
 
             # 3. Fetch financial data from cloud storage
             financial_data = self._fetch_financial_data(ticker)
@@ -79,7 +112,7 @@ class DCFService:
             # 6. Get current stock price for comparison
             current_price = self._get_current_stock_price(ticker)
 
-            # 7. Build comprehensive response with cache warning
+            # 7. Build comprehensive response
             dcf_analysis = self._build_dcf_response(ticker, dcf_results, current_price)
             dcf_analysis["cache_status"] = "calculated"
             dcf_analysis["cache_warning"] = True
@@ -87,7 +120,7 @@ class DCFService:
                 self._current_scraping_status or "completed"
             )
 
-            # 8. Validate intrinsic value
+            # 8. Validate intrinsic value and set appropriate warning
             intrinsic_value = dcf_analysis.get("base_results", {}).get(
                 "intrinsic_value", 0
             )
@@ -98,6 +131,9 @@ class DCFService:
                 dcf_analysis["analysis_warning"] = (
                     f"DCF analysis resulted in zero intrinsic value. This may indicate issues with financial data extraction or calculation parameters. Consider using the overwrite endpoint to re-scrape data."
                 )
+            else:
+                # Analysis completed successfully - show completion message
+                dcf_analysis["analysis_warning"] = analysis_warning
 
             # 9. Cache the results for future use (including cache fields)
             self._cache_dcf_analysis(ticker, dcf_analysis)
@@ -197,7 +233,50 @@ class DCFService:
                         )
 
                         if year_data and "financial_metrics" in year_data:
-                            financial_data[year] = year_data["financial_metrics"]
+                            # Apply field mapping to cached data
+                            from app.services.yahoo_finance_service import (
+                                YahooFinanceService,
+                            )
+
+                            yahoo_service = YahooFinanceService()
+                            mapped_data = yahoo_service._map_financial_fields(
+                                year_data["financial_metrics"]
+                            )
+
+                            # Add shares outstanding and other market data
+                            stock_info = yahoo_service.get_stock_info(ticker.upper())
+                            if stock_info:
+                                # Add shares outstanding (convert to millions)
+                                if stock_info.get("shares_outstanding"):
+                                    shares_outstanding = stock_info[
+                                        "shares_outstanding"
+                                    ]
+                                    mapped_data["Shares Outstanding"] = (
+                                        shares_outstanding / 1_000_000
+                                    )
+
+                                # Add real beta
+                                if stock_info.get("beta"):
+                                    mapped_data["Beta"] = stock_info["beta"]
+
+                            # Add cost of debt calculation with fallback
+                            interest_expense = mapped_data.get(
+                                "Interest and other income (expense), net", 0
+                            )
+                            total_debt = mapped_data.get("Long-term debt", 0)
+                            if total_debt > 0:
+                                cost_of_debt = abs(interest_expense) / total_debt
+                                # Sanity check: cost of debt should be reasonable (0% to 20%)
+                                if 0 <= cost_of_debt <= 0.20:
+                                    mapped_data["Cost of Debt"] = cost_of_debt
+                                else:
+                                    # Use fallback for unreasonable cost of debt
+                                    mapped_data["Cost of Debt"] = 0.055  # 5.5% fallback
+                            else:
+                                # For debt-free companies, use risk-free rate + premium
+                                mapped_data["Cost of Debt"] = 0.055  # 5.5% fallback
+
+                            financial_data[year] = mapped_data
 
                 except Exception as e:
                     logger.warning(f"Error processing file {filename}: {str(e)}")
@@ -283,101 +362,11 @@ class DCFService:
             "terminal_growth_rate": terminal_growth_rate,
         }
 
-        # Generate scenarios with different growth rates
-        scenarios = self._generate_scenarios(
-            ticker, dcf_results.get("growth_rate", 0.15)
-        )
-
-        # Build parameters
-        parameters = {
-            "projection_years": 5,
-            "wacc": wacc,
-            "terminal_growth_rate": terminal_growth_rate,
-            "tax_rate": tax_rate,
-        }
-
         return {
             "ticker": ticker.upper(),
             "base_results": base_results,
-            "scenarios": scenarios,
-            "parameters": parameters,
-            "projections": dcf_results.get("projections", {}),
-            "enterprise_value": dcf_results.get("enterprise_value", 0),
-            "equity_value": dcf_results.get("equity_value", 0),
-            "cache_status": "fresh",
-            "cache_warning": True,
-            "analysis_warning": "Analysis is rerunning - no cached data available. This may take a moment.",
+            "analysis_warning": None,  # Warning should only be set during analysis, not after completion
         }
-
-    def _generate_scenarios(self, ticker: str, base_growth_rate: float) -> list:
-        """
-        Generate DCF scenarios with different growth rates.
-
-        Args:
-            ticker: Company ticker symbol
-            base_growth_rate: Base growth rate for scenarios
-
-        Returns:
-            List of scenario results
-        """
-        if not self.dcf_calculator:
-            return []
-
-        scenarios = []
-
-        # Bull case (higher growth)
-        bull_growth = base_growth_rate + 0.05
-        bull_projections = self.dcf_calculator.project_financials(
-            earnings_growth_rate=bull_growth
-        )
-        bull_enterprise_value = self.dcf_calculator.calculate_enterprise_value(
-            bull_projections
-        )
-        bull_equity_value = self.dcf_calculator.calculate_equity_value(
-            bull_enterprise_value
-        )
-        bull_per_share = self.dcf_calculator.calculate_per_share_value(
-            bull_equity_value, self._get_shares_outstanding()
-        )
-
-        scenarios.append(
-            {
-                "name": "Bull Case",
-                "wacc": self.dcf_calculator.wacc,
-                "terminal_growth_rate": self.dcf_calculator.terminal_growth_rate + 0.01,
-                "intrinsic_value": bull_per_share,
-                "upside": 0,  # Will be calculated in response
-            }
-        )
-
-        # Bear case (lower growth)
-        bear_growth = max(0.02, base_growth_rate - 0.05)  # Ensure positive growth
-        bear_projections = self.dcf_calculator.project_financials(
-            earnings_growth_rate=bear_growth
-        )
-        bear_enterprise_value = self.dcf_calculator.calculate_enterprise_value(
-            bear_projections
-        )
-        bear_equity_value = self.dcf_calculator.calculate_equity_value(
-            bear_enterprise_value
-        )
-        bear_per_share = self.dcf_calculator.calculate_per_share_value(
-            bear_equity_value, self._get_shares_outstanding()
-        )
-
-        scenarios.append(
-            {
-                "name": "Bear Case",
-                "wacc": self.dcf_calculator.wacc,
-                "terminal_growth_rate": max(
-                    0.01, self.dcf_calculator.terminal_growth_rate - 0.01
-                ),
-                "intrinsic_value": bear_per_share,
-                "upside": 0,  # Will be calculated in response
-            }
-        )
-
-        return scenarios
 
     def create_dcf_calculator(
         self,
@@ -452,17 +441,14 @@ class DCFService:
                 earnings_growth_rate = 0.15  # Default 15% growth
 
         projections = self.dcf_calculator.project_financials(
-            earnings_growth_rate=earnings_growth_rate, years=years
+            growth_rate=earnings_growth_rate, years=years
         )
 
         enterprise_value = self.dcf_calculator.calculate_enterprise_value(projections)
         equity_value = self.dcf_calculator.calculate_equity_value(enterprise_value)
 
-        # Get shares outstanding from financial data
-        shares_outstanding = self._get_shares_outstanding()
-        per_share_value = self.dcf_calculator.calculate_per_share_value(
-            equity_value, shares_outstanding
-        )
+        # Calculate per share value using DCF calculator's internal shares outstanding
+        per_share_value = self.dcf_calculator.calculate_per_share_value(equity_value)
 
         return {
             "projections": projections,
@@ -471,29 +457,6 @@ class DCFService:
             "per_share_value": per_share_value,
             "growth_rate": earnings_growth_rate,
         }
-
-    def _get_shares_outstanding(self) -> Optional[float]:
-        """
-        Extract shares outstanding from financial data.
-
-        Returns:
-            Shares outstanding value or None if not found
-        """
-        if not self.dcf_calculator or not self.dcf_calculator.financial_data:
-            return None
-
-        # Get the most recent year's data
-        latest_year = max(self.dcf_calculator.financial_data.keys())
-        latest_data = self.dcf_calculator.financial_data[latest_year]
-
-        # Look for shares outstanding in various possible keys
-        shares_keys = ["Diluted", "Basic", "shares_outstanding", "Shares Outstanding"]
-
-        for key in shares_keys:
-            if key in latest_data:
-                return latest_data[key]
-
-        return None
 
     def _get_cached_dcf_analysis(self, ticker: str) -> Optional[Dict[str, Any]]:
         """
@@ -506,16 +469,12 @@ class DCFService:
             Cached DCF analysis data or None if not found/expired
         """
         try:
-            cache_file_path = f"{ticker.upper()}/dcf_analysis_cache.json"
-            cached_data = self.cloud_storage_service.read_file_content(
-                ticker.upper(), "dcf_analysis_cache.json"
+            cached_data = self.cloud_storage_service.load_company_data(
+                ticker.upper(), "dcf"
             )
 
-            if cached_data:
-                import json
-                from datetime import datetime, timedelta
-
-                dcf_data = json.loads(cached_data)
+            if cached_data and "data" in cached_data:
+                dcf_data = cached_data["data"]
 
                 # Check if cache is still valid (24 hours)
                 cache_timestamp = dcf_data.get("cache_timestamp")
@@ -527,14 +486,18 @@ class DCFService:
                     else:
                         logger.info(f"Cached DCF analysis for {ticker} has expired")
                         return None
+                else:
+                    logger.info(
+                        f"Using cached DCF analysis for {ticker} (no timestamp)"
+                    )
+                    return dcf_data
 
             return None
 
         except Exception as e:
-            logger.warning(
-                f"Error retrieving cached DCF analysis for {ticker}: {str(e)}"
-            )
-            return None
+            logger.error(f"Error retrieving cached DCF analysis for {ticker}: {str(e)}")
+            # Re-raise the exception so the calling method can handle it appropriately
+            raise ValueError(f"Failed to retrieve cached data for {ticker}: {str(e)}")
 
     def _cache_dcf_analysis(self, ticker: str, dcf_analysis: Dict[str, Any]) -> None:
         """
@@ -545,20 +508,20 @@ class DCFService:
             dcf_analysis: DCF analysis results to cache
         """
         try:
-            import json
             from datetime import datetime
 
             # Add cache timestamp
             dcf_analysis["cache_timestamp"] = datetime.now().isoformat()
 
-            cache_file_path = f"{ticker.upper()}/dcf_analysis_cache.json"
-            cache_content = json.dumps(dcf_analysis, indent=2)
-
-            success = self.cloud_storage_service.upload_file_content(
+            # Use unified helper to save DCF data
+            success = self.cloud_storage_service.save_company_data(
                 ticker.upper(),
-                "dcf_analysis_cache.json",
-                cache_content,
-                content_type="application/json",
+                "dcf",
+                dcf_analysis,
+                metadata={
+                    "analysis_type": "dcf",
+                    "cache_timestamp": dcf_analysis["cache_timestamp"],
+                },
             )
 
             if success:

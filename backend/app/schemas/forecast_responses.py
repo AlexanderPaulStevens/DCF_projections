@@ -1,5 +1,5 @@
 """
-Pydantic schemas for stock price forecasting responses.
+Simplified Pydantic schemas for stock price forecasting responses.
 """
 
 from datetime import datetime
@@ -8,41 +8,21 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
-class ForecastPrediction(BaseModel):
-    """Individual forecast prediction."""
+class SimplePrediction(BaseModel):
+    """Simple forecast prediction."""
 
-    period: int = Field(..., description="Forecast period (days ahead)")
+    timeframe: str = Field(
+        ..., description="Time horizon (e.g., '1 Month', '3 Months')"
+    )
     prediction: float = Field(..., description="Predicted price")
-    method: str = Field(..., description="Prediction method description")
-    confidence_interval: Optional[Dict[str, float]] = Field(
-        None, description="Confidence interval if available"
-    )
-    volatility_adjustment: Optional[float] = Field(
-        None, description="Volatility adjustment if applicable"
-    )
+    method: str = Field(..., description="Prediction method")
 
 
-class ForecastModel(BaseModel):
-    """Forecast model results."""
+class SimpleForecastSummary(BaseModel):
+    """Summary of forecast predictions."""
 
-    model_name: str = Field(..., description="Name of the forecasting model")
-    description: str = Field(..., description="Description of the model")
-    predictions: List[ForecastPrediction] = Field(
-        ..., description="List of predictions"
-    )
-    accuracy: str = Field(..., description="Model accuracy level")
-    best_for: str = Field(..., description="Best use case for this model")
-    metrics: Optional[Dict[str, float]] = Field(
-        None, description="Model performance metrics"
-    )
-
-
-class ForecastSummary(BaseModel):
-    """Summary of all forecast predictions."""
-
-    total_models: int = Field(..., description="Total number of models used")
     average_prediction: float = Field(
-        ..., description="Average prediction across all models"
+        ..., description="Average prediction across all timeframes"
     )
     prediction_range: Dict[str, float] = Field(
         ..., description="Min and max predictions"
@@ -51,16 +31,13 @@ class ForecastSummary(BaseModel):
 
 
 class StockForecastResponse(BaseModel):
-    """Complete stock forecast response."""
+    """Simplified stock forecast response."""
 
     ticker: str = Field(..., description="Stock ticker symbol")
     current_price: float = Field(..., description="Current stock price")
-    forecast_date: str = Field(..., description="Date when forecast was generated")
-    models: Dict[str, ForecastModel] = Field(
-        ..., description="Forecast results by model"
+    predictions: List[SimplePrediction] = Field(
+        ..., description="List of predictions by timeframe"
     )
-    summary: ForecastSummary = Field(..., description="Summary of all predictions")
-    disclaimer: str = Field(
-        default="These predictions are for informational purposes only and should not be considered as investment advice. Past performance does not guarantee future results.",
-        description="Investment disclaimer",
+    summary: SimpleForecastSummary = Field(
+        ..., description="Summary of all predictions"
     )

@@ -6,7 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Iterable
 
-from .config import Settings
+from app.config import Settings
 
 
 def _matches_marker(directory: Path, markers: Iterable[str]) -> bool:

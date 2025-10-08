@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     CLOUD_STORAGE_REGION: str = "europe-west1"
 
     # AI Configuration
-    GOOGLE_API_KEY: str
+    GOOGLE_API_KEY: str = ""
 
     model_config = {
         "env_file": "../.env",

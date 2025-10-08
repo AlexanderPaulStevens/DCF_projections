@@ -159,6 +159,16 @@ export class APIService {
     }
   }
 
+  static async getAnnualRevenue(ticker: string): Promise<AnnualRevenueData> {
+    try {
+      const response = await api.get(`/edgar/revenue/${ticker}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching annual revenue:", error);
+      throw error;
+    }
+  }
+
   static async searchCompanies(query: string): Promise<any[]> {
     try {
       const response = await api.get("/companies/list");
@@ -492,4 +502,22 @@ export interface AnalystRecommendation {
   price_to_intrinsic_ratio: number;
   analysis_timestamp: string;
   analyst_notes: string;
+}
+
+export interface AnnualRevenueData {
+  ticker: string;
+  revenue_data: Array<{
+    year: number;
+    revenue: number;
+    revenue_formatted: string;
+    growth_rate?: number;
+  }>;
+  summary: {
+    latest_revenue: number;
+    latest_year: number;
+    oldest_revenue: number;
+    oldest_year: number;
+    average_growth_rate: number;
+    total_years: number;
+  };
 }

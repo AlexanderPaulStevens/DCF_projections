@@ -20,11 +20,9 @@ class DCFAnalysis(BaseModel):
 
     ticker: str
     base_results: Dict[str, Any]
-    scenarios: List[Dict[str, Any]]
-    parameters: Dict[str, Any]
+    analysis_warning: Optional[str] = None
     cache_status: Optional[str] = None
     cache_warning: Optional[bool] = None
-    analysis_warning: Optional[str] = None
 
 
 __all__ = [

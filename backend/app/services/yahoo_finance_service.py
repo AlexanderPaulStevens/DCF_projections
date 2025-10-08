@@ -55,6 +55,7 @@ class YahooFinanceService:
                 "volume": info.get("volume", 0),
                 "avg_volume": info.get("averageVolume", 0),
                 "market_cap": info.get("marketCap", 0),
+                "shares_outstanding": info.get("sharesOutstanding", 0),
                 "beta": info.get("beta", 0),
                 "pe_ratio": info.get("trailingPE", 0),
                 "forward_pe": info.get("forwardPE", 0),
@@ -390,13 +391,23 @@ class YahooFinanceService:
                 # Balance Sheet data
                 if not balance_sheet.empty:
                     balance_data = balance_sheet[year]
+
+                    # Calculate Net Working Capital = Current Assets - Current Liabilities
+                    current_assets = balance_data.get("Current Assets", 0)
+                    current_liabilities = balance_data.get("Current Liabilities", 0)
+                    net_working_capital = current_assets - current_liabilities
+
                     year_data.update(
                         {
                             "Total Stockholder Equity": balance_data.get(
-                                "Total Stockholder Equity", 0
+                                "Stockholders Equity", 0
                             ),
                             "Total Assets": balance_data.get("Total Assets", 0),
                             "Total Debt": balance_data.get("Total Debt", 0),
+                            "Cash and Cash Equivalents": balance_data.get(
+                                "Cash And Cash Equivalents", 0
+                            ),
+                            "Net Working Capital": net_working_capital,
                         }
                     )
 
@@ -405,7 +416,9 @@ class YahooFinanceService:
                     cash_data = cash_flow[year]
                     year_data.update(
                         {
-                            "Depreciation": cash_data.get("Depreciation", 0),
+                            "Depreciation": cash_data.get(
+                                "Depreciation And Amortization", 0
+                            ),
                             "Free Cash Flow": cash_data.get("Free Cash Flow", 0),
                             "Operating Cash Flow": cash_data.get(
                                 "Operating Cash Flow", 0
@@ -418,6 +431,51 @@ class YahooFinanceService:
 
                 # Convert to millions if values are too large
                 year_data = self._convert_to_millions(year_data)
+
+                # Map financial statement fields to DCF expected field names
+                year_data = self._map_financial_fields(year_data)
+
+                # Add real market data from stock info
+                stock_info = self.get_stock_info(ticker)
+                if stock_info:
+                    # Add shares outstanding (convert to millions)
+                    if stock_info.get("shares_outstanding"):
+                        shares_outstanding = stock_info["shares_outstanding"]
+                        year_data["Shares Outstanding"] = shares_outstanding / 1_000_000
+
+                    # Add real beta
+                    if stock_info.get("beta"):
+                        year_data["Beta"] = stock_info["beta"]
+
+                    # Add real tax rate calculation
+                    if stock_info.get("income_tax_expense") and stock_info.get(
+                        "income_before_tax"
+                    ):
+                        tax_rate = (
+                            stock_info["income_tax_expense"]
+                            / stock_info["income_before_tax"]
+                        )
+                        if 0 <= tax_rate <= 0.5:  # Sanity check
+                            year_data["Effective Tax Rate"] = tax_rate
+
+                    # Add cost of debt calculation with fallback
+                    # Cost of debt = Interest Expense / Total Debt
+                    interest_expense = year_data.get(
+                        "Interest and other income (expense), net", 0
+                    )
+                    total_debt = year_data.get("Long-term debt", 0)
+                    if total_debt > 0:
+                        # Use absolute value for interest expense (it might be negative for income)
+                        cost_of_debt = abs(interest_expense) / total_debt
+                        # Sanity check: cost of debt should be reasonable (0% to 20%)
+                        if 0 <= cost_of_debt <= 0.20:
+                            year_data["Cost of Debt"] = cost_of_debt
+                        else:
+                            # Use fallback for unreasonable cost of debt
+                            year_data["Cost of Debt"] = 0.055  # 5.5% fallback
+                    else:
+                        # For debt-free companies, use risk-free rate + premium
+                        year_data["Cost of Debt"] = 0.055  # 5.5% fallback
 
                 financial_data[year.year] = year_data
 
@@ -592,6 +650,8 @@ class YahooFinanceService:
                 "earnings_growth": info.get("earningsGrowth", 0),
                 "free_cashflow": info.get("freeCashflow", 0),
                 "shares_outstanding": info.get("sharesOutstanding", 0),
+                "income_tax_expense": info.get("incomeTaxExpense", 0),
+                "income_before_tax": info.get("incomeBeforeTax", 0),
                 "total_debt": info.get("totalDebt", 0),
                 "total_cash": info.get("totalCash", 0),
                 "revenue": info.get("totalRevenue", 0),
@@ -823,3 +883,56 @@ class YahooFinanceService:
                 return None
         except (ValueError, TypeError, OSError):
             return None
+
+    def _map_financial_fields(self, year_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Map Yahoo Finance field names to DCF calculator expected field names.
+
+        Args:
+            year_data: Raw financial data from Yahoo Finance
+
+        Returns:
+            Financial data with standardized field names
+        """
+        # Field mapping from Yahoo Finance to DCF expected names
+        field_mapping = {
+            # Revenue
+            "Revenue": "Total net sales",
+            "Total Revenue": "Total net sales",
+            # Operating Income
+            "Income from operations": "EBIT (Operating Income + Other Income/Expense)",
+            "Operating Income": "EBIT (Operating Income + Other Income/Expense)",
+            "EBIT (Net Income + Interest + Tax)": "EBIT (Operating Income + Other Income/Expense)",
+            # Debt
+            "Long-term debt": "Total Debt",
+            "Total Debt": "Total Debt",
+            # Cash
+            "Cash, cash equivalents, and restricted cash at beginning of the period": "Cash and Cash Equivalents",
+            "Cash And Cash Equivalents": "Cash and Cash Equivalents",
+            # Working Capital (calculate from current assets - current liabilities)
+            "Total current assets": "Current Assets",
+            "Total current liabilities": "Current Liabilities",
+            # Depreciation
+            "Depreciation and amortization": "Depreciation and amortization",
+            # Tax
+            "Provision for income taxes": "Provision for income taxes",
+            # CapEx
+            "Purchases of property and equipment": "Capital Expenditure",
+        }
+
+        # Apply field mapping
+        mapped_data = {}
+        for yahoo_field, dcf_field in field_mapping.items():
+            if yahoo_field in year_data and year_data[yahoo_field] is not None:
+                mapped_data[dcf_field] = year_data[yahoo_field]
+
+        # Calculate Net Working Capital if we have current assets and liabilities
+        if "Current Assets" in mapped_data and "Current Liabilities" in mapped_data:
+            current_assets = mapped_data["Current Assets"]
+            current_liabilities = mapped_data["Current Liabilities"]
+            mapped_data["Net Working Capital"] = current_assets - current_liabilities
+
+        # Keep original data as well
+        mapped_data.update(year_data)
+
+        return mapped_data

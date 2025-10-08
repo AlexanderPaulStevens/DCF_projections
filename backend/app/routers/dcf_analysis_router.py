@@ -38,8 +38,7 @@ async def get_dcf_analysis(ticker: str):
         return DCFAnalysis(
             ticker=dcf_results["ticker"],
             base_results=dcf_results["base_results"],
-            scenarios=dcf_results["scenarios"],
-            parameters=dcf_results["parameters"],
+            analysis_warning=dcf_results.get("analysis_warning"),
             cache_status=dcf_results.get("cache_status"),
             cache_warning=dcf_results.get("cache_warning"),
         )

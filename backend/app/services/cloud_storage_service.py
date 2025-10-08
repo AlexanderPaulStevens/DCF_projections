@@ -152,16 +152,19 @@ class CloudStorageService:
         """Get the blob path for a company file."""
         return f"{ticker}/{filename}"
 
-    def read_json_file(self, ticker: str, filename: str) -> Optional[Dict[str, Any]]:
+    def read_file(
+        self, ticker: str, filename: str, file_type: str = "text"
+    ) -> Optional[Any]:
         """
-        Read a JSON file from Cloud Storage using REST API.
+        Unified method to read files from Cloud Storage.
 
         Args:
             ticker: Company ticker symbol
             filename: Name of the file to read
+            file_type: Type of file content ("text", "json", "binary")
 
         Returns:
-            JSON data as dictionary, or None if not found
+            File content (string, dict, or bytes) or None if not found
         """
         self._ensure_initialized()
 
@@ -174,14 +177,19 @@ class CloudStorageService:
             url = f"{self.download_url}/{blob_path}"
             headers = self._get_headers()
 
-            logger.debug(f"Reading file from: {url}")
+            logger.debug(f"Reading {file_type} file from: {url}")
             response = requests.get(url, headers=headers, timeout=30)
 
             if response.status_code == 404:
                 logger.debug(f"File not found: {blob_path}")
                 return None
             elif response.status_code == 200:
-                return response.json()
+                if file_type == "json":
+                    return response.json()
+                elif file_type == "binary":
+                    return response.content
+                else:  # text
+                    return response.text
             else:
                 logger.error(
                     f"Error reading file {blob_path}: HTTP {response.status_code}"
@@ -189,8 +197,34 @@ class CloudStorageService:
                 return None
 
         except Exception as e:
-            logger.error(f"Error reading JSON file {blob_path}: {e}")
+            logger.error(f"Error reading {file_type} file {blob_path}: {e}")
             return None
+
+    def read_json_file(self, ticker: str, filename: str) -> Optional[Dict[str, Any]]:
+        """
+        Read a JSON file from Cloud Storage (legacy method for backward compatibility).
+
+        Args:
+            ticker: Company ticker symbol
+            filename: Name of the file to read
+
+        Returns:
+            JSON data as dictionary, or None if not found
+        """
+        return self.read_file(ticker, filename, "json")
+
+    def read_file_content(self, ticker: str, filename: str) -> Optional[str]:
+        """
+        Read a file from Cloud Storage as text content (legacy method for backward compatibility).
+
+        Args:
+            ticker: Company ticker symbol
+            filename: Name of the file to read
+
+        Returns:
+            File content as string, or None if not found
+        """
+        return self.read_file(ticker, filename, "text")
 
     def list_files(self, ticker: str, pattern: str = "*") -> List[str]:
         """
@@ -275,61 +309,23 @@ class CloudStorageService:
             )
             return None
 
-    def read_file_content(self, ticker: str, filename: str) -> Optional[str]:
-        """
-        Read a file from Cloud Storage as text content.
-
-        Args:
-            ticker: Company ticker symbol
-            filename: Name of the file to read
-
-        Returns:
-            File content as string, or None if not found
-        """
-        self._ensure_initialized()
-
-        if not self.is_available():
-            logger.warning("Cloud Storage service not available")
-            return None
-
-        try:
-            blob_path = self._get_blob_path(ticker, filename)
-            url = f"{self.download_url}/{blob_path}"
-            headers = self._get_headers()
-
-            logger.debug(f"Reading file content from: {url}")
-            response = requests.get(url, headers=headers, timeout=30)
-
-            if response.status_code == 404:
-                logger.debug(f"File not found: {blob_path}")
-                return None
-            elif response.status_code == 200:
-                return response.text
-            else:
-                logger.error(
-                    f"Error reading file {blob_path}: HTTP {response.status_code}"
-                )
-                return None
-
-        except Exception as e:
-            logger.error(f"Error reading file content {blob_path}: {e}")
-            return None
-
-    def upload_file_content(
+    def write_file(
         self,
         ticker: str,
         filename: str,
-        content: str,
+        content: Any,
         content_type: str = "application/json",
+        file_type: str = "text",
     ) -> bool:
         """
-        Upload file content to Cloud Storage using Google Cloud Storage client library.
+        Unified method to write files to Cloud Storage.
 
         Args:
             ticker: Company ticker symbol
-            filename: Name of the file to upload
-            content: File content as string
+            filename: Name of the file to write
+            content: Content to write (string, dict, or bytes)
             content_type: MIME type of the content
+            file_type: Type of content ("text", "json", "binary")
 
         Returns:
             True if successful, False otherwise
@@ -341,6 +337,16 @@ class CloudStorageService:
             return False
 
         try:
+            # Convert content based on file type
+            if file_type == "json" and isinstance(content, dict):
+                import json
+
+                content_str = json.dumps(content, indent=2, default=str)
+            elif file_type == "binary" and isinstance(content, bytes):
+                content_str = content
+            else:
+                content_str = str(content)
+
             # Use Google Cloud Storage client library
             from google.cloud import storage
 
@@ -353,17 +359,144 @@ class CloudStorageService:
             blob = bucket.blob(blob_path)
 
             # Upload content
-            blob.upload_from_string(content, content_type=content_type)
+            if file_type == "binary":
+                blob.upload_from_string(content_str, content_type=content_type)
+            else:
+                blob.upload_from_string(content_str, content_type=content_type)
 
-            logger.info(f"Successfully uploaded file: {blob_path}")
+            logger.info(f"Successfully uploaded {file_type} file: {blob_path}")
             return True
 
         except ImportError:
             logger.error("Google Cloud Storage client library not available")
             return False
         except Exception as e:
-            logger.error(f"Error uploading file content {blob_path}: {e}")
+            logger.error(f"Error uploading {file_type} file {blob_path}: {e}")
             return False
+
+    def upload_file_content(
+        self,
+        ticker: str,
+        filename: str,
+        content: str,
+        content_type: str = "application/json",
+    ) -> bool:
+        """
+        Upload file content to Cloud Storage (legacy method for backward compatibility).
+
+        Args:
+            ticker: Company ticker symbol
+            filename: Name of the file to upload
+            content: File content as string
+            content_type: MIME type of the content
+
+        Returns:
+            True if successful, False otherwise
+        """
+        return self.write_file(ticker, filename, content, content_type, "text")
+
+    def save_company_data(
+        self,
+        ticker: str,
+        data_type: str,
+        data: Any,
+        filename: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        """
+        Unified helper function to save company data to Google Cloud Storage.
+
+        Args:
+            ticker: Company ticker symbol
+            data_type: Type of data being saved (e.g., 'revenue', 'dcf', 'financial_analysis', 'raw_data')
+            data: The data to save (will be JSON serialized)
+            filename: Optional custom filename (defaults to {data_type}_cache.json)
+            metadata: Optional metadata to include with the data
+
+        Returns:
+            True if successful, False otherwise
+        """
+        self._ensure_initialized()
+
+        if not self.is_available():
+            logger.warning("Cloud Storage service not available")
+            return False
+
+        try:
+            # Prepare the data structure
+            save_data = {
+                "timestamp": datetime.now().isoformat(),
+                "ticker": ticker.upper(),
+                "data_type": data_type,
+                "data": data,
+            }
+
+            # Add metadata if provided
+            if metadata:
+                save_data["metadata"] = metadata
+
+            # Determine filename
+            if filename is None:
+                filename = f"{data_type}_cache.json"
+
+            # Use unified write_file method
+            success = self.write_file(
+                ticker.upper(),
+                filename,
+                save_data,
+                content_type="application/json",
+                file_type="json",
+            )
+
+            if success:
+                logger.info(f"Successfully saved {data_type} data for {ticker.upper()}")
+            else:
+                logger.error(f"Failed to save {data_type} data for {ticker.upper()}")
+
+            return success
+
+        except Exception as e:
+            logger.error(f"Error saving {data_type} data for {ticker}: {e}")
+            return False
+
+    def load_company_data(
+        self, ticker: str, data_type: str, filename: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Unified helper function to load company data from Google Cloud Storage.
+
+        Args:
+            ticker: Company ticker symbol
+            data_type: Type of data to load (e.g., 'revenue', 'dcf', 'financial_analysis', 'raw_data')
+            filename: Optional custom filename (defaults to {data_type}_cache.json)
+
+        Returns:
+            Dictionary containing the loaded data, or None if not found/error
+        """
+        self._ensure_initialized()
+
+        if not self.is_available():
+            logger.warning("Cloud Storage service not available")
+            return None
+
+        try:
+            # Determine filename
+            if filename is None:
+                filename = f"{data_type}_cache.json"
+
+            # Use unified read_file method
+            data = self.read_file(ticker.upper(), filename, "json")
+
+            if data is None:
+                logger.debug(f"No cached {data_type} data found for {ticker.upper()}")
+                return None
+
+            logger.info(f"Successfully loaded {data_type} data for {ticker.upper()}")
+            return data
+
+        except Exception as e:
+            logger.error(f"Error loading {data_type} data for {ticker}: {e}")
+            return None
 
 
 # Create a singleton instance

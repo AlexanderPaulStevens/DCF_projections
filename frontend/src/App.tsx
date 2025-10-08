@@ -5,6 +5,7 @@ import {
   Route,
   useLocation,
   Navigate,
+  useParams,
 } from "react-router-dom";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -14,6 +15,12 @@ import CompanyAnalysis from "./components/CompanyAnalysis";
 import Header from "./components/Header";
 import MarketsPage from "./components/MarketsPage";
 import "./App.css";
+
+// Redirect component for old routes
+const ValuationRedirect: React.FC = () => {
+  const { ticker } = useParams<{ ticker: string }>();
+  return <Navigate to={`/company/${ticker}/valuation`} replace />;
+};
 
 // Create professional dark theme with enhanced styling
 const professionalTheme = createTheme({
@@ -395,14 +402,22 @@ const AppContent = () => {
             path="/company/:ticker/stock-price"
             element={<CompanyAnalysis />}
           />
-          <Route path="/company/:ticker/dcf" element={<CompanyAnalysis />} />
+          <Route path="/company/:ticker/dcf" element={<ValuationRedirect />} />
+          <Route
+            path="/company/:ticker/forecast"
+            element={<ValuationRedirect />}
+          />
           <Route path="/company/:ticker/ratios" element={<CompanyAnalysis />} />
           <Route
             path="/company/:ticker/analyst"
             element={<CompanyAnalysis />}
           />
           <Route
-            path="/company/:ticker/forecast"
+            path="/company/:ticker/valuation"
+            element={<CompanyAnalysis />}
+          />
+          <Route
+            path="/company/:ticker/revenue"
             element={<CompanyAnalysis />}
           />
         </Routes>
