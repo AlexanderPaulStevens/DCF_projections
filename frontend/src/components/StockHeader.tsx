@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Box,
   Typography,
@@ -21,7 +21,7 @@ import {
   CalendarToday,
   AttachMoney,
 } from "@mui/icons-material";
-import { APIService, CompanyInfo } from "../services/api";
+import { useCompanyData } from "../hooks/useDataHooks";
 
 interface StockData {
   symbol: string;
@@ -35,32 +35,17 @@ interface StockData {
 
 interface StockHeaderProps {
   stockData: StockData;
+  companyData?: any;
 }
 
-export function StockHeader({ stockData }: StockHeaderProps) {
+export function StockHeader({ stockData, companyData }: StockHeaderProps) {
   const isPositive = stockData.change >= 0;
   const [showCompanyInfo, setShowCompanyInfo] = useState(false);
-  const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
-  const [loadingInfo, setLoadingInfo] = useState(false);
 
-  // Fetch company info when component mounts
-  useEffect(() => {
-    const fetchCompanyInfo = async () => {
-      if (!stockData.symbol) return;
-
-      setLoadingInfo(true);
-      try {
-        const info = await APIService.getCompanyInfo(stockData.symbol);
-        setCompanyInfo(info);
-      } catch (error) {
-        console.error("Error fetching company info:", error);
-      } finally {
-        setLoadingInfo(false);
-      }
-    };
-
-    fetchCompanyInfo();
-  }, [stockData.symbol]);
+  // Use centralized data management
+  const { companyInfo, loading: loadingInfo } = useCompanyData(
+    stockData.symbol,
+  );
 
   const toggleCompanyInfo = () => {
     setShowCompanyInfo(!showCompanyInfo);
@@ -355,9 +340,7 @@ export function StockHeader({ stockData }: StockHeaderProps) {
                   variant="body2"
                   sx={{ color: "#b0b0b0", lineHeight: 1.6 }}
                 >
-                  {companyInfo.description ||
-                    companyInfo.business_summary ||
-                    "No description available"}
+                  {companyInfo?.description || "No description available"}
                 </Typography>
               </Box>
 
@@ -389,7 +372,7 @@ export function StockHeader({ stockData }: StockHeaderProps) {
                       variant="body1"
                       sx={{ color: "#ffffff", fontWeight: 600 }}
                     >
-                      {companyInfo.sector}
+                      {companyInfo?.sector || "N/A"}
                     </Typography>
                   </Box>
                 </Box>
@@ -407,7 +390,7 @@ export function StockHeader({ stockData }: StockHeaderProps) {
                       variant="body1"
                       sx={{ color: "#ffffff", fontWeight: 600 }}
                     >
-                      {companyInfo.industry}
+                      {companyInfo?.industry || "N/A"}
                     </Typography>
                   </Box>
                 </Box>
@@ -426,7 +409,9 @@ export function StockHeader({ stockData }: StockHeaderProps) {
                       variant="body1"
                       sx={{ color: "#ffffff", fontWeight: 600 }}
                     >
-                      {companyInfo.city}, {companyInfo.state}
+                      {companyInfo?.city && companyInfo?.state
+                        ? `${companyInfo.city}, ${companyInfo.state}`
+                        : "N/A"}
                     </Typography>
                   </Box>
                 </Box>
@@ -445,7 +430,7 @@ export function StockHeader({ stockData }: StockHeaderProps) {
                       variant="body1"
                       sx={{ color: "#ffffff", fontWeight: 600 }}
                     >
-                      {companyInfo.employees
+                      {companyInfo?.employees
                         ? companyInfo.employees.toLocaleString()
                         : "N/A"}
                     </Typography>
@@ -466,13 +451,15 @@ export function StockHeader({ stockData }: StockHeaderProps) {
                       variant="body1"
                       sx={{ color: "#ffffff", fontWeight: 600 }}
                     >
-                      {companyInfo.exchange} ({companyInfo.currency})
+                      {companyInfo?.exchange && companyInfo?.currency
+                        ? `${companyInfo.exchange} (${companyInfo.currency})`
+                        : "N/A"}
                     </Typography>
                   </Box>
                 </Box>
 
                 {/* Founded Year */}
-                {companyInfo.founded_year && (
+                {companyInfo?.founded_year && (
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <CalendarToday sx={{ color: "#00d4ff", fontSize: 20 }} />
                     <Box>
@@ -486,7 +473,7 @@ export function StockHeader({ stockData }: StockHeaderProps) {
                         variant="body1"
                         sx={{ color: "#ffffff", fontWeight: 600 }}
                       >
-                        {companyInfo.founded_year}
+                        {companyInfo?.founded_year}
                       </Typography>
                     </Box>
                   </Box>
@@ -494,7 +481,7 @@ export function StockHeader({ stockData }: StockHeaderProps) {
               </Box>
 
               {/* Website */}
-              {companyInfo.website && (
+              {companyInfo?.website && (
                 <>
                   <Divider
                     sx={{ borderColor: "rgba(0, 212, 255, 0.2)", my: 3 }}
@@ -518,10 +505,10 @@ export function StockHeader({ stockData }: StockHeaderProps) {
                           "&:hover": { color: "#4ddfff" },
                         }}
                         onClick={() =>
-                          window.open(companyInfo.website, "_blank")
+                          window.open(companyInfo?.website, "_blank")
                         }
                       >
-                        {companyInfo.website}
+                        {companyInfo?.website}
                       </Typography>
                     </Box>
                   </Box>
@@ -529,7 +516,7 @@ export function StockHeader({ stockData }: StockHeaderProps) {
               )}
 
               {/* CEO */}
-              {companyInfo.ceo && (
+              {companyInfo?.ceo && (
                 <>
                   <Divider
                     sx={{ borderColor: "rgba(0, 212, 255, 0.2)", my: 3 }}
@@ -547,7 +534,7 @@ export function StockHeader({ stockData }: StockHeaderProps) {
                         variant="body1"
                         sx={{ color: "#ffffff", fontWeight: 600 }}
                       >
-                        {companyInfo.ceo}
+                        {companyInfo?.ceo}
                       </Typography>
                     </Box>
                   </Box>
@@ -562,7 +549,9 @@ export function StockHeader({ stockData }: StockHeaderProps) {
                 sx={{ color: "#666", fontSize: "0.7rem" }}
               >
                 Last updated:{" "}
-                {new Date(companyInfo.last_updated).toLocaleString()}
+                {companyInfo?.last_updated
+                  ? new Date(companyInfo.last_updated).toLocaleString()
+                  : "N/A"}
               </Typography>
             </Box>
           ) : (

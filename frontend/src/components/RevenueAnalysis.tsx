@@ -1,46 +1,23 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React from "react";
 import { useParams } from "react-router-dom";
 import {
   Box,
   Card,
   CardContent,
   Typography,
-  Button,
   CircularProgress,
   Alert,
   Container,
   Paper,
+  Tooltip,
 } from "@mui/material";
-import { Refresh } from "@mui/icons-material";
-import { APIService, AnnualRevenueData } from "../services/api";
+import { useEBITData } from "../hooks/useDataHooks";
 
-const RevenueAnalysis: React.FC = () => {
+const EBITAnalysis: React.FC = () => {
   const { ticker } = useParams<{ ticker: string }>();
-  const [revenueData, setRevenueData] = useState<AnnualRevenueData | null>(
-    null,
-  );
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchRevenueData = useCallback(async () => {
-    if (!ticker) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await APIService.getAnnualRevenue(ticker);
-      setRevenueData(data);
-    } catch (err) {
-      console.error("❌ Error fetching revenue data:", err);
-      setError("Failed to fetch revenue data. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, [ticker]);
-
-  useEffect(() => {
-    fetchRevenueData();
-  }, [fetchRevenueData]);
+  // Use centralized EBIT data management
+  const { data: ebitData, loading, error } = useEBITData(ticker || "");
 
   if (loading) {
     return (
@@ -63,49 +40,36 @@ const RevenueAnalysis: React.FC = () => {
         <Alert severity="error" sx={{ mb: 3 }}>
           {error}
         </Alert>
-        <Button
-          variant="contained"
-          onClick={fetchRevenueData}
-          startIcon={<Refresh />}
-          sx={{
-            background: "linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)",
-            "&:hover": {
-              background: "linear-gradient(135deg, #0099cc 0%, #007399 100%)",
-            },
-          }}
-        >
-          Retry
-        </Button>
       </Container>
     );
   }
 
-  if (!revenueData) {
+  if (!ebitData) {
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Alert severity="info">
-          No revenue data available for {ticker?.toUpperCase()}.
+          No EBIT data available for {ticker?.toUpperCase()}.
         </Alert>
       </Container>
     );
   }
 
-  // Prepare chart data for annual revenue (oldest to newest)
-  const revenueChartData = revenueData.revenue_data
+  // Prepare chart data for annual EBIT (oldest to newest)
+  const ebitChartData = ebitData.ebit_data
     .slice()
     .reverse() // Reverse to show oldest to newest
-    .map((item) => ({
+    .map((item: any) => ({
       year: item.year.toString(),
-      revenue: item.revenue / 1000000, // Convert to millions for better display
-      revenueFormatted:
-        item.revenue >= 1000000000
-          ? `$${(item.revenue / 1000000000).toFixed(1)}B`
-          : `$${(item.revenue / 1000000).toFixed(1)}M`,
+      ebit: item.ebit / 1000000, // Convert to millions for better display
+      ebitFormatted:
+        item.ebit >= 1000000000
+          ? `$${(item.ebit / 1000000000).toFixed(1)}B`
+          : `$${(item.ebit / 1000000).toFixed(1)}M`,
     }));
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* Annual Revenue Bar Chart */}
+      {/* Annual EBIT Bar Chart */}
       <Card
         sx={{
           mb: 4,
@@ -120,7 +84,7 @@ const RevenueAnalysis: React.FC = () => {
             gutterBottom
             sx={{ fontWeight: 600, color: "#ffffff", mb: 3 }}
           >
-            📊 Annual Revenue
+            📊 Annual EBIT
           </Typography>
 
           <Box sx={{ height: 350, p: 2 }}>
@@ -133,11 +97,11 @@ const RevenueAnalysis: React.FC = () => {
                 justifyContent: "space-between",
               }}
             >
-              {revenueChartData.map((item, index) => {
-                const maxRevenue = Math.max(
-                  ...revenueChartData.map((d) => d.revenue),
+              {ebitChartData.map((item: any, index: number) => {
+                const maxEbit = Math.max(
+                  ...ebitChartData.map((d: any) => Math.abs(d.ebit)),
                 );
-                const height = (item.revenue / maxRevenue) * 200; // Max height of 200px
+                const height = (Math.abs(item.ebit) / maxEbit) * 200; // Max height of 200px
 
                 return (
                   <Box
@@ -150,7 +114,7 @@ const RevenueAnalysis: React.FC = () => {
                       px: 0.5,
                     }}
                   >
-                    {/* Revenue value on top */}
+                    {/* EBIT value on top */}
                     <Typography
                       variant="caption"
                       sx={{
@@ -161,7 +125,7 @@ const RevenueAnalysis: React.FC = () => {
                         textAlign: "center",
                       }}
                     >
-                      {item.revenueFormatted}
+                      {item.ebitFormatted}
                     </Typography>
 
                     {/* Bar */}
@@ -169,15 +133,16 @@ const RevenueAnalysis: React.FC = () => {
                       sx={{
                         width: "100%",
                         height: `${height}px`,
-                        backgroundColor: "#00d4ff",
+                        backgroundColor: item.ebit >= 0 ? "#00d4ff" : "#ff4444",
                         borderRadius: "4px 4px 0 0",
                         minHeight: "40px",
                         transition: "all 0.3s ease",
                         "&:hover": {
-                          backgroundColor: "#4ddfff",
+                          backgroundColor:
+                            item.ebit >= 0 ? "#4ddfff" : "#ff6666",
                         },
                       }}
-                      title={`${item.year}: ${item.revenueFormatted}`}
+                      title={`${item.year}: ${item.ebitFormatted}`}
                     />
 
                     {/* Year label */}
@@ -215,7 +180,7 @@ const RevenueAnalysis: React.FC = () => {
             gutterBottom
             sx={{ fontWeight: 600, color: "#ffffff", mb: 3 }}
           >
-            📊 Revenue Analysis Summary
+            📊 EBIT Analysis Summary
           </Typography>
 
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3, mb: 4 }}>
@@ -228,24 +193,63 @@ const RevenueAnalysis: React.FC = () => {
                   background: "rgba(34, 34, 34, 0.8)",
                 }}
               >
-                <Typography
-                  variant="body2"
+                <Tooltip
+                  title={
+                    <Box sx={{ p: 1 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{ fontWeight: 600, mb: 1 }}
+                      >
+                        Compound Annual Growth Rate (CAGR)
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontSize: "0.8rem" }}>
+                        The consistent annual growth rate that would get you
+                        from the beginning value to the ending value over the
+                        time period.
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{ fontSize: "0.8rem", mt: 1, fontStyle: "italic" }}
+                      >
+                        Formula: (Ending Value ÷ Beginning Value)^(1/Years) - 1
+                      </Typography>
+                    </Box>
+                  }
+                  arrow
+                  placement="top"
                   sx={{
-                    mb: 1,
-                    fontWeight: 500,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                    color: "#b0b0b0",
+                    "& .MuiTooltip-tooltip": {
+                      backgroundColor: "rgba(0, 0, 0, 0.9)",
+                      border: "1px solid #00d4ff",
+                      borderRadius: 2,
+                      maxWidth: 300,
+                    },
+                    "& .MuiTooltip-arrow": {
+                      color: "rgba(0, 0, 0, 0.9)",
+                    },
                   }}
                 >
-                  Average Growth
-                </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      mb: 1,
+                      fontWeight: 500,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                      color: "#b0b0b0",
+                      cursor: "help",
+                      borderBottom: "1px dotted #b0b0b0",
+                    }}
+                  >
+                    CAGR
+                  </Typography>
+                </Tooltip>
                 <Typography
                   variant="h4"
                   sx={{ fontWeight: 700, color: "#ffffff" }}
                 >
-                  {revenueData.summary.average_growth_rate >= 0 ? "+" : ""}
-                  {revenueData.summary.average_growth_rate.toFixed(1)}%
+                  {ebitData.summary.average_growth_rate >= 0 ? "+" : ""}
+                  {ebitData.summary.average_growth_rate.toFixed(1)}%
                 </Typography>
                 <Typography variant="body2" sx={{ color: "#888888", mt: 1 }}>
                   Per Year
@@ -273,28 +277,28 @@ const RevenueAnalysis: React.FC = () => {
               sx={{ color: "#b0b0b0", lineHeight: 1.6 }}
             >
               <strong>{ticker?.toUpperCase()}</strong> has shown an average
-              annual revenue growth of{" "}
+              annual EBIT CAGR of{" "}
               <strong>
-                {revenueData.summary.average_growth_rate >= 0 ? "+" : ""}
-                {revenueData.summary.average_growth_rate.toFixed(1)}%
+                {ebitData.summary.average_growth_rate >= 0 ? "+" : ""}
+                {ebitData.summary.average_growth_rate.toFixed(1)}%
               </strong>
-              over the past {revenueData.summary.total_years} years.
-              {revenueData.summary.average_growth_rate >= 0 ? (
+              over the past {ebitData.summary.total_years} years.
+              {ebitData.summary.average_growth_rate >= 0 ? (
                 <>
-                  This positive growth trend indicates the company has been
-                  expanding its revenue base consistently. Investors can see the
-                  company's ability to generate increasing sales over time,
-                  which is generally a positive indicator for long-term
-                  investment potential.
+                  This positive CAGR indicates the company has been improving
+                  its operational profitability consistently. EBIT CAGR shows
+                  the company's compound annual growth in operating earnings
+                  over time, which is a strong indicator for long-term
+                  investment potential and operational efficiency.
                 </>
               ) : (
                 <>
-                  This declining trend suggests the company may be facing
-                  challenges in maintaining or growing its revenue. This could
-                  be due to market saturation, increased competition, or changes
-                  in the business model. Investors should consider the
-                  underlying reasons for this trend when making investment
-                  decisions.
+                  This negative CAGR suggests the company may be facing
+                  challenges in maintaining or improving its operational
+                  profitability. A declining EBIT CAGR could be due to increased
+                  costs, pricing pressure, or operational inefficiencies.
+                  Investors should consider the underlying reasons for this
+                  trend when making investment decisions.
                 </>
               )}
             </Typography>
@@ -305,4 +309,4 @@ const RevenueAnalysis: React.FC = () => {
   );
 };
 
-export default RevenueAnalysis;
+export default EBITAnalysis;

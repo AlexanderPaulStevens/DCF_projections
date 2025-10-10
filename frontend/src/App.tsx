@@ -14,6 +14,7 @@ import CompanySearch from "./components/CompanySearch";
 import CompanyAnalysis from "./components/CompanyAnalysis";
 import Header from "./components/Header";
 import MarketsPage from "./components/MarketsPage";
+import { DataProvider } from "./contexts/DataContext";
 import "./App.css";
 
 // Redirect component for old routes
@@ -416,10 +417,7 @@ const AppContent = () => {
             path="/company/:ticker/valuation"
             element={<CompanyAnalysis />}
           />
-          <Route
-            path="/company/:ticker/revenue"
-            element={<CompanyAnalysis />}
-          />
+          <Route path="/company/:ticker/ebit" element={<CompanyAnalysis />} />
         </Routes>
       </Box>
     </Box>
@@ -430,9 +428,11 @@ function App() {
   return (
     <ThemeProvider theme={professionalTheme}>
       <CssBaseline />
-      <Router>
-        <AppContent />
-      </Router>
+      <DataProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </DataProvider>
     </ThemeProvider>
   );
 }

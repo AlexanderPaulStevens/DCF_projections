@@ -1,242 +1,286 @@
+"""
+Financial Ratios Calculator - Core business logic for calculating financial ratios.
+
+This module contains the core business logic for calculating various financial ratios
+from raw financial data. It follows the principle that all business logic belongs in
+the core layer, not in services.
+"""
+
+import logging
 from typing import Any, Dict, Optional
 
-import pandas as pd
-import yfinance as yf
-from app.core.paths import ensure_directory, get_company_data_dir
-from tabulate import tabulate
+logger = logging.getLogger(__name__)
 
 
-class FinancialRatiosAnalyzer:
+class FinancialRatiosCalculator:
     """
-    Analyzer for calculating and displaying key financial ratios for companies.
+    Core business logic for calculating financial ratios from raw data.
+
+    This class contains all the calculation logic and business rules for
+    computing various financial ratios used in investment analysis.
     """
 
-    def __init__(self, ticker: str):
+    def __init__(self):
+        """Initialize the financial ratios calculator."""
+        pass
+
+    def calculate_ratios(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Initialize financial ratios analyzer.
+        Calculate comprehensive financial ratios from raw financial data.
 
         Args:
-            ticker (str): Company ticker symbol
-        """
-        self.ticker = ticker
-        self.yf_ticker = yf.Ticker(ticker)
-
-    def get_financial_ratios(self) -> Dict[str, Any]:
-        """
-        Calculate key financial ratios for the company.
+            raw_data: Raw financial data containing metrics like price, earnings, etc.
 
         Returns:
-            dict: Dictionary containing all calculated ratios
+            Dictionary of calculated financial ratios organized by category
         """
         try:
-            # Get company info from Yahoo Finance
-            info = self.yf_ticker.info
+            # Extract financial metrics
+            financial_metrics = self._extract_financial_metrics(raw_data)
 
-            # Get current stock price
-            current_price = info.get("currentPrice")
-            if not current_price:
-                # Try to get from regular market price
-                current_price = info.get("regularMarketPrice")
-
-            # Get earnings per share (trailing twelve months)
-            eps_ttm = info.get("trailingEps")
-
-            # Get book value per share
-            book_value = info.get("bookValue")
-
-            # Get earnings growth rate (yearly)
-            earnings_growth = info.get("earningsGrowth")
-
-            # Get free cash flow per share
-            fcf_per_share = info.get("freeCashflow")
-            shares_outstanding = info.get("sharesOutstanding")
-
-            # Calculate ratios
+            # Calculate ratios by category
             ratios = {}
 
-            # Price-Earnings Ratio
-            if current_price and eps_ttm and eps_ttm != 0:
-                ratios["Price-Earnings Ratio"] = current_price / eps_ttm
-            else:
-                ratios["Price-Earnings Ratio"] = None
+            profitability = self._calculate_profitability_ratios(financial_metrics)
+            if profitability:
+                ratios["profitability"] = profitability
 
-            # Earnings Yield
-            if current_price and eps_ttm and current_price != 0:
-                ratios["Earnings Yield"] = eps_ttm / current_price
-            else:
-                ratios["Earnings Yield"] = None
+            leverage = self._calculate_leverage_ratios(financial_metrics)
+            if leverage:
+                ratios["leverage"] = leverage
 
-            # Price to Book Ratio
-            if current_price and book_value and book_value != 0:
-                ratios["Price to Book Ratio"] = current_price / book_value
-            else:
-                ratios["Price to Book Ratio"] = None
+            efficiency = self._calculate_efficiency_ratios(financial_metrics)
+            if efficiency:
+                ratios["efficiency"] = efficiency
 
-            # PEG Ratio
-            if (
-                current_price
-                and eps_ttm
-                and earnings_growth
-                and eps_ttm != 0
-                and earnings_growth != 0
-            ):
-                pe_ratio = current_price / eps_ttm
-                ratios["PEG Ratio"] = pe_ratio / earnings_growth
-            else:
-                ratios["PEG Ratio"] = None
-
-            # Free Cash Flow Yield
-            if (
-                fcf_per_share
-                and shares_outstanding
-                and current_price
-                and current_price != 0
-                and shares_outstanding != 0
-            ):
-                # Calculate FCF per share if the value is total FCF
-                if (
-                    fcf_per_share > 1000000
-                ):  # If it's a very large number, it's likely total FCF
-                    fcf_per_share = fcf_per_share / shares_outstanding
-                ratios["Free Cash Flow Yield"] = fcf_per_share / current_price
-            else:
-                ratios["Free Cash Flow Yield"] = None
-
-            # Store raw values for reference
-            ratios["_raw_data"] = {
-                "Current Price": current_price,
-                "EPS (TTM)": eps_ttm,
-                "Book Value per Share": book_value,
-                "Earnings Growth (Yearly)": earnings_growth,
-                "Free Cash Flow per Share": fcf_per_share,
-                "Shares Outstanding": shares_outstanding,
-            }
+            valuation = self._calculate_valuation_ratios(financial_metrics)
+            if valuation:
+                ratios["valuation"] = valuation
 
             return ratios
 
         except Exception as e:
-            print(f"Error calculating financial ratios for {self.ticker}: {e}")
+            logger.error(f"Error calculating financial ratios: {str(e)}")
             return {}
 
-    def format_ratio_value(self, value: Any, ratio_name: str) -> str:
+    def _extract_financial_metrics(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Format ratio values for display.
+        Extract and validate financial metrics from raw data.
 
         Args:
-            value: The ratio value to format
-            ratio_name: Name of the ratio for context
+            raw_data: Raw financial data
 
         Returns:
-            str: Formatted value string
+            Dictionary of validated financial metrics
         """
-        if value is None:
-            return "N/A"
+        metrics = {
+            "current_price": raw_data.get("current_price", 0),
+            "eps": raw_data.get("eps", 0),
+            "book_value": raw_data.get("book_value", 0),
+            "earnings_growth": raw_data.get("earnings_growth", 0),
+            "free_cashflow": raw_data.get("free_cashflow", 0),
+            "shares_outstanding": raw_data.get("shares_outstanding", 0),
+            "market_cap": raw_data.get("market_cap", 0),
+            "total_debt": raw_data.get("total_debt", 0),
+            "total_cash": raw_data.get("total_cash", 0),
+            "revenue": raw_data.get("revenue", 0),
+            "net_income": raw_data.get("net_income", 0),
+        }
 
-        if isinstance(value, (int, float)):
-            if "Yield" in ratio_name:
-                # Convert to percentage for yield ratios
-                return f"{value * 100:.2f}%"
-            elif "Ratio" in ratio_name:
-                # Format ratios to 2 decimal places
-                return f"{value:.2f}"
-            else:
-                return f"{value:.2f}"
+        # Calculate derived metrics
+        metrics["equity"] = self._calculate_equity(metrics)
 
-        return str(value)
+        return metrics
 
-    def print_financial_ratios_table(self):
+    def _calculate_equity(self, metrics: Dict[str, Any]) -> float:
         """
-        Print financial ratios in a nicely formatted table.
-        """
-        ratios = self.get_financial_ratios()
-
-        if not ratios:
-            print(f"Could not calculate financial ratios for {self.ticker}")
-            return
-
-        # Remove raw data from display
-        raw_data = ratios.pop("_raw_data", {})
-
-        # Format the data for display
-        formatted_data = []
-        for ratio_name, value in ratios.items():
-            formatted_value = self.format_ratio_value(value, ratio_name)
-            formatted_data.append([ratio_name, formatted_value])
-
-        # Print the table
-        print(f"\n{'=' * 80}")
-        print(f"FINANCIAL RATIOS: {self.ticker.upper()}")
-        print(f"{'=' * 80}")
-        print(tabulate(formatted_data, headers=["Ratio", "Value"], tablefmt="grid"))
-        print(f"{'=' * 80}")
-
-        # Print raw data for reference
-        print(f"\nRaw Data for {self.ticker}:")
-        print("-" * 40)
-        for key, value in raw_data.items():
-            if isinstance(value, (int, float)):
-                if "Price" in key or "Value" in key:
-                    formatted_value = f"${value:.2f}" if value else "N/A"
-                elif "Growth" in key:
-                    formatted_value = f"{value * 100:.2f}%" if value else "N/A"
-                else:
-                    formatted_value = f"{value:,.0f}" if value else "N/A"
-            else:
-                formatted_value = str(value) if value else "N/A"
-            print(f"{key}: {formatted_value}")
-
-    def save_ratios_to_csv(self, filename: Optional[str] = None) -> str:
-        """
-        Save financial ratios to a CSV file.
+        Calculate shareholders' equity from available metrics.
 
         Args:
-            filename (str, optional): Custom filename. If None, generates default name.
+            metrics: Financial metrics dictionary
 
         Returns:
-            str: Path to the saved file
+            Calculated equity value
         """
-        ratios = self.get_financial_ratios()
+        market_cap = metrics.get("market_cap", 0)
+        total_debt = metrics.get("total_debt", 0)
+        total_cash = metrics.get("total_cash", 0)
 
-        if not ratios:
-            print(f"Could not calculate financial ratios for {self.ticker}")
-            return ""
+        if market_cap and total_debt and total_cash:
+            return market_cap - total_debt + total_cash
+        return 0
 
-        # Remove raw data for CSV
-        ratios.pop("_raw_data", {})
-
-        # Create DataFrame
-        df = pd.DataFrame(list(ratios.items()), columns=["Ratio", "Value"])
-
-        # Generate filename if not provided
-        if not filename:
-            from datetime import datetime
-
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"financial_ratios_{self.ticker}_{timestamp}.csv"
-
-        # Ensure it's saved in the shared company data directory
-        company_dir = ensure_directory(get_company_data_dir() / self.ticker)
-        file_path = company_dir / filename
-
-        # Save to CSV
-        df.to_csv(file_path, index=False)
-        print(f"Financial ratios saved to: {file_path}")
-
-        return str(file_path)
-
-    def get_ratios_summary(self) -> Dict[str, Any]:
+    def _calculate_profitability_ratios(
+        self, metrics: Dict[str, Any]
+    ) -> Dict[str, float]:
         """
-        Get a summary of all ratios for programmatic use.
+        Calculate profitability ratios - measures of company's ability to generate profits.
+
+        Args:
+            metrics: Financial metrics dictionary
 
         Returns:
-            dict: Dictionary with ratio names as keys and values
+            Dictionary of profitability ratios
         """
-        ratios = self.get_financial_ratios()
+        profitability = {}
 
-        if not ratios:
-            return {}
+        net_income = metrics.get("net_income", 0)
+        equity = metrics.get("equity", 0)
+        market_cap = metrics.get("market_cap", 0)
+        revenue = metrics.get("revenue", 0)
+        earnings_growth = metrics.get("earnings_growth", 0)
+        free_cashflow = metrics.get("free_cashflow", 0)
+        total_debt = metrics.get("total_debt", 0)
+        total_cash = metrics.get("total_cash", 0)
 
-        # Remove raw data
-        ratios.pop("_raw_data", {})
+        # ROE: Return on Equity = Net Income / Shareholders' Equity
+        if net_income and equity and equity != 0:
+            profitability["ROE"] = net_income / equity
 
-        return ratios
+        # ROA: Return on Assets = Net Income / Total Assets (using market cap as proxy)
+        if net_income and market_cap and market_cap != 0:
+            profitability["ROA"] = net_income / market_cap
+
+        # ROIC: Return on Invested Capital = Net Income / Invested Capital
+        if net_income and market_cap and market_cap != 0:
+            if total_debt and total_debt > 0:
+                # Invested Capital = Total Debt + Total Equity - Cash
+                invested_capital = (
+                    total_debt + equity - total_cash
+                    if total_cash
+                    else total_debt + equity
+                )
+                profitability["ROIC"] = (
+                    net_income / invested_capital if invested_capital != 0 else 0
+                )
+            else:
+                # No debt company - ROIC ≈ ROA for debt-free companies
+                profitability["ROIC"] = net_income / market_cap
+
+        # Operating Margin = Operating Income / Revenue (using net income as proxy)
+        if net_income and revenue and revenue != 0:
+            profitability["operating_margin"] = net_income / revenue
+
+        # Net Margin = Net Income / Revenue
+        if net_income and revenue and revenue != 0:
+            profitability["net_margin"] = net_income / revenue
+
+        # Revenue Growth (EBIT) - using earnings growth as proxy for EBIT growth
+        if earnings_growth:
+            profitability["revenue_growth_ebit"] = earnings_growth
+
+        # Operating Income Growth - using earnings growth as proxy
+        if earnings_growth:
+            profitability["operating_income_growth"] = earnings_growth
+
+        # Earnings Quality Ratio = Free Cash Flow / Net Income
+        if free_cashflow and net_income and net_income != 0:
+            profitability["earnings_quality_ratio"] = free_cashflow / net_income
+
+        return profitability
+
+    def _calculate_leverage_ratios(self, metrics: Dict[str, Any]) -> Dict[str, float]:
+        """
+        Calculate leverage ratios - measures of company's debt levels and financial risk.
+
+        Args:
+            metrics: Financial metrics dictionary
+
+        Returns:
+            Dictionary of leverage ratios
+        """
+        leverage = {}
+
+        total_debt = metrics.get("total_debt", 0)
+        equity = metrics.get("equity", 0)
+        market_cap = metrics.get("market_cap", 0)
+        free_cashflow = metrics.get("free_cashflow", 0)
+        net_income = metrics.get("net_income", 0)
+
+        # Debt-to-Equity = Total Debt / Shareholders' Equity
+        if total_debt and equity and equity != 0:
+            leverage["debt_to_equity"] = total_debt / equity
+
+        # Debt-to-Assets = Total Debt / Total Assets (using market cap as proxy)
+        if total_debt and market_cap and market_cap != 0:
+            leverage["debt_to_assets"] = total_debt / market_cap
+
+        # Debt to Free Cash Ratio = Total Debt / Free Cash Flow
+        if total_debt and free_cashflow and free_cashflow != 0:
+            leverage["debt_to_free_cash_ratio"] = total_debt / free_cashflow
+
+        # Interest Coverage Ratio = EBIT / Interest Expense
+        # Using net income as proxy for EBIT, and estimating interest expense from debt
+        if net_income and total_debt and total_debt > 0:
+            # Estimate interest expense as 5% of total debt (typical corporate rate)
+            estimated_interest_expense = total_debt * 0.05
+            if estimated_interest_expense != 0:
+                leverage["interest_coverage_ratio"] = (
+                    net_income / estimated_interest_expense
+                )
+
+        return leverage
+
+    def _calculate_efficiency_ratios(self, metrics: Dict[str, Any]) -> Dict[str, float]:
+        """
+        Calculate efficiency ratios - measures of how effectively company uses its assets.
+
+        Args:
+            metrics: Financial metrics dictionary
+
+        Returns:
+            Dictionary of efficiency ratios
+        """
+        efficiency = {}
+
+        revenue = metrics.get("revenue", 0)
+        market_cap = metrics.get("market_cap", 0)
+
+        # Asset Turnover = Revenue / Total Assets (using market cap as proxy)
+        if revenue and market_cap and market_cap != 0:
+            efficiency["asset_turnover"] = revenue / market_cap
+
+        return efficiency
+
+    def _calculate_valuation_ratios(self, metrics: Dict[str, Any]) -> Dict[str, float]:
+        """
+        Calculate valuation ratios - measures of company's market valuation relative to fundamentals.
+
+        Args:
+            metrics: Financial metrics dictionary
+
+        Returns:
+            Dictionary of valuation ratios
+        """
+        valuation = {}
+
+        current_price = metrics.get("current_price", 0)
+        eps = metrics.get("eps", 0)
+        book_value = metrics.get("book_value", 0)
+        market_cap = metrics.get("market_cap", 0)
+        revenue = metrics.get("revenue", 0)
+        earnings_growth = metrics.get("earnings_growth", 0)
+
+        # P/E Ratio = Stock Price / Earnings Per Share
+        if current_price and eps and eps != 0:
+            valuation["pe_ratio"] = current_price / eps
+
+        # P/B Ratio = Stock Price / Book Value Per Share
+        if current_price and book_value and book_value != 0:
+            valuation["pb_ratio"] = current_price / book_value
+
+        # P/S Ratio = Market Cap / Revenue
+        if market_cap and revenue and revenue != 0:
+            valuation["ps_ratio"] = market_cap / revenue
+
+        # PEG Ratio = P/E Ratio / Earnings Growth Rate
+        if (
+            current_price
+            and eps
+            and earnings_growth
+            and eps != 0
+            and earnings_growth != 0
+        ):
+            valuation["peg_ratio"] = (current_price / eps) / earnings_growth
+
+        return valuation

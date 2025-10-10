@@ -10,6 +10,7 @@ import {
   Button,
   ButtonGroup,
 } from "@mui/material";
+import { useCompanyData } from "../hooks/useDataHooks";
 import { APIService } from "../services/api";
 import {
   Chart as ChartJS,
@@ -41,12 +42,17 @@ ChartJS.register(
 
 const StockPrice: React.FC = () => {
   const { ticker } = useParams<{ ticker: string }>();
-  const [stockData, setStockData] = useState<any>(null);
-  const [companyData, setCompanyData] = useState<any>(null);
+
+  // Use centralized data management
+  const {
+    companyData,
+    companyInfo,
+    loading: dataLoading,
+    error: dataError,
+  } = useCompanyData(ticker || "");
+
   const [historicalData, setHistoricalData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [historicalLoading, setHistoricalLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState("6mo");
 
   const fetchHistoricalData = useCallback(
@@ -67,29 +73,9 @@ const StockPrice: React.FC = () => {
   );
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!ticker) return;
-
-      try {
-        setLoading(true);
-        const [stock, company] = await Promise.all([
-          APIService.getStockData(ticker),
-          APIService.getCompanyInfo(ticker),
-        ]);
-
-        setStockData(stock);
-        setCompanyData(company);
-        setError(null);
-      } catch (err) {
-        console.error("Error fetching stock data:", err);
-        setError("Failed to load stock price data");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-    fetchHistoricalData(selectedPeriod);
+    if (ticker) {
+      fetchHistoricalData(selectedPeriod);
+    }
   }, [ticker, selectedPeriod, fetchHistoricalData]);
 
   const formatCurrency = (value: number) => {
@@ -251,7 +237,7 @@ const StockPrice: React.FC = () => {
     };
   };
 
-  if (loading) {
+  if (dataLoading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
         <CircularProgress sx={{ color: "#00d4ff" }} />
@@ -259,18 +245,18 @@ const StockPrice: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (dataError) {
     return (
       <Alert severity="error" sx={{ mb: 3 }}>
-        {error}
+        {dataError || "Failed to load stock price data"}
       </Alert>
     );
   }
 
-  if (!stockData || !companyData) {
+  if (!companyData || !companyInfo) {
     return (
       <Alert severity="warning" sx={{ mb: 3 }}>
-        No stock data available for {ticker}
+        No data available for {ticker}
       </Alert>
     );
   }
@@ -549,7 +535,7 @@ const StockPrice: React.FC = () => {
                   mb: 2,
                 }}
               >
-                ${(stockData.market_cap / 1e9).toFixed(2)}B
+                ${(companyData.market_cap / 1e9).toFixed(2)}B
               </Typography>
 
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
@@ -561,7 +547,9 @@ const StockPrice: React.FC = () => {
                     variant="body2"
                     sx={{ color: "#ffffff", fontWeight: 600 }}
                   >
-                    {stockData.pe_ratio ? stockData.pe_ratio.toFixed(2) : "N/A"}
+                    {companyData.pe_ratio
+                      ? companyData.pe_ratio.toFixed(2)
+                      : "N/A"}
                   </Typography>
                 </Box>
                 <Box sx={{ display: "flex", justifyContent: "space-between" }}>
@@ -572,7 +560,7 @@ const StockPrice: React.FC = () => {
                     variant="body2"
                     sx={{ color: "#ffffff", fontWeight: 600 }}
                   >
-                    {stockData.beta ? stockData.beta.toFixed(2) : "N/A"}
+                    {companyData.beta ? companyData.beta.toFixed(2) : "N/A"}
                   </Typography>
                 </Box>
                 <Box sx={{ display: "flex", justifyContent: "space-between" }}>
@@ -583,7 +571,7 @@ const StockPrice: React.FC = () => {
                     variant="body2"
                     sx={{ color: "#ffffff", fontWeight: 600 }}
                   >
-                    {stockData.eps ? `$${stockData.eps.toFixed(2)}` : "N/A"}
+                    {companyData.eps ? `$${companyData.eps.toFixed(2)}` : "N/A"}
                   </Typography>
                 </Box>
               </Box>
@@ -644,7 +632,7 @@ const StockPrice: React.FC = () => {
                   mb: 2,
                 }}
               >
-                {(stockData.volume / 1e6).toFixed(2)}M
+                {(companyData.volume / 1e6).toFixed(2)}M
               </Typography>
 
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
@@ -656,8 +644,8 @@ const StockPrice: React.FC = () => {
                     variant="body2"
                     sx={{ color: "#ffffff", fontWeight: 600 }}
                   >
-                    {stockData.avg_volume
-                      ? `${(stockData.avg_volume / 1e6).toFixed(2)}M`
+                    {companyData.avg_volume
+                      ? `${(companyData.avg_volume / 1e6).toFixed(2)}M`
                       : "N/A"}
                   </Typography>
                 </Box>
@@ -669,8 +657,8 @@ const StockPrice: React.FC = () => {
                     variant="body2"
                     sx={{ color: "#ffffff", fontWeight: 600 }}
                   >
-                    {stockData.day_low && stockData.day_high
-                      ? `$${stockData.day_low.toFixed(2)} - $${stockData.day_high.toFixed(2)}`
+                    {companyData.day_low && companyData.day_high
+                      ? `$${companyData.day_low.toFixed(2)} - $${companyData.day_high.toFixed(2)}`
                       : "N/A"}
                   </Typography>
                 </Box>
@@ -682,9 +670,9 @@ const StockPrice: React.FC = () => {
                     variant="body2"
                     sx={{ color: "#ffffff", fontWeight: 600 }}
                   >
-                    {stockData.fifty_two_week_low &&
-                    stockData.fifty_two_week_high
-                      ? `$${stockData.fifty_two_week_low.toFixed(2)} - $${stockData.fifty_two_week_high.toFixed(2)}`
+                    {companyData.fifty_two_week_low &&
+                    companyData.fifty_two_week_high
+                      ? `$${companyData.fifty_two_week_low.toFixed(2)} - $${companyData.fifty_two_week_high.toFixed(2)}`
                       : "N/A"}
                   </Typography>
                 </Box>
@@ -742,7 +730,9 @@ const StockPrice: React.FC = () => {
                   mb: 1,
                 }}
               >
-                {formatCurrency(stockData.fifty_two_week_high)}
+                {companyData.fifty_two_week_high
+                  ? formatCurrency(companyData.fifty_two_week_high)
+                  : "N/A"}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Highest price in 52 weeks
@@ -800,7 +790,9 @@ const StockPrice: React.FC = () => {
                   mb: 1,
                 }}
               >
-                {formatCurrency(stockData.fifty_two_week_low)}
+                {companyData.fifty_two_week_low
+                  ? formatCurrency(companyData.fifty_two_week_low)
+                  : "N/A"}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Lowest price in 52 weeks

@@ -2,12 +2,12 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Container, Typography, Box, Tabs, Tab } from "@mui/material";
 import { StockHeader } from "./StockHeader";
-import { APIService } from "../services/api";
+import { useCompanyData, useLazyData } from "../hooks/useDataHooks";
 import StockPrice from "./StockPrice";
 import ValuationAnalysis from "./ValuationAnalysis";
 import FinancialRatios from "./FinancialRatios";
 import AnalystRecommendation from "./AnalystRecommendation";
-import RevenueAnalysis from "./RevenueAnalysis";
+import EBITAnalysis from "./RevenueAnalysis";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -67,10 +67,16 @@ const CompanyAnalysis: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState(getInitialTab());
 
-  // Stock data for header
-  const [stockData, setStockData] = useState<any>(null);
-  const [companyData, setCompanyData] = useState<any>(null);
-  const [headerLoading, setHeaderLoading] = useState(true);
+  // Use centralized data management
+  const {
+    companyData,
+    companyInfo,
+    loading: headerLoading,
+  } = useCompanyData(ticker || "");
+
+  // Lazy load analysis data when tabs are active
+  const dcfData = useLazyData(ticker || "", "dcf", activeTab === 1);
+  const forecastData = useLazyData(ticker || "", "forecast", activeTab === 1);
 
   // Moving lines animation (matching landing page)
   const [lines, setLines] = useState<
@@ -102,30 +108,6 @@ const CompanyAnalysis: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch stock and company data for header
-  useEffect(() => {
-    const fetchHeaderData = async () => {
-      if (!ticker) return;
-
-      try {
-        setHeaderLoading(true);
-        const [stock, company] = await Promise.all([
-          APIService.getStockData(ticker),
-          APIService.getCompanyInfo(ticker),
-        ]);
-
-        setStockData(stock);
-        setCompanyData(company);
-      } catch (err) {
-        console.error("Error fetching header data:", err);
-      } finally {
-        setHeaderLoading(false);
-      }
-    };
-
-    fetchHeaderData();
-  }, [ticker]);
-
   // Update tab when URL changes
   useEffect(() => {
     setActiveTab(getInitialTab());
@@ -135,23 +117,29 @@ const CompanyAnalysis: React.FC = () => {
     setActiveTab(newValue);
 
     // Update URL without page reload
-    const tabRoutes = [
-      "stock-price",
-      "valuation",
-      "ratios",
-      "analyst",
-      "revenue",
-    ];
+    const tabRoutes = ["stock-price", "valuation", "ratios", "analyst", "ebit"];
     const newRoute = tabRoutes[newValue];
     navigate(`/company/${ticker}/${newRoute}`, { replace: true });
   };
 
   const tabs = [
     { label: "Stock Price", component: <StockPrice /> },
-    { label: "Valuation", component: <ValuationAnalysis /> },
-    { label: "Financial Ratios", component: <FinancialRatios /> },
+    {
+      label: "Valuation",
+      component: (
+        <ValuationAnalysis
+          dcfData={dcfData.data}
+          forecastData={forecastData.data}
+          loading={dcfData.loading || forecastData.loading}
+        />
+      ),
+    },
+    {
+      label: "Financial Ratios",
+      component: <FinancialRatios />,
+    },
     { label: "AI Analyst", component: <AnalystRecommendation /> },
-    { label: "Revenue Analysis", component: <RevenueAnalysis /> },
+    { label: "EBIT Analysis", component: <EBITAnalysis /> },
   ];
 
   return (
@@ -226,21 +214,22 @@ const CompanyAnalysis: React.FC = () => {
 
       <Container maxWidth="xl" sx={{ py: 4, position: "relative", zIndex: 1 }}>
         {/* Stock Header */}
-        {!headerLoading && stockData && companyData && (
+        {!headerLoading && companyData && companyInfo && (
           <StockHeader
             stockData={{
               symbol: ticker?.toUpperCase() || "",
-              name: companyData.name || "",
-              price: stockData.current_price || 0,
-              change: stockData.price_change || 0,
-              changePercent: stockData.price_change_percent || 0,
+              name: companyInfo.name || "",
+              price: companyData.current_price || 0,
+              change: companyData.price_change || 0,
+              changePercent: companyData.price_change_percent || 0,
               lastUpdated: new Date().toLocaleTimeString(),
             }}
+            companyData={companyInfo}
           />
         )}
 
         {/* Page Title - Only show if no StockHeader */}
-        {(!stockData || !companyData) && (
+        {(!companyData || !companyInfo) && (
           <Box sx={{ mb: 6 }}>
             <Typography
               variant="h3"
@@ -268,7 +257,7 @@ const CompanyAnalysis: React.FC = () => {
                 },
               }}
             >
-              {companyData?.name || `${ticker?.toUpperCase()} Analysis`}
+              {companyInfo?.name || `${ticker?.toUpperCase()} Analysis`}
             </Typography>
             <Typography
               variant="h6"

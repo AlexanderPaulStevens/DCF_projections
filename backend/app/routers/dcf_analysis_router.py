@@ -5,21 +5,21 @@ DCF Analysis API endpoints - discounted cash flow analysis and valuation.
 import logging
 from typing import Any, Dict, List, Optional
 
+from app.core.service_container import get_dcf_service
 from app.schemas.financial_analysis import DCFAnalysis
 from app.services.dcf_service import DCFService
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 logger = logging.getLogger(__name__)
 
 # Initialize router
 router = APIRouter(prefix="/companies", tags=["dcf-analysis"])
 
-# Initialize services
-dcf_service = DCFService()
-
 
 @router.get("/{ticker}/DCF", response_model=DCFAnalysis)
-async def get_dcf_analysis(ticker: str):
+async def get_dcf_analysis(
+    ticker: str, dcf_service: DCFService = Depends(get_dcf_service)
+):
     """
     Get DCF analysis for a company using real financial data.
 
@@ -31,7 +31,6 @@ async def get_dcf_analysis(ticker: str):
     """
     try:
         # Use the enhanced DCF service to get real calculations
-        dcf_service = DCFService()
         dcf_results = dcf_service.get_DCF_analysis(ticker.upper())
 
         # Convert to DCFAnalysis schema

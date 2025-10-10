@@ -45,12 +45,28 @@ interface ForecastData {
   disclaimer: string;
 }
 
-const ValuationAnalysis: React.FC = () => {
+interface ValuationAnalysisProps {
+  dcfData?: DCFAnalysisType | null;
+  forecastData?: ForecastData | null;
+  loading?: boolean;
+}
+
+const ValuationAnalysis: React.FC<ValuationAnalysisProps> = ({
+  dcfData: propDcfData,
+  forecastData: propForecastData,
+  loading: propLoading,
+}) => {
   const { ticker } = useParams<{ ticker: string }>();
   const navigate = useNavigate();
-  const [dcfData, setDcfData] = useState<DCFAnalysisType | null>(null);
-  const [forecastData, setForecastData] = useState<ForecastData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [dcfData, setDcfData] = useState<DCFAnalysisType | null>(
+    propDcfData || null,
+  );
+  const [forecastData, setForecastData] = useState<ForecastData | null>(
+    propForecastData || null,
+  );
+  const [loading, setLoading] = useState(
+    propLoading || (!propDcfData && !propForecastData),
+  );
   const [error, setError] = useState<string | null>(null);
 
   const loadValuationData = useCallback(async (companyTicker: string) => {
@@ -73,11 +89,19 @@ const ValuationAnalysis: React.FC = () => {
     }
   }, []);
 
+  // Update local state when props change
   useEffect(() => {
-    if (ticker) {
+    if (propDcfData) setDcfData(propDcfData);
+    if (propForecastData) setForecastData(propForecastData);
+    if (propLoading !== undefined) setLoading(propLoading);
+  }, [propDcfData, propForecastData, propLoading]);
+
+  // Only fetch data if not provided as props
+  useEffect(() => {
+    if (ticker && !propDcfData && !propForecastData) {
       loadValuationData(ticker);
     }
-  }, [ticker, loadValuationData]);
+  }, [ticker, loadValuationData, propDcfData, propForecastData]);
 
   const handleRunAnalysis = () => {
     if (ticker) {
@@ -162,7 +186,7 @@ const ValuationAnalysis: React.FC = () => {
           }}
         >
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            ⚠️ {dcfData.analysis_warning}
+            ⚠️ {dcfData?.analysis_warning}
           </Typography>
         </Alert>
       )}
@@ -404,7 +428,9 @@ const ValuationAnalysis: React.FC = () => {
                       variant="h5"
                       sx={{ fontWeight: 700, color: "#ffffff" }}
                     >
-                      {formatCurrency(dcfData.base_results?.intrinsic_value)}
+                      {dcfData?.base_results?.intrinsic_value
+                        ? formatCurrency(dcfData.base_results.intrinsic_value)
+                        : "N/A"}
                     </Typography>
                   </Paper>
 
@@ -432,24 +458,28 @@ const ValuationAnalysis: React.FC = () => {
                       variant="h5"
                       sx={{ fontWeight: 700, color: "#ffffff" }}
                     >
-                      {formatCurrency(dcfData.base_results?.current_price)}
+                      {dcfData?.base_results?.current_price
+                        ? formatCurrency(dcfData.base_results.current_price)
+                        : "N/A"}
                     </Typography>
                   </Paper>
                 </Box>
 
-                {dcfData.base_results?.upside !== undefined && (
+                {dcfData?.base_results?.upside !== undefined && (
                   <Box sx={{ textAlign: "center", mb: 3 }}>
                     <Chip
                       icon={
+                        dcfData?.base_results?.upside &&
                         dcfData.base_results.upside > 0 ? (
                           <TrendingUp />
                         ) : (
                           <TrendingDown />
                         )
                       }
-                      label={`${dcfData.base_results.upside > 0 ? "+" : ""}${dcfData.base_results.upside.toFixed(1)}% ${dcfData.base_results.upside > 0 ? "Upside" : "Downside"}`}
+                      label={`${dcfData?.base_results?.upside && dcfData.base_results.upside > 0 ? "+" : ""}${dcfData?.base_results?.upside ? dcfData.base_results.upside.toFixed(1) : "0"}% ${dcfData?.base_results?.upside && dcfData.base_results.upside > 0 ? "Upside" : "Downside"}`}
                       sx={{
                         backgroundColor:
+                          dcfData?.base_results?.upside &&
                           dcfData.base_results.upside > 0
                             ? "#10b981"
                             : "#ef4444",
@@ -534,7 +564,11 @@ const ValuationAnalysis: React.FC = () => {
                       variant="h5"
                       sx={{ fontWeight: 700, color: "#ffffff" }}
                     >
-                      {formatCurrency(forecastData.summary.average_prediction)}
+                      {forecastData?.summary?.average_prediction
+                        ? formatCurrency(
+                            forecastData.summary.average_prediction,
+                          )
+                        : "N/A"}
                     </Typography>
                   </Paper>
 
@@ -562,7 +596,9 @@ const ValuationAnalysis: React.FC = () => {
                       variant="h5"
                       sx={{ fontWeight: 700, color: "#ffffff" }}
                     >
-                      {forecastData.summary.confidence_score.toFixed(0)}%
+                      {forecastData?.summary?.confidence_score
+                        ? forecastData.summary.confidence_score.toFixed(0) + "%"
+                        : "N/A"}
                     </Typography>
                   </Paper>
                 </Box>
@@ -609,9 +645,9 @@ const ValuationAnalysis: React.FC = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {forecastData.predictions.map((prediction, index) => {
+                      {forecastData?.predictions?.map((prediction, index) => {
                         const change = getUpsideDownside(
-                          forecastData.current_price,
+                          forecastData?.current_price || 0,
                           prediction.prediction,
                         );
                         return (
@@ -718,7 +754,9 @@ const ValuationAnalysis: React.FC = () => {
                     variant="h4"
                     sx={{ fontWeight: 700, color: "#ffffff" }}
                   >
-                    {formatCurrency(dcfData.base_results?.intrinsic_value)}
+                    {dcfData?.base_results?.intrinsic_value
+                      ? formatCurrency(dcfData.base_results.intrinsic_value)
+                      : "N/A"}
                   </Typography>
                   <Typography variant="body2" sx={{ color: "#888888", mt: 1 }}>
                     Fundamental Analysis
@@ -745,7 +783,9 @@ const ValuationAnalysis: React.FC = () => {
                     variant="h4"
                     sx={{ fontWeight: 700, color: "#ffffff" }}
                   >
-                    {formatCurrency(forecastData.summary.average_prediction)}
+                    {forecastData?.summary?.average_prediction
+                      ? formatCurrency(forecastData.summary.average_prediction)
+                      : "N/A"}
                   </Typography>
                   <Typography variant="body2" sx={{ color: "#888888", mt: 1 }}>
                     Technical Analysis
@@ -772,7 +812,9 @@ const ValuationAnalysis: React.FC = () => {
                     variant="h4"
                     sx={{ fontWeight: 700, color: "#ffffff" }}
                   >
-                    {formatCurrency(forecastData.current_price)}
+                    {forecastData?.current_price
+                      ? formatCurrency(forecastData.current_price)
+                      : "N/A"}
                   </Typography>
                   <Typography variant="body2" sx={{ color: "#888888", mt: 1 }}>
                     Market Price

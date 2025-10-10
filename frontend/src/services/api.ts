@@ -159,12 +159,12 @@ export class APIService {
     }
   }
 
-  static async getAnnualRevenue(ticker: string): Promise<AnnualRevenueData> {
+  static async getAnnualEBIT(ticker: string): Promise<AnnualEBITData> {
     try {
-      const response = await api.get(`/edgar/revenue/${ticker}`);
+      const response = await api.get(`/edgar/ebit/${ticker}`);
       return response.data;
     } catch (error) {
-      console.error("Error fetching annual revenue:", error);
+      console.error("Error fetching annual EBIT:", error);
       throw error;
     }
   }
@@ -278,24 +278,44 @@ export interface FinancialRatios {
       ROE?: number;
       ROA?: number;
       ROIC?: number;
-      "Operating Margin"?: number;
-      "Net Margin"?: number;
+      operating_margin?: number;
+      net_margin?: number;
+      revenue_growth_ebit?: number;
+      operating_income_growth?: number;
+      earnings_quality_ratio?: number; // FCF/net income
     };
     leverage?: {
-      "Debt-to-Equity"?: number;
-      "Debt-to-Assets"?: number;
+      debt_to_equity?: number;
+      debt_to_assets?: number;
+      debt_to_free_cash_ratio?: number;
+      interest_coverage_ratio?: number;
     };
     efficiency?: {
-      "Asset Turnover"?: number;
+      asset_turnover?: number;
     };
     valuation?: {
-      "P/E Ratio"?: number;
-      "P/B Ratio"?: number;
-      "P/S Ratio"?: number;
-      "PEG Ratio"?: number;
+      pe_ratio?: number;
+      pb_ratio?: number;
+      ps_ratio?: number;
+      peg_ratio?: number;
     };
   };
   raw_data: any;
+}
+
+export interface ValuationAnalysis {
+  ticker: string;
+  ratios?: {
+    pe_ratio?: number;
+    pb_ratio?: number;
+    ps_ratio?: number;
+    peg_ratio?: number;
+  };
+  dcf_analysis?: any;
+  forecasts?: any;
+  analysis_warning?: string;
+  cache_status?: string;
+  cache_warning?: boolean;
 }
 
 export interface DCFAnalysis {
@@ -504,18 +524,18 @@ export interface AnalystRecommendation {
   analyst_notes: string;
 }
 
-export interface AnnualRevenueData {
+export interface AnnualEBITData {
   ticker: string;
-  revenue_data: Array<{
+  ebit_data: Array<{
     year: number;
-    revenue: number;
-    revenue_formatted: string;
+    ebit: number;
+    ebit_formatted: string;
     growth_rate?: number;
   }>;
   summary: {
-    latest_revenue: number;
+    latest_ebit: number;
     latest_year: number;
-    oldest_revenue: number;
+    oldest_ebit: number;
     oldest_year: number;
     average_growth_rate: number;
     total_years: number;
