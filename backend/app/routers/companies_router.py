@@ -1,6 +1,8 @@
 import logging
 from typing import Any, Dict, List
 
+from fastapi import APIRouter, Depends, HTTPException
+
 from app.core.service_container import (
     get_company_data_service,
     get_financial_ratios_service,
@@ -9,7 +11,6 @@ from app.schemas.company_data import CompanyInfo, StockData
 from app.schemas.financial_analysis import FinancialRatios
 from app.services.company_data_service import CompanyDataService
 from app.services.financial_ratios_service import FinancialRatiosService
-from fastapi import APIRouter, Depends, HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -30,12 +31,12 @@ async def get_companies_list(
         return await company_data_service.get_companies_list()
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Unexpected error in companies list endpoint: {str(e)}")
+    except (ValueError, KeyError, AttributeError) as e:
+        logger.error(f"Unexpected error in companies list endpoint: {e!s}")
         raise HTTPException(
             status_code=500,
             detail="Internal server error while fetching companies list",
-        )
+        ) from e
 
 
 @router.get("/{ticker}/company-info", response_model=CompanyInfo)
@@ -57,14 +58,12 @@ async def get_company_info(
         return CompanyInfo(**company_data)
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(
-            f"Unexpected error in company info endpoint for {ticker}: {str(e)}"
-        )
+    except (ValueError, KeyError, AttributeError) as e:
+        logger.error(f"Unexpected error in company info endpoint for {ticker}: {e!s}")
         raise HTTPException(
             status_code=500,
             detail=f"Internal server error while fetching company info for {ticker}",
-        )
+        ) from e
 
 
 @router.get("/{ticker}/raw-data")
@@ -87,12 +86,12 @@ async def get_raw_data(
         return await company_data_service.get_raw_data(ticker)
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Unexpected error in raw data endpoint for {ticker}: {str(e)}")
+    except (ValueError, KeyError, AttributeError) as e:
+        logger.error(f"Unexpected error in raw data endpoint for {ticker}: {e!s}")
         raise HTTPException(
             status_code=500,
             detail=f"Internal server error while fetching raw data for {ticker}",
-        )
+        ) from e
 
 
 @router.get("/{ticker}/stock-data", response_model=StockData)
@@ -116,20 +115,18 @@ async def get_stock_data(
         return StockData(**stock_data)
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Unexpected error in stock data endpoint for {ticker}: {str(e)}")
+    except (ValueError, KeyError, AttributeError) as e:
+        logger.error(f"Unexpected error in stock data endpoint for {ticker}: {e!s}")
         raise HTTPException(
             status_code=500,
             detail=f"Internal server error while fetching stock data for {ticker}",
-        )
+        ) from e
 
 
 @router.get("/{ticker}/financial-ratios", response_model=FinancialRatios)
 async def get_financial_ratios(
     ticker: str,
-    financial_ratios_service: FinancialRatiosService = Depends(
-        get_financial_ratios_service
-    ),
+    financial_ratios_service: FinancialRatiosService = Depends(get_financial_ratios_service),
 ):
     """
     Get financial ratios calculated from Yahoo Finance data.
@@ -145,11 +142,9 @@ async def get_financial_ratios(
         return FinancialRatios(**result)
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(
-            f"Unexpected error in financial ratios endpoint for {ticker}: {str(e)}"
-        )
+    except (ValueError, KeyError, AttributeError) as e:
+        logger.error(f"Unexpected error in financial ratios endpoint for {ticker}: {e!s}")
         raise HTTPException(
             status_code=500,
             detail=f"Internal server error while calculating financial ratios for {ticker}",
-        )
+        ) from e

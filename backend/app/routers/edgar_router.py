@@ -1,9 +1,10 @@
 import logging
 from typing import Any, Dict
 
+from fastapi import APIRouter, Depends, HTTPException
+
 from app.core.service_container import get_edgar_service
 from app.services.edgar_service import EdgarService
-from fastapi import APIRouter, Depends, HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +28,9 @@ async def get_annual_ebit(
         return await edgar_service.get_annual_ebit(ticker)
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Unexpected error in EBIT endpoint for {ticker}: {str(e)}")
+    except (ValueError, KeyError, AttributeError) as e:
+        logger.error(f"Unexpected error in EBIT endpoint for {ticker}: {e!s}")
         raise HTTPException(
             status_code=500,
             detail=f"Internal server error while fetching EBIT data for {ticker}",
-        )
+        ) from e

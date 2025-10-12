@@ -46,7 +46,7 @@ class AnalystRecommendation(BaseModel):
 
 
 __all__ = [
+    "AnalystRecommendation",
     "RecommendationType",
     "RiskLevel",
-    "AnalystRecommendation",
 ]

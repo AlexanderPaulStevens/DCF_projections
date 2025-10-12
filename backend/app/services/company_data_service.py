@@ -6,12 +6,15 @@ and data aggregation. It follows clean architecture principles by keeping busine
 logic separate from HTTP concerns.
 """
 
+import json
 import logging
 from typing import Any, Dict, List, Optional
 
+import requests
+from fastapi import HTTPException
+
 from app.services.cloud_storage_service import CloudStorageService
 from app.services.yahoo_finance_service import YahooFinanceService
-from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -34,10 +37,6 @@ class CompanyDataService:
             List of company data
         """
         try:
-            import json
-
-            import requests
-
             # Read the comprehensive S&P 500 companies data from Google Cloud Storage
             blob_path = "sp500_companies_comprehensive.json"
             url = f"{self.cloud_storage_service.download_url}/{blob_path}"
@@ -47,24 +46,34 @@ class CompanyDataService:
             response = requests.get(url, headers=headers, timeout=30)
 
             if response.status_code == 200:
-                companies_data = response.json()
+                companies_dict = response.json()
+
+                # Convert dictionary to list format with ticker included
+                companies_list = []
+                for ticker, company_data in companies_dict.items():
+                    company_entry = {
+                        "ticker": ticker,
+                        "name": company_data.get("name", ""),
+                        "sector": company_data.get("sector", ""),
+                        "cik": company_data.get("cik", ""),
+                    }
+                    companies_list.append(company_entry)
+
                 logger.info(
-                    f"Successfully loaded {len(companies_data)} companies from cloud storage"
+                    f"Successfully loaded {len(companies_list)} companies from cloud storage"
                 )
-                return companies_data
+                return companies_list
             else:
-                logger.error(
-                    f"Failed to load companies from cloud storage: {response.status_code}"
-                )
+                logger.error(f"Failed to load companies from cloud storage: {response.status_code}")
                 raise HTTPException(
                     status_code=500, detail="Failed to load companies list from storage"
                 )
 
-        except Exception as e:
-            logger.error(f"Error fetching companies list: {str(e)}")
+        except (requests.RequestException, ValueError, KeyError) as e:
+            logger.error(f"Error fetching companies list: {e!s}")
             raise HTTPException(
-                status_code=500, detail=f"Error fetching companies list: {str(e)}"
-            )
+                status_code=500, detail=f"Error fetching companies list: {e!s}"
+            ) from e
 
     async def get_company_info(self, ticker: str) -> Dict[str, Any]:
         """
@@ -95,12 +104,12 @@ class CompanyDataService:
 
         except HTTPException:
             raise
-        except Exception as e:
-            logger.error(f"Error fetching company info for {ticker}: {str(e)}")
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error(f"Error fetching company info for {ticker}: {e!s}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Error fetching company info for {ticker}: {str(e)}",
-            )
+                detail=f"Error fetching company info for {ticker}: {e!s}",
+            ) from e
 
     async def get_raw_data(self, ticker: str) -> Dict[str, Any]:
         """
@@ -134,12 +143,12 @@ class CompanyDataService:
 
         except HTTPException:
             raise
-        except Exception as e:
-            logger.error(f"Error fetching raw data for {ticker}: {str(e)}")
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error(f"Error fetching raw data for {ticker}: {e!s}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Error fetching raw data for {ticker}: {str(e)}",
-            )
+                detail=f"Error fetching raw data for {ticker}: {e!s}",
+            ) from e
 
     async def get_stock_data(self, ticker: str, period: str = "1d") -> Dict[str, Any]:
         """
@@ -158,9 +167,7 @@ class CompanyDataService:
 
             # If no cached data, fetch from Yahoo Finance
             if not raw_data:
-                logger.info(
-                    f"Fetching fresh raw data from Yahoo Finance for stock data {ticker}"
-                )
+                logger.info(f"Fetching fresh raw data from Yahoo Finance for stock data {ticker}")
                 raw_data = self.yahoo_service.get_comprehensive_data(ticker.upper())
 
                 if not raw_data:
@@ -178,12 +185,12 @@ class CompanyDataService:
 
         except HTTPException:
             raise
-        except Exception as e:
-            logger.error(f"Error fetching stock data for {ticker}: {str(e)}")
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error(f"Error fetching stock data for {ticker}: {e!s}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Error fetching stock data for {ticker}: {str(e)}",
-            )
+                detail=f"Error fetching stock data for {ticker}: {e!s}",
+            ) from e
 
     def _get_cached_raw_data(self, ticker: str) -> Optional[Dict[str, Any]]:
         """
@@ -202,8 +209,8 @@ class CompanyDataService:
             if cached_data:
                 logger.info(f"Using cached raw data for {ticker}")
                 return cached_data
-        except Exception as e:
-            logger.debug(f"No cached raw data found for {ticker}: {str(e)}")
+        except (OSError, ValueError, KeyError) as e:
+            logger.debug(f"No cached raw data found for {ticker}: {e!s}")
 
         return None
 
@@ -216,8 +223,6 @@ class CompanyDataService:
             raw_data: Data to cache
         """
         try:
-            import json
-
             cache_content = json.dumps(raw_data, indent=2, default=str)
             success = self.cloud_storage_service.upload_file_content(
                 ticker.upper(),
@@ -229,6 +234,6 @@ class CompanyDataService:
                 logger.info(f"Successfully cached raw data for {ticker}")
             else:
                 logger.warning(f"Failed to cache raw data for {ticker}")
-        except Exception as e:
-            logger.warning(f"Error caching raw data for {ticker}: {str(e)}")
+        except (OSError, ValueError, TypeError) as e:
+            logger.warning(f"Error caching raw data for {ticker}: {e!s}")
             # Don't fail the request if caching fails

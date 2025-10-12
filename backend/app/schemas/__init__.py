@@ -32,15 +32,12 @@ from .company_data import CompanyInfo, CompanySearchResult, StockData
 from .financial_analysis import DCFAnalysis, FinancialRatios
 
 __all__ = [
-    # Company Data
+    "AnalystRecommendation",
     "CompanyInfo",
     "CompanySearchResult",
-    "StockData",
-    # Financial Analysis
-    "FinancialRatios",
     "DCFAnalysis",
-    # Analyst Recommendations
-    "AnalystRecommendation",
+    "FinancialRatios",
     "RecommendationType",
     "RiskLevel",
+    "StockData",
 ]

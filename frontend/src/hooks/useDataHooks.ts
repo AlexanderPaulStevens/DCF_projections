@@ -54,14 +54,8 @@ export const useCompanyData = (ticker: string) => {
     };
 
     loadData();
-  }, [
-    ticker,
-    companyData,
-    companyInfo,
-    fetchCompanyData,
-    fetchCompanyInfo,
-    isInitialized,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticker, isInitialized]);
 
   return {
     companyData,

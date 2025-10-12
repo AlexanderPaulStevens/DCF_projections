@@ -7,9 +7,30 @@ the core layer, not in services.
 """
 
 import logging
-from typing import Any, Dict, Optional
+from enum import Enum
+from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
+
+
+class RatioEvaluation(Enum):
+    """Enum for ratio evaluation levels."""
+
+    EXCELLENT = "excellent"
+    GOOD = "good"
+    FAIR = "fair"
+    POOR = "poor"
+    UNKNOWN = "unknown"
+
+
+class RatioEvaluationData:
+    """Data class for ratio evaluation results."""
+
+    def __init__(self, value: float, evaluation: RatioEvaluation, color: str, icon: str):
+        self.value = value
+        self.evaluation = evaluation
+        self.color = color
+        self.icon = icon
 
 
 class FinancialRatiosCalculator:
@@ -22,7 +43,6 @@ class FinancialRatiosCalculator:
 
     def __init__(self):
         """Initialize the financial ratios calculator."""
-        pass
 
     def calculate_ratios(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -59,8 +79,8 @@ class FinancialRatiosCalculator:
 
             return ratios
 
-        except Exception as e:
-            logger.error(f"Error calculating financial ratios: {str(e)}")
+        except (ValueError, KeyError, TypeError, ZeroDivisionError) as e:
+            logger.error(f"Error calculating financial ratios: {e!s}")
             return {}
 
     def _extract_financial_metrics(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -110,9 +130,7 @@ class FinancialRatiosCalculator:
             return market_cap - total_debt + total_cash
         return 0
 
-    def _calculate_profitability_ratios(
-        self, metrics: Dict[str, Any]
-    ) -> Dict[str, float]:
+    def _calculate_profitability_ratios(self, metrics: Dict[str, Any]) -> Dict[str, float]:
         """
         Calculate profitability ratios - measures of company's ability to generate profits.
 
@@ -146,9 +164,7 @@ class FinancialRatiosCalculator:
             if total_debt and total_debt > 0:
                 # Invested Capital = Total Debt + Total Equity - Cash
                 invested_capital = (
-                    total_debt + equity - total_cash
-                    if total_cash
-                    else total_debt + equity
+                    total_debt + equity - total_cash if total_cash else total_debt + equity
                 )
                 profitability["ROIC"] = (
                     net_income / invested_capital if invested_capital != 0 else 0
@@ -215,9 +231,7 @@ class FinancialRatiosCalculator:
             # Estimate interest expense as 5% of total debt (typical corporate rate)
             estimated_interest_expense = total_debt * 0.05
             if estimated_interest_expense != 0:
-                leverage["interest_coverage_ratio"] = (
-                    net_income / estimated_interest_expense
-                )
+                leverage["interest_coverage_ratio"] = net_income / estimated_interest_expense
 
         return leverage
 
@@ -244,7 +258,8 @@ class FinancialRatiosCalculator:
 
     def _calculate_valuation_ratios(self, metrics: Dict[str, Any]) -> Dict[str, float]:
         """
-        Calculate valuation ratios - measures of company's market valuation relative to fundamentals.
+        Calculate valuation ratios - measures of company's market valuation
+        relative to fundamentals.
 
         Args:
             metrics: Financial metrics dictionary
@@ -274,13 +289,146 @@ class FinancialRatiosCalculator:
             valuation["ps_ratio"] = market_cap / revenue
 
         # PEG Ratio = P/E Ratio / Earnings Growth Rate
-        if (
-            current_price
-            and eps
-            and earnings_growth
-            and eps != 0
-            and earnings_growth != 0
-        ):
+        if current_price and eps and earnings_growth and eps != 0 and earnings_growth != 0:
             valuation["peg_ratio"] = (current_price / eps) / earnings_growth
 
         return valuation
+
+    def evaluate_ratio(self, value: float, metric_name: str) -> RatioEvaluationData:
+        """
+        Evaluate a financial ratio and determine if it's good, fair, or poor.
+
+        Args:
+            value: The ratio value to evaluate
+            metric_name: The name of the metric being evaluated
+
+        Returns:
+            RatioEvaluationData with evaluation results
+        """
+        evaluation = self._get_ratio_evaluation(value, metric_name)
+        color = self._get_ratio_color(evaluation)
+        icon = self._get_ratio_icon(evaluation)
+
+        return RatioEvaluationData(value, evaluation, color, icon)
+
+    def _get_ratio_evaluation(  # noqa: PLR0911
+        self, value: float, metric_name: str
+    ) -> RatioEvaluation:
+        """
+        Determine the evaluation level for a financial ratio based on specific criteria.
+        Green (GOOD) if meets criteria, Red (POOR) otherwise.
+
+        Args:
+            value: The ratio value
+            metric_name: The name of the metric
+
+        Returns:
+            RatioEvaluation enum value
+        """
+        metric_lower = metric_name.lower()
+
+        # Revenue growth > 5%
+        if "revenue_growth" in metric_lower:
+            return RatioEvaluation.GOOD if value > 0.05 else RatioEvaluation.POOR
+
+        # Operating income growth > 7%
+        if "operating_income_growth" in metric_lower:
+            return RatioEvaluation.GOOD if value > 0.07 else RatioEvaluation.POOR
+
+        # Earnings quality ratio (FCF/net income) > 80%
+        if "earnings_quality" in metric_lower:
+            return RatioEvaluation.GOOD if value > 0.80 else RatioEvaluation.POOR
+
+        # ROIC > 15%
+        if "roic" in metric_lower:
+            return RatioEvaluation.GOOD if value > 0.15 else RatioEvaluation.POOR
+
+        # Debt to free cash ratio < 5%
+        if "debt_to_free_cash" in metric_lower:
+            return RatioEvaluation.GOOD if value < 5.0 else RatioEvaluation.POOR
+
+        # Interest coverage ratio > 5%
+        if "interest_coverage" in metric_lower:
+            return RatioEvaluation.GOOD if value > 5.0 else RatioEvaluation.POOR
+
+        # Default case - unknown evaluation
+        return RatioEvaluation.UNKNOWN
+
+    def _get_ratio_color(self, evaluation: RatioEvaluation) -> str:
+        """
+        Get the color code for a ratio evaluation.
+        Simplified to green (success) or red (error).
+
+        Args:
+            evaluation: The ratio evaluation
+
+        Returns:
+            Color string for frontend display
+        """
+        color_map = {
+            RatioEvaluation.GOOD: "green",  # Green
+            RatioEvaluation.POOR: "red",  # Red
+            RatioEvaluation.UNKNOWN: "grey",  # Gray
+        }
+        return color_map.get(evaluation, "default")
+
+    def _get_ratio_icon(self, evaluation: RatioEvaluation) -> str:
+        """
+        Get the icon name for a ratio evaluation.
+        Simplified to up arrow (good) or down arrow (poor).
+
+        Args:
+            evaluation: The ratio evaluation
+
+        Returns:
+            Icon name for frontend display
+        """
+        icon_map = {
+            RatioEvaluation.GOOD: "trending_up",  # Up arrow for good
+            RatioEvaluation.POOR: "trending_down",  # Down arrow for poor
+            RatioEvaluation.UNKNOWN: "trending_flat",  # Flat for unknown
+        }
+        return icon_map.get(evaluation, "trending_flat")
+
+    def calculate_ratios_with_evaluation(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Calculate financial ratios with evaluation data included.
+
+        Args:
+            raw_data: Raw financial data containing metrics like price, earnings, etc.
+
+        Returns:
+            Dictionary of calculated financial ratios with evaluation data
+        """
+        try:
+            # Calculate base ratios
+            ratios = self.calculate_ratios(raw_data)
+
+            # Add evaluation data to each ratio
+            evaluated_ratios = {}
+
+            for category, category_ratios in ratios.items():
+                evaluated_category = {}
+                for metric_name, value in category_ratios.items():
+                    if value is not None:
+                        evaluation_data = self.evaluate_ratio(value, metric_name)
+                        evaluated_category[metric_name] = {
+                            "value": value,
+                            "evaluation": evaluation_data.evaluation.value,
+                            "color": evaluation_data.color,
+                            "icon": evaluation_data.icon,
+                        }
+                    else:
+                        evaluated_category[metric_name] = {
+                            "value": None,
+                            "evaluation": RatioEvaluation.UNKNOWN.value,
+                            "color": "default",
+                            "icon": "trending_flat",
+                        }
+                evaluated_ratios[category] = evaluated_category
+
+            return evaluated_ratios
+
+        except (ValueError, KeyError, TypeError, ZeroDivisionError) as e:
+            logger.error(f"Error calculating financial ratios with evaluation: {e!s}")
+            return {}

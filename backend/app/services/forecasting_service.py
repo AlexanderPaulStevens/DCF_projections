@@ -7,25 +7,20 @@ Focuses on clear predictions without complex technical jargon or confusing perio
 
 import logging
 import warnings
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
 
 warnings.filterwarnings("ignore")
 
 # Try to import basic ML libraries
 try:
-    from sklearn.linear_model import LinearRegression
-    from sklearn.preprocessing import MinMaxScaler
-
     SKLEARN_AVAILABLE = True
 except ImportError:
     SKLEARN_AVAILABLE = False
-    logging.warning(
-        "scikit-learn not available. Some forecasting models will be disabled."
-    )
+    logging.warning("scikit-learn not available. Some forecasting models will be disabled.")
 
 logger = logging.getLogger(__name__)
 
@@ -78,9 +73,7 @@ class SimplifiedForecastingService:
 
             # Simple confidence score based on prediction consistency
             prediction_std = np.std(all_predictions)
-            confidence_score = max(
-                0, min(100, 100 - (prediction_std / avg_prediction * 100))
-            )
+            confidence_score = max(0, min(100, 100 - (prediction_std / avg_prediction * 100)))
 
             forecast_results = {
                 "ticker": ticker,
@@ -98,9 +91,9 @@ class SimplifiedForecastingService:
 
             return forecast_results
 
-        except Exception as e:
-            logger.error(f"Error generating forecasts for {ticker}: {str(e)}")
-            raise ValueError(f"Failed to generate forecasts: {str(e)}")
+        except (ValueError, KeyError, pd.errors.EmptyDataError) as e:
+            logger.error(f"Error generating forecasts for {ticker}: {e!s}")
+            raise ValueError(f"Failed to generate forecasts: {e!s}") from e
 
     def _get_simple_predictions(self, prices: np.ndarray) -> List[Dict[str, Any]]:
         """Generate simple predictions for different time horizons."""
@@ -164,10 +157,9 @@ class SimplifiedForecastingService:
         predicted_price = current_price * (1 + trend * (days_ahead / 365))
 
         # Add some volatility adjustment
-        volatility = (
-            np.std(prices[-30:]) / np.mean(prices[-30:]) if len(prices) >= 30 else 0.1
-        )
-        volatility_adjustment = np.random.normal(0, volatility * 0.1)
+        volatility = np.std(prices[-30:]) / np.mean(prices[-30:]) if len(prices) >= 30 else 0.1
+        rng = np.random.default_rng()
+        volatility_adjustment = rng.normal(0, volatility * 0.1)
 
         return max(0, predicted_price * (1 + volatility_adjustment))
 

@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { Container, Typography, Box, Tabs, Tab } from "@mui/material";
+import {
+  Container,
+  Typography,
+  Box,
+  Tabs,
+  Tab,
+  Skeleton,
+  Chip,
+} from "@mui/material";
 import { StockHeader } from "./StockHeader";
 import { useCompanyData, useLazyData } from "../hooks/useDataHooks";
 import StockPrice from "./StockPrice";
@@ -61,7 +69,7 @@ const CompanyAnalysis: React.FC = () => {
     if (path.includes("/valuation")) return 1;
     if (path.includes("/ratios")) return 2;
     if (path.includes("/analyst")) return 3;
-    if (path.includes("/revenue")) return 4;
+    if (path.includes("/ebit")) return 4;
     return 0; // default to stock price
   }, [location.pathname]);
 
@@ -228,56 +236,181 @@ const CompanyAnalysis: React.FC = () => {
           />
         )}
 
-        {/* Page Title - Only show if no StockHeader */}
+        {/* Loading Skeleton - Only show if no StockHeader */}
         {(!companyData || !companyInfo) && (
-          <Box sx={{ mb: 6 }}>
-            <Typography
-              variant="h3"
-              component="h1"
-              gutterBottom
-              sx={{
+          <Box
+            sx={{
+              borderBottom: "1px solid rgba(0, 212, 255, 0.15)",
+              pb: 4,
+              mb: 4,
+              background: "rgba(10, 10, 10, 0.95)",
+              backdropFilter: "blur(20px)",
+              borderRadius: 20,
+              p: 4,
+              border: "1px solid rgba(0, 212, 255, 0.15)",
+              boxShadow:
+                "0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
+              position: "relative",
+              overflow: "hidden",
+              "&::before": {
+                content: '""',
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                height: "1px",
                 background:
-                  "linear-gradient(135deg, #00d4ff 0%, #4ddfff 30%, #ffffff 70%, #00d4ff 100%)",
-                backgroundClip: "text",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                fontWeight: 800,
-                letterSpacing: "-0.03em",
-                textShadow: "0 0 50px rgba(0, 212, 255, 0.6)",
-                fontSize: { xs: "2rem", md: "3rem" },
-                lineHeight: 1.2,
-                animation: "headerGlow 3s ease-in-out infinite alternate",
-                "@keyframes headerGlow": {
-                  "0%": {
-                    filter: "drop-shadow(0 0 20px rgba(0, 212, 255, 0.4))",
-                  },
-                  "100%": {
-                    filter: "drop-shadow(0 0 40px rgba(0, 212, 255, 0.8))",
-                  },
-                },
+                  "linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.5), transparent)",
+              },
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
               }}
             >
-              {companyInfo?.name || `${ticker?.toUpperCase()} Analysis`}
-            </Typography>
-            <Typography
-              variant="h6"
-              sx={{
-                mb: 4,
-                fontSize: "1.125rem",
-                lineHeight: 1.7,
-                maxWidth: "700px",
-                color: "#a1a1aa",
-                fontWeight: 400,
-                background:
-                  "linear-gradient(135deg, #a1a1aa 0%, #ffffff 50%, #a1a1aa 100%)",
-                backgroundClip: "text",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              Comprehensive financial analysis and valuation powered by advanced
-              AI
-            </Typography>
+              <Box sx={{ flex: 1 }}>
+                <Box
+                  sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
+                >
+                  {/* Company Name Skeleton */}
+                  <Skeleton
+                    variant="text"
+                    width={300}
+                    height={60}
+                    sx={{
+                      bgcolor: "rgba(0, 212, 255, 0.1)",
+                      borderRadius: 2,
+                      animation: "pulse 1.5s ease-in-out infinite",
+                      "@keyframes pulse": {
+                        "0%, 100%": { opacity: 0.4 },
+                        "50%": { opacity: 0.6 },
+                      },
+                    }}
+                  />
+                  {/* Ticker Symbol Skeleton */}
+                  <Skeleton
+                    variant="text"
+                    width={100}
+                    height={50}
+                    sx={{
+                      bgcolor: "rgba(0, 212, 255, 0.08)",
+                      borderRadius: 2,
+                      animation: "pulse 1.5s ease-in-out infinite 0.2s",
+                      "@keyframes pulse": {
+                        "0%, 100%": { opacity: 0.4 },
+                        "50%": { opacity: 0.6 },
+                      },
+                    }}
+                  />
+                </Box>
+                <Box
+                  sx={{ display: "flex", alignItems: "center", gap: 3, mb: 1 }}
+                >
+                  {/* Price Skeleton */}
+                  <Skeleton
+                    variant="text"
+                    width={200}
+                    height={80}
+                    sx={{
+                      bgcolor: "rgba(0, 212, 255, 0.15)",
+                      borderRadius: 2,
+                      animation: "pulse 1.5s ease-in-out infinite 0.4s",
+                      "@keyframes pulse": {
+                        "0%, 100%": { opacity: 0.4 },
+                        "50%": { opacity: 0.6 },
+                      },
+                    }}
+                  />
+                  {/* Change Chip Skeleton */}
+                  <Box
+                    sx={{
+                      height: 40,
+                      px: 3,
+                      py: 1,
+                      borderRadius: 12,
+                      border: "1.5px solid rgba(0, 212, 255, 0.2)",
+                      backgroundColor: "rgba(0, 212, 255, 0.08)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      animation: "pulse 1.5s ease-in-out infinite 0.6s",
+                      "@keyframes pulse": {
+                        "0%, 100%": { opacity: 0.4 },
+                        "50%": { opacity: 0.6 },
+                      },
+                    }}
+                  >
+                    <Skeleton
+                      variant="circular"
+                      width={20}
+                      height={20}
+                      sx={{ bgcolor: "rgba(0, 212, 255, 0.2)" }}
+                    />
+                    <Skeleton
+                      variant="text"
+                      width={120}
+                      sx={{ bgcolor: "rgba(0, 212, 255, 0.2)" }}
+                    />
+                  </Box>
+                </Box>
+                {/* Status Text Skeleton */}
+                <Skeleton
+                  variant="text"
+                  width={250}
+                  height={20}
+                  sx={{
+                    bgcolor: "rgba(0, 212, 255, 0.08)",
+                    borderRadius: 1,
+                    animation: "pulse 1.5s ease-in-out infinite 0.8s",
+                    "@keyframes pulse": {
+                      "0%, 100%": { opacity: 0.4 },
+                      "50%": { opacity: 0.6 },
+                    },
+                  }}
+                />
+              </Box>
+              {/* Market Status Box Skeleton */}
+              <Box
+                sx={{
+                  backgroundColor: "rgba(10, 10, 10, 0.8)",
+                  px: 3,
+                  py: 2,
+                  borderRadius: 16,
+                  border: "1px solid rgba(0, 212, 255, 0.15)",
+                  backdropFilter: "blur(20px)",
+                  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+                  minWidth: 150,
+                  animation: "pulse 1.5s ease-in-out infinite 1s",
+                  "@keyframes pulse": {
+                    "0%, 100%": { opacity: 0.4 },
+                    "50%": { opacity: 0.6 },
+                  },
+                }}
+              >
+                <Skeleton
+                  variant="text"
+                  width={100}
+                  height={20}
+                  sx={{
+                    bgcolor: "rgba(0, 212, 255, 0.15)",
+                    borderRadius: 1,
+                    mb: 0.5,
+                  }}
+                />
+                <Skeleton
+                  variant="text"
+                  width={60}
+                  height={28}
+                  sx={{
+                    bgcolor: "rgba(0, 212, 255, 0.2)",
+                    borderRadius: 1,
+                  }}
+                />
+              </Box>
+            </Box>
           </Box>
         )}
 

@@ -4,8 +4,6 @@ Core API functionality tests - simple and focused.
 
 from unittest.mock import Mock, patch
 
-import pytest
-
 
 class TestAPICore:
     """Test core API functionality."""
@@ -20,9 +18,7 @@ class TestAPICore:
     def test_companies_list_endpoint(self, client):
         """Test companies list endpoint."""
         with (
-            patch(
-                "app.routers.companies_router.CloudStorageService"
-            ) as mock_service_class,
+            patch("app.routers.companies_router.CloudStorageService") as mock_service_class,
             patch("app.routers.companies_router.requests.get") as mock_get,
         ):
             mock_service = Mock()
@@ -47,9 +43,7 @@ class TestAPICore:
 
     def test_company_info_endpoint(self, client):
         """Test company info endpoint."""
-        with patch(
-            "app.routers.companies_router.YahooFinanceService"
-        ) as mock_service_class:
+        with patch("app.routers.companies_router.YahooFinanceService") as mock_service_class:
             mock_service = Mock()
             mock_service_class.return_value = mock_service
             mock_service.get_stock_info.return_value = {
@@ -63,7 +57,8 @@ class TestAPICore:
                 "sector": "Technology",
                 "industry": "Consumer Electronics",
                 "website": "https://www.apple.com",
-                "description": "Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide.",
+                "description": """Apple Inc. designs, manufactures, and markets smartphones,
+                personal computers, tablets, wearables, and accessories worldwide.""",
                 "employees": 164000,
                 "city": "Cupertino",
                 "state": "California",
@@ -81,12 +76,8 @@ class TestAPICore:
     def test_stock_data_endpoint(self, client):
         """Test stock data endpoint."""
         with (
-            patch(
-                "app.routers.companies_router.YahooFinanceService"
-            ) as mock_service_class,
-            patch(
-                "app.routers.companies_router.CloudStorageService"
-            ) as mock_cloud_service_class,
+            patch("app.routers.companies_router.YahooFinanceService") as mock_service_class,
+            patch("app.routers.companies_router.CloudStorageService") as mock_cloud_service_class,
         ):
             mock_service = Mock()
             mock_service_class.return_value = mock_service
@@ -133,9 +124,7 @@ class TestAPICore:
 
     def test_invalid_ticker_returns_404(self, client):
         """Test invalid ticker returns 404."""
-        with patch(
-            "app.routers.companies_router.YahooFinanceService"
-        ) as mock_service_class:
+        with patch("app.routers.companies_router.YahooFinanceService") as mock_service_class:
             mock_service = Mock()
             mock_service_class.return_value = mock_service
             mock_service.get_stock_info.return_value = None

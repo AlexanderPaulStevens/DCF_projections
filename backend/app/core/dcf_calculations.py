@@ -1,53 +1,76 @@
-from datetime import datetime
-
-import yfinance as yf
+import datetime
 
 
 class DCFCalculator:
     """
-    Simplified DCF calculator using external data sources.
+    DCF calculator
     """
 
-    def __init__(self, ticker, financial_data, base_year=None):
+    def __init__(
+        self,
+        ticker: str,
+        financial_data: dict,
+        beta: float,
+        tax_rate: float,
+        market_cap: float,
+        total_cash: float,
+        shares_outstanding: int,
+    ):
         """
-        Initialize DCF calculator with external data and assumptions.
+        Initialize DCF calculator with all required data.
 
         Args:
             ticker (str): Company ticker symbol
-            financial_data (dict): Historical financial data by year
-            base_year (int): Base year for projections (defaults to latest year)
+            financial_data (dict): Latest financial data
+            beta (float): Stock beta for WACC calculation
+            tax_rate (float): Effective tax rate
+            market_cap (float): Market capitalization
+            total_cash (float): Total cash and cash equivalents
+            shares_outstanding (int): Number of shares outstanding
         """
         self.ticker = ticker
-        self.financial_data = financial_data
-        self.base_year = base_year or max(financial_data.keys())
+        self.beta = beta
+        self.tax_rate = tax_rate
+        self.market_cap = market_cap
+        self.total_cash = total_cash
+        self.shares_outstanding = shares_outstanding
 
-        # Fetch external market data
-        self._fetch_external_data()
+        # Update financial data with provided values if missing
+        # Yahoo Finance API returns raw values (dollars and share counts)
+        # Our financial_data expects millions, so we convert here
+        if total_cash and not financial_data.get("Cash and Cash Equivalents"):
+            # Convert from dollars to millions of dollars
+            financial_data["Cash and Cash Equivalents"] = total_cash / 1_000_000
+        if shares_outstanding and not financial_data.get("Shares Outstanding"):
+            # Convert from share count to millions of shares
+            # Note: Both info.get() and balance sheet return raw counts
+            financial_data["Shares Outstanding"] = shares_outstanding / 1_000_000
 
-        # Get latest financial data
-        latest_data = self.financial_data.get(self.base_year, {})
-        self._validate_financial_data(latest_data)
+        self._validate_financial_data(financial_data)
 
         # Extract financial data with flexible field names
-        self.total_debt = latest_data.get("Total Debt", 0)
+        self.total_debt = financial_data.get("Total Debt", 0)
+
+        # Store the financial data for later use
+        self.financial_data = financial_data
 
         # Get cash with flexible naming
         self.cash = (
-            latest_data.get("Cash and Cash Equivalents")
-            or latest_data.get("Cash")
-            or latest_data.get("Cash and cash equivalents")
+            financial_data.get("Cash and Cash Equivalents")
+            or financial_data.get("Cash")
+            or financial_data.get("Cash and cash equivalents")
             or 0
         )
 
         # Get shares outstanding with flexible naming
         self.shares_outstanding_mm = (
-            latest_data.get("Shares Outstanding")
-            or latest_data.get("Diluted")
-            or latest_data.get("Basic")
-            or latest_data.get("shares_outstanding")
+            financial_data.get("Shares Outstanding")
+            or financial_data.get("Diluted")
+            or financial_data.get("Basic")
+            or financial_data.get("shares_outstanding")
         )
 
-        # DCF Assumptions (moved to __init__)
+        # DCF Assumptions
         self.projection_years = 5
         self.initial_growth_rate = 0.10  # 10% initial growth
         self.terminal_growth_rate = 0.025  # 2.5% terminal growth
@@ -60,7 +83,7 @@ class DCFCalculator:
         self.da_to_revenue_ratio = 0.03  # D&A as % of revenue
 
         # Calculate derived values
-        self.cost_of_debt = self._calculate_cost_of_debt(latest_data)
+        self.cost_of_debt = self._calculate_cost_of_debt(financial_data)
         self.cost_of_equity = self._calculate_cost_of_equity()
         self.wacc = self._calculate_wacc()
 
@@ -109,98 +132,35 @@ class DCFCalculator:
 
         # Add missing data from external sources
         if not has_cash:
-            latest_data["Cash and Cash Equivalents"] = (
-                0  # Will be updated from external data
-            )
+            latest_data["Cash and Cash Equivalents"] = 0  # Will be updated from external data
         if not has_shares:
-            latest_data["Shares Outstanding"] = 0  # Will be updated from external data
-
-    def _fetch_external_data(self):
-        """Fetch external market data using yfinance."""
-        try:
-            ticker_obj = yf.Ticker(self.ticker)
-            info = ticker_obj.info
-
-            # Get external data
-            self.beta = info.get("beta", 1.0)  # Default beta of 1.0 if not available
-            self.tax_rate = info.get("taxRate", 0.24)  # Default 24% tax rate
-
-            # Get market cap for WACC calculation
-            self.market_cap = info.get("marketCap", 0)
-
-            # Get cash and shares outstanding from balance sheet
-            try:
-                balance_sheet = ticker_obj.balance_sheet
-                if not balance_sheet.empty:
-                    # Get latest balance sheet data
-                    latest_bs = balance_sheet.iloc[:, 0]  # Most recent quarter
-
-                    # Cash and cash equivalents (in millions)
-                    cash_keys = [
-                        "Cash And Cash Equivalents",
-                        "Cash And Short Term Investments",
-                        "Cash",
-                    ]
-                    cash_value = 0
-                    for key in cash_keys:
-                        if key in latest_bs.index:
-                            cash_value = (
-                                latest_bs[key] / 1_000_000
-                            )  # Convert to millions
-                            break
-
-                    # Shares outstanding (in millions)
-                    shares_keys = [
-                        "Ordinary Shares Number",
-                        "Common Stock Shares Outstanding",
-                    ]
-                    shares_value = 0
-                    for key in shares_keys:
-                        if key in latest_bs.index:
-                            shares_value = (
-                                latest_bs[key] / 1_000_000
-                            )  # Convert to millions
-                            break
-
-                    # Update financial data if missing
-                    latest_data = self.financial_data.get(self.base_year, {})
-                    if not latest_data.get("Cash and Cash Equivalents"):
-                        latest_data["Cash and Cash Equivalents"] = cash_value
-                    if not latest_data.get("Shares Outstanding"):
-                        latest_data["Shares Outstanding"] = shares_value
-
-            except Exception as bs_error:
-                print(
-                    f"Warning: Could not fetch balance sheet data for {self.ticker}: {bs_error}"
-                )
-
-        except Exception as e:
-            print(f"Warning: Could not fetch external data for {self.ticker}: {e}")
-            # Use defaults
-            self.beta = 1.0
-            self.tax_rate = 0.24
-            self.market_cap = 0
+            latest_data["Shares Outstanding"] = 0  # Will be updated from parameters
 
     def _calculate_cost_of_debt(self, latest_data):
         """Calculate cost of debt with fallback."""
-        # Try to get from financial data first
+        # Try to get from financial data first (pre-calculated by service layer)
         cost_of_debt = latest_data.get("Cost of Debt")
         if cost_of_debt is not None and cost_of_debt > 0:
+            print(f"✅ Using pre-calculated Cost of Debt: {cost_of_debt:.4f}")
             return cost_of_debt
 
         # Calculate from interest expense and total debt
-        interest_expense = latest_data.get(
-            "Interest and other income (expense), net", 0
-        )
+        interest_expense = latest_data.get("Interest and other income (expense), net", 0)
         total_debt = latest_data.get("Total Debt", 0)
 
         if total_debt > 0:
             cost_of_debt = abs(interest_expense) / total_debt
             if 0 <= cost_of_debt <= 0.20:
+                print(f"✅ Calculated Cost of Debt from interest/debt: {cost_of_debt:.4f}")
                 return cost_of_debt
+            else:
+                print(f"⚠️ Calculated cost of debt {cost_of_debt:.4f} outside valid range (0-20%)")
 
         # Fallback: risk-free rate + 1% premium
-        return self.risk_free_rate + 0.01
+        fallback_value = self.risk_free_rate + 0.01
+        print(f"❌ Falling back to risk-free rate + 1%: {fallback_value:.4f}")
+        print(f"   Reason: interest_expense={interest_expense}, total_debt={total_debt}")
+        return fallback_value
 
     def _calculate_cost_of_equity(self):
         """Calculate Cost of Equity using CAPM."""
@@ -241,7 +201,8 @@ class DCFCalculator:
         years = years or self.projection_years
         growth_rate = growth_rate or self.initial_growth_rate
 
-        base_data = self.financial_data.get(self.base_year, {})
+        # Use the stored financial data directly (it's already a single year's data)
+        base_data = self.financial_data
 
         # Get revenue with flexible naming
         base_revenue = (
@@ -262,7 +223,11 @@ class DCFCalculator:
         )
 
         projections = {}
-        start_year = self.base_year + 1
+        # Use base_year if available, otherwise use current year
+        if hasattr(self, "base_year") and self.base_year:
+            start_year = self.base_year + 1
+        else:
+            start_year = datetime.datetime.now().year + 1
         prev_revenue = base_revenue
         prev_wc = base_revenue * self.wc_to_revenue_ratio
 

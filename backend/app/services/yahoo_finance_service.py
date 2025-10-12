@@ -3,6 +3,7 @@ Yahoo Finance service for fetching real-time stock data.
 """
 
 import logging
+import math
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -43,9 +44,7 @@ class YahooFinanceService:
             stock_data = {
                 "ticker": ticker,
                 "name": info.get("longName", ticker),
-                "current_price": info.get(
-                    "currentPrice", info.get("regularMarketPrice", 0)
-                ),
+                "current_price": info.get("currentPrice", info.get("regularMarketPrice", 0)),
                 "previous_close": info.get("previousClose", 0),
                 "open": info.get("open", 0),
                 "day_low": info.get("dayLow", 0),
@@ -81,12 +80,8 @@ class YahooFinanceService:
 
             # Calculate price change
             if stock_data["current_price"] and stock_data["previous_close"]:
-                price_change = (
-                    stock_data["current_price"] - stock_data["previous_close"]
-                )
-                price_change_percent = (
-                    price_change / stock_data["previous_close"]
-                ) * 100
+                price_change = stock_data["current_price"] - stock_data["previous_close"]
+                price_change_percent = (price_change / stock_data["previous_close"]) * 100
                 stock_data["price_change"] = round(price_change, 2)
                 stock_data["price_change_percent"] = round(price_change_percent, 2)
             else:
@@ -98,8 +93,8 @@ class YahooFinanceService:
 
             return stock_data
 
-        except Exception as e:
-            logger.error(f"Error fetching stock info for {ticker}: {str(e)}")
+        except (ValueError, KeyError, OSError, TypeError) as e:
+            logger.error(f"Error fetching stock info for {ticker}: {e!s}")
             return None
 
     def get_historical_data(
@@ -154,8 +149,8 @@ class YahooFinanceService:
 
             return hist
 
-        except Exception as e:
-            logger.error(f"Error fetching historical data for {ticker}: {str(e)}")
+        except (ValueError, KeyError, OSError, TypeError) as e:
+            logger.error(f"Error fetching historical data for {ticker}: {e!s}")
             return None
 
     def build_company_info_response(
@@ -186,7 +181,9 @@ class YahooFinanceService:
             "currency": stock_info.get("currency", "USD"),
             "founded_year": None,  # Yahoo Finance doesn't provide this
             "ceo": None,  # Yahoo Finance doesn't provide this
-            "headquarters": f"{stock_info.get('city', 'Unknown')}, {stock_info.get('state', 'Unknown')}",
+            "headquarters": (
+                f"{stock_info.get('city', 'Unknown')}, {stock_info.get('state', 'Unknown')}"
+            ),
             "last_updated": stock_info.get("last_updated", ""),
         }
 
@@ -274,8 +271,8 @@ class YahooFinanceService:
         if period != "1d":
             hist_data = self.get_historical_data(raw_data["ticker"], period, "1d")
             if hist_data is not None and not hist_data.empty:
-                stock_data["historical_data"] = (
-                    self.format_historical_data_for_stock_data(hist_data)
+                stock_data["historical_data"] = self.format_historical_data_for_stock_data(
+                    hist_data
                 )
                 stock_data["period"] = period
 
@@ -311,11 +308,13 @@ class YahooFinanceService:
 
             return div_df
 
-        except Exception as e:
-            logger.error(f"Error fetching dividend data for {ticker}: {str(e)}")
+        except (ValueError, KeyError, OSError, TypeError) as e:
+            logger.error(f"Error fetching dividend data for {ticker}: {e!s}")
             return None
 
-    def get_financial_statements(self, ticker: str) -> Optional[Dict[str, Any]]:
+    def get_financial_statements(  # noqa: PLR0912, PLR0915
+        self, ticker: str
+    ) -> Optional[Dict[str, Any]]:
         """
         Get financial statements (Income Statement, Balance Sheet, Cash Flow) for a ticker.
 
@@ -356,21 +355,15 @@ class YahooFinanceService:
                         income_data = income_stmt[year]
                         year_data.update(
                             {
-                                "Total Revenue": self._safe_get_value(
-                                    income_data, "Total Revenue"
-                                ),
+                                "Total Revenue": self._safe_get_value(income_data, "Total Revenue"),
                                 "Cost of Revenue": self._safe_get_value(
                                     income_data, "Cost of Revenue"
                                 ),
-                                "Gross Profit": self._safe_get_value(
-                                    income_data, "Gross Profit"
-                                ),
+                                "Gross Profit": self._safe_get_value(income_data, "Gross Profit"),
                                 "Operating Income": self._safe_get_value(
                                     income_data, "Operating Income"
                                 ),
-                                "Net Income": self._safe_get_value(
-                                    income_data, "Net Income"
-                                ),
+                                "Net Income": self._safe_get_value(income_data, "Net Income"),
                                 "Research Development": self._safe_get_value(
                                     income_data, "Research Development"
                                 ),
@@ -382,10 +375,9 @@ class YahooFinanceService:
                                 ),
                             }
                         )
-                    except Exception as e:
-                        logger.warning(
-                            f"Error processing income statement for year {year}: {str(e)}"
-                        )
+                    except (ValueError, KeyError, TypeError) as e:
+                        msg = f"Error processing income statement for year {year}: {e!s}"
+                        logger.warning(msg)
                         continue
 
                 # Balance Sheet data
@@ -399,9 +391,7 @@ class YahooFinanceService:
 
                     year_data.update(
                         {
-                            "Total Stockholder Equity": balance_data.get(
-                                "Stockholders Equity", 0
-                            ),
+                            "Total Stockholder Equity": balance_data.get("Stockholders Equity", 0),
                             "Total Assets": balance_data.get("Total Assets", 0),
                             "Total Debt": balance_data.get("Total Debt", 0),
                             "Cash and Cash Equivalents": balance_data.get(
@@ -416,13 +406,9 @@ class YahooFinanceService:
                     cash_data = cash_flow[year]
                     year_data.update(
                         {
-                            "Depreciation": cash_data.get(
-                                "Depreciation And Amortization", 0
-                            ),
+                            "Depreciation": cash_data.get("Depreciation And Amortization", 0),
                             "Free Cash Flow": cash_data.get("Free Cash Flow", 0),
-                            "Operating Cash Flow": cash_data.get(
-                                "Operating Cash Flow", 0
-                            ),
+                            "Operating Cash Flow": cash_data.get("Operating Cash Flow", 0),
                         }
                     )
 
@@ -448,22 +434,18 @@ class YahooFinanceService:
                         year_data["Beta"] = stock_info["beta"]
 
                     # Add real tax rate calculation
-                    if stock_info.get("income_tax_expense") and stock_info.get(
-                        "income_before_tax"
-                    ):
+                    if stock_info.get("income_tax_expense") and stock_info.get("income_before_tax"):
                         tax_rate = (
-                            stock_info["income_tax_expense"]
-                            / stock_info["income_before_tax"]
+                            stock_info["income_tax_expense"] / stock_info["income_before_tax"]
                         )
                         if 0 <= tax_rate <= 0.5:  # Sanity check
                             year_data["Effective Tax Rate"] = tax_rate
 
                     # Add cost of debt calculation with fallback
                     # Cost of debt = Interest Expense / Total Debt
-                    interest_expense = year_data.get(
-                        "Interest and other income (expense), net", 0
-                    )
-                    total_debt = year_data.get("Long-term debt", 0)
+                    interest_expense = year_data.get("Interest and other income (expense), net", 0)
+                    # Use "Total Debt" (mapped field name, not "Long-term debt")
+                    total_debt = year_data.get("Total Debt", 0)
                     if total_debt > 0:
                         # Use absolute value for interest expense (it might be negative for income)
                         cost_of_debt = abs(interest_expense) / total_debt
@@ -482,13 +464,12 @@ class YahooFinanceService:
             # Cache the result
             self._cache_data(cache_key, financial_data)
 
-            logger.info(
-                f"Successfully fetched financial statements for {ticker}: {list(financial_data.keys())}"
-            )
+            years_list = list(financial_data.keys())
+            logger.info(f"Successfully fetched financial statements for {ticker}: {years_list}")
             return financial_data
 
-        except Exception as e:
-            logger.error(f"Error fetching financial statements for {ticker}: {str(e)}")
+        except (ValueError, KeyError, OSError, TypeError) as e:
+            logger.error(f"Error fetching financial statements for {ticker}: {e!s}")
             return None
 
     def _calculate_derived_metrics(self, year_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -504,9 +485,7 @@ class YahooFinanceService:
         try:
             # Calculate EBIT (Operating Income)
             operating_income = year_data.get("Operating Income", 0)
-            year_data["EBIT (Operating Income + Other Income/Expense)"] = (
-                operating_income
-            )
+            year_data["EBIT (Operating Income + Other Income/Expense)"] = operating_income
 
             # Calculate EBITDA (EBIT + Depreciation)
             depreciation = year_data.get("Depreciation", 0)
@@ -545,8 +524,8 @@ class YahooFinanceService:
 
             return year_data
 
-        except Exception as e:
-            logger.error(f"Error calculating derived metrics: {str(e)}")
+        except (ValueError, KeyError, TypeError, ZeroDivisionError) as e:
+            logger.error(f"Error calculating derived metrics: {e!s}")
             return year_data
 
     def _safe_get_value(self, data, key: str, default: float = 0) -> float:
@@ -562,8 +541,6 @@ class YahooFinanceService:
             Safe numeric value
         """
         try:
-            import math
-
             if hasattr(data, "get"):
                 value = data.get(key, default)
             else:
@@ -576,7 +553,7 @@ class YahooFinanceService:
             else:
                 return default
 
-        except Exception:
+        except (ValueError, AttributeError):
             return default
 
     def get_comprehensive_data(self, ticker: str) -> Optional[Dict[str, Any]]:
@@ -610,9 +587,7 @@ class YahooFinanceService:
                 "ticker": ticker,
                 "timestamp": datetime.now().isoformat(),
                 # Real-time stock data
-                "current_price": info.get(
-                    "currentPrice", info.get("regularMarketPrice", 0)
-                ),
+                "current_price": info.get("currentPrice", info.get("regularMarketPrice", 0)),
                 "previous_close": info.get("previousClose", 0),
                 "open": info.get("open", 0),
                 "day_low": info.get("dayLow", 0),
@@ -669,13 +644,11 @@ class YahooFinanceService:
                 and comprehensive_data["previous_close"] is not None
             ):
                 comprehensive_data["price_change"] = (
-                    comprehensive_data["current_price"]
-                    - comprehensive_data["previous_close"]
+                    comprehensive_data["current_price"] - comprehensive_data["previous_close"]
                 )
                 if comprehensive_data["previous_close"] != 0:
                     comprehensive_data["price_change_percent"] = (
-                        comprehensive_data["price_change"]
-                        / comprehensive_data["previous_close"]
+                        comprehensive_data["price_change"] / comprehensive_data["previous_close"]
                     ) * 100
                 else:
                     comprehensive_data["price_change_percent"] = 0
@@ -686,8 +659,8 @@ class YahooFinanceService:
             logger.info(f"Successfully fetched comprehensive data for {ticker}")
             return comprehensive_data
 
-        except Exception as e:
-            logger.error(f"Error fetching comprehensive data for {ticker}: {str(e)}")
+        except (ValueError, KeyError, OSError, TypeError) as e:
+            logger.error(f"Error fetching comprehensive data for {ticker}: {e!s}")
             return None
 
     def _process_historical_data(self, hist_data) -> List[Dict[str, Any]]:
@@ -715,28 +688,17 @@ class YahooFinanceService:
                     if hasattr(date, "strftime"):
                         date_str = date.strftime("%Y-%m-%d")
                     else:
-                        # Convert to datetime if it's not already
-                        try:
-                            date_str = pd.to_datetime(date).strftime("%Y-%m-%d")
-                        except:
-                            date_str = str(date)
+                        date_str = pd.to_datetime(date).strftime("%Y-%m-%d")
+                        date_str = str(date)
 
                     data_points.append(
                         {
                             "date": date_str,
-                            "open": (
-                                float(row["Open"]) if pd.notna(row["Open"]) else None
-                            ),
-                            "high": (
-                                float(row["High"]) if pd.notna(row["High"]) else None
-                            ),
+                            "open": (float(row["Open"]) if pd.notna(row["Open"]) else None),
+                            "high": (float(row["High"]) if pd.notna(row["High"]) else None),
                             "low": float(row["Low"]) if pd.notna(row["Low"]) else None,
-                            "close": (
-                                float(row["Close"]) if pd.notna(row["Close"]) else None
-                            ),
-                            "volume": (
-                                int(row["Volume"]) if pd.notna(row["Volume"]) else None
-                            ),
+                            "close": (float(row["Close"]) if pd.notna(row["Close"]) else None),
+                            "volume": (int(row["Volume"]) if pd.notna(row["Volume"]) else None),
                         }
                     )
             else:
@@ -746,35 +708,24 @@ class YahooFinanceService:
                     if hasattr(date, "strftime"):
                         date_str = date.strftime("%Y-%m-%d")
                     else:
-                        # Convert to datetime if it's not already
-                        try:
-                            date_str = pd.to_datetime(date).strftime("%Y-%m-%d")
-                        except:
-                            date_str = str(date)
+                        date_str = pd.to_datetime(date).strftime("%Y-%m-%d")
+                        date_str = str(date)
 
                     data_points.append(
                         {
                             "date": date_str,
-                            "open": (
-                                float(row["Open"]) if pd.notna(row["Open"]) else None
-                            ),
-                            "high": (
-                                float(row["High"]) if pd.notna(row["High"]) else None
-                            ),
+                            "open": (float(row["Open"]) if pd.notna(row["Open"]) else None),
+                            "high": (float(row["High"]) if pd.notna(row["High"]) else None),
                             "low": float(row["Low"]) if pd.notna(row["Low"]) else None,
-                            "close": (
-                                float(row["Close"]) if pd.notna(row["Close"]) else None
-                            ),
-                            "volume": (
-                                int(row["Volume"]) if pd.notna(row["Volume"]) else None
-                            ),
+                            "close": (float(row["Close"]) if pd.notna(row["Close"]) else None),
+                            "volume": (int(row["Volume"]) if pd.notna(row["Volume"]) else None),
                         }
                     )
 
             return data_points
 
-        except Exception as e:
-            logger.error(f"Error processing historical data: {str(e)}")
+        except (ValueError, KeyError, TypeError) as e:
+            logger.error(f"Error processing historical data: {e!s}")
             return []
 
     def _convert_to_millions(self, year_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -789,8 +740,6 @@ class YahooFinanceService:
             Financial data with values converted to millions and cleaned
         """
         try:
-            import math
-
             converted_data = {}
 
             for key, value in year_data.items():
@@ -811,13 +760,11 @@ class YahooFinanceService:
 
             return converted_data
 
-        except Exception as e:
-            logger.error(f"Error converting to millions: {str(e)}")
+        except (ValueError, KeyError, TypeError, ZeroDivisionError) as e:
+            logger.error(f"Error converting to millions: {e!s}")
             return year_data
 
-    def get_analyst_recommendations(
-        self, ticker: str
-    ) -> Optional[List[Dict[str, Any]]]:
+    def get_analyst_recommendations(self, ticker: str) -> Optional[List[Dict[str, Any]]]:
         """
         Get analyst recommendations for a ticker.
 
@@ -846,8 +793,8 @@ class YahooFinanceService:
 
             return rec_list
 
-        except Exception as e:
-            logger.error(f"Error fetching recommendations for {ticker}: {str(e)}")
+        except (ValueError, KeyError, OSError, TypeError) as e:
+            logger.error(f"Error fetching recommendations for {ticker}: {e!s}")
             return None
 
     def _is_cached(self, key: str) -> bool:
@@ -896,27 +843,21 @@ class YahooFinanceService:
         """
         # Field mapping from Yahoo Finance to DCF expected names
         field_mapping = {
-            # Revenue
             "Revenue": "Total net sales",
             "Total Revenue": "Total net sales",
-            # Operating Income
             "Income from operations": "EBIT (Operating Income + Other Income/Expense)",
             "Operating Income": "EBIT (Operating Income + Other Income/Expense)",
             "EBIT (Net Income + Interest + Tax)": "EBIT (Operating Income + Other Income/Expense)",
-            # Debt
             "Long-term debt": "Total Debt",
             "Total Debt": "Total Debt",
-            # Cash
-            "Cash, cash equivalents, and restricted cash at beginning of the period": "Cash and Cash Equivalents",
+            "Cash, cash equivalents, and restricted cash at beginning of the period": (
+                "Cash and Cash Equivalents"
+            ),
             "Cash And Cash Equivalents": "Cash and Cash Equivalents",
-            # Working Capital (calculate from current assets - current liabilities)
             "Total current assets": "Current Assets",
             "Total current liabilities": "Current Liabilities",
-            # Depreciation
             "Depreciation and amortization": "Depreciation and amortization",
-            # Tax
             "Provision for income taxes": "Provision for income taxes",
-            # CapEx
             "Purchases of property and equipment": "Capital Expenditure",
         }
 
@@ -926,7 +867,7 @@ class YahooFinanceService:
             if yahoo_field in year_data and year_data[yahoo_field] is not None:
                 mapped_data[dcf_field] = year_data[yahoo_field]
 
-        # Calculate Net Working Capital if we have current assets and liabilities
+        # Calculate Net Working Capital
         if "Current Assets" in mapped_data and "Current Liabilities" in mapped_data:
             current_assets = mapped_data["Current Assets"]
             current_liabilities = mapped_data["Current Liabilities"]
@@ -936,3 +877,99 @@ class YahooFinanceService:
         mapped_data.update(year_data)
 
         return mapped_data
+
+    def get_dcf_market_data(  # noqa: PLR0912
+        self, ticker: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get market data specifically needed for DCF calculations.
+        This method fetches data from external sources (yfinance) for DCF use.
+
+        Args:
+            ticker: Stock ticker symbol
+
+        Returns:
+            Dictionary with beta, tax_rate, market_cap, total_cash, total_debt, shares_outstanding
+        """
+        try:
+            stock = yf.Ticker(ticker)
+            info = stock.info
+
+            dcf_data = {
+                "beta": info.get("beta", 1.0),
+                "tax_rate": info.get("taxRate", 0.24),  # Default 24% if not available
+                "market_cap": info.get("marketCap", 0),
+                "total_cash": info.get("totalCash", 0),
+                "total_debt": info.get("totalDebt", 0),
+                "shares_outstanding": info.get("sharesOutstanding", 0),
+            }
+
+            # Try to get cash, debt, and shares from balance sheet if not in info
+            try:
+                balance_sheet = stock.balance_sheet
+                if not balance_sheet.empty:
+                    latest_bs = balance_sheet.iloc[:, 0]  # Most recent data
+
+                    # Try to get cash if not already set
+                    if not dcf_data["total_cash"]:
+                        cash_keys = [
+                            "Cash And Cash Equivalents",
+                            "Cash And Short Term Investments",
+                            "Cash",
+                        ]
+                        for key in cash_keys:
+                            if key in latest_bs.index:
+                                dcf_data["total_cash"] = latest_bs[key]
+                                break
+
+                    # Try to get total debt if not already set
+                    if not dcf_data["total_debt"]:
+                        debt_keys = [
+                            "Total Debt",
+                            "Long Term Debt",
+                            "Total Long Term Debt",
+                        ]
+                        for key in debt_keys:
+                            if key in latest_bs.index:
+                                dcf_data["total_debt"] = latest_bs[key]
+                                # If we only have long-term debt, try to add short-term debt
+                                if key != "Total Debt":
+                                    short_term_keys = [
+                                        "Current Debt",
+                                        "Short Term Debt",
+                                    ]
+                                    for st_key in short_term_keys:
+                                        if st_key in latest_bs.index:
+                                            dcf_data["total_debt"] += latest_bs[st_key]
+                                            break
+                                break
+
+                    # Try to get shares if not already set
+                    if not dcf_data["shares_outstanding"]:
+                        shares_keys = [
+                            "Ordinary Shares Number",
+                            "Common Stock Shares Outstanding",
+                        ]
+                        for key in shares_keys:
+                            if key in latest_bs.index:
+                                # Keep raw value (will be converted in DCFCalculator if needed)
+                                dcf_data["shares_outstanding"] = latest_bs[key]
+                                break
+
+            except (ValueError, KeyError, AttributeError) as bs_error:
+                logger.warning(f"Could not fetch balance sheet data for {ticker}: {bs_error}")
+
+            logger.info(f"Fetched DCF market data for {ticker}: {dcf_data}")
+            return dcf_data
+
+        except (ValueError, KeyError, OSError, TypeError) as e:
+            logger.error(f"Error getting DCF market data for {ticker}: {e}")
+            # Return defaults
+            return {
+                "beta": 1.0,
+                "tax_rate": 0.24,
+                "market_cap": 0,
+                "total_cash": 0,
+                "total_debt": 0,
+                "shares_outstanding": 0,
+            }

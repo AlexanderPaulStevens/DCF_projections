@@ -1,6 +1,5 @@
 """FastAPI application entry point for the Horizon Financial Analysis API."""
 
-from app.config import settings
 from app.exceptions.handlers import register_exception_handlers
 from app.routers.analyst_router import router as analyst_router
 from app.routers.companies_router import router as companies_router

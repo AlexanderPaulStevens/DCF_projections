@@ -7,10 +7,14 @@ based on DCF analysis and current stock price data.
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime
 from typing import Any, Dict
 
+import google.generativeai as genai
+
+from app.config import settings
 from app.core.prompts import prompt_manager
 from app.schemas.analyst_recommendations import (
     AnalystRecommendation,
@@ -18,6 +22,8 @@ from app.schemas.analyst_recommendations import (
     RiskLevel,
 )
 from app.schemas.structured_responses import AnalystResponse
+from app.services.dcf_service import DCFService
+from app.services.yahoo_finance_service import YahooFinanceService
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +39,9 @@ class AnalystAgent:
     def __init__(self):
         """Initialize the Analyst Agent."""
         self.name = "Analyst Agent"
-        self.description = "AI-powered investment recommendations based on DCF analysis and stock price data"
+        self.description = (
+            "AI-powered investment recommendations based on DCF analysis and stock price data"
+        )
         self.llm_client = None  # Will be initialized when needed
         self.llm_provider = None
         self._initialize_llm_client()
@@ -41,9 +49,6 @@ class AnalystAgent:
     def _initialize_llm_client(self):
         """Initialize the LLM."""
         try:
-            import google.generativeai as genai
-            from app.config import settings
-
             # Set API key via settings
             api_key = settings.GOOGLE_API_KEY
             if not api_key:
@@ -54,18 +59,20 @@ class AnalystAgent:
             logger.info("Google AI (Gemini) client initialized successfully")
         except ImportError:
             logger.warning(
-                "Google Generative AI package not installed. Install with: pip install google-generativeai"
+                "Google Generative AI package not installed. "
+                "Install with: pip install google-generativeai"
             )
             self.llm_client = None
             self.llm_provider = None
-        except Exception as e:
-            logger.error(f"Google AI initialization failed: {str(e)}")
+        except (ValueError, OSError) as e:
+            logger.error(f"Google AI initialization failed: {e!s}")
             self.llm_client = None
             self.llm_provider = None
 
         if not self.llm_client:
             logger.warning(
-                "No LLM client available. Analyst recommendations will fail without Google AI API key."
+                "No LLM client available. "
+                "Analyst recommendations will fail without Google AI API key."
             )
 
     def _get_llm_recommendation(
@@ -84,8 +91,13 @@ class AnalystAgent:
         prompt = self._build_llm_prompt(ticker, dcf_data, stock_data)
 
         # Call Gemini with JSON mode for structured output
+        system_prompt = (
+            "You are a professional financial analyst. "
+            "Provide investment recommendations based on DCF analysis and market data. "
+            "Always be conservative and cite specific metrics."
+        )
         response = self.llm_client.generate_content(
-            f"You are a professional financial analyst. Provide investment recommendations based on DCF analysis and market data. Always be conservative and cite specific metrics.\n\n{prompt}",
+            f"{system_prompt}\n\n{prompt}",
             generation_config={
                 "temperature": 0.3,
                 "max_output_tokens": 2000,
@@ -98,33 +110,28 @@ class AnalystAgent:
             llm_text = response.text.strip()
             if not llm_text:
                 finish_reason = (
-                    response.candidates[0].finish_reason
-                    if response.candidates
-                    else "unknown"
+                    response.candidates[0].finish_reason if response.candidates else "unknown"
                 )
-                error_msg = (
-                    f"Empty response from Gemini API. Finish reason: {finish_reason}"
-                )
+                error_msg = f"Empty response from Gemini API. Finish reason: {finish_reason}"
                 logger.error(error_msg)
                 raise ValueError(error_msg)
-        except Exception as text_error:
+        except (AttributeError, IndexError, KeyError) as text_error:
             finish_reason = (
-                response.candidates[0].finish_reason
-                if response.candidates
-                else "unknown"
+                response.candidates[0].finish_reason if response.candidates else "unknown"
             )
-            error_msg = f"Error accessing Gemini API response text: {str(text_error)}. Finish reason: {finish_reason}"
+            error_msg = (
+                f"Error accessing Gemini API response text: {text_error!s}. "
+                f"Finish reason: {finish_reason}"
+            )
             logger.error(error_msg)
-            raise ValueError(error_msg)
+            raise ValueError(error_msg) from text_error
 
         # Parse the LLM response with structured validation
         try:
             return self._parse_llm_response(llm_text, ticker, dcf_data, stock_data)
         except ValueError as parse_error:
             # Re-raise parsing errors with context
-            error_msg = (
-                f"Failed to parse structured response for {ticker}: {str(parse_error)}"
-            )
+            error_msg = f"Failed to parse structured response for {ticker}: {parse_error!s}"
             logger.error(error_msg)
             raise ValueError(error_msg)
 
@@ -148,20 +155,16 @@ class AnalystAgent:
         }
 
         # Render the template
-        return prompt_manager.render_template(
-            "analyst_recommendation.j2", **template_vars
-        )
+        return prompt_manager.render_template("analyst_recommendation.j2", **template_vars)
 
     def _parse_llm_response(
         self,
         llm_text: str,
-        ticker: str,
-        dcf_data: Dict[str, Any],
-        stock_data: Dict[str, Any],
+        ticker: str,  # noqa: ARG002
+        dcf_data: Dict[str, Any],  # noqa: ARG002
+        stock_data: Dict[str, Any],  # noqa: ARG002
     ) -> Dict[str, Any]:
         """Parse the LLM JSON response into structured format using Pydantic."""
-        import json
-
         try:
             # Parse JSON response
             json_data = json.loads(llm_text)
@@ -182,16 +185,16 @@ class AnalystAgent:
             }
 
         except json.JSONDecodeError as e:
-            error_msg = f"Failed to parse JSON response from LLM: {str(e)}"
+            error_msg = f"Failed to parse JSON response from LLM: {e!s}"
             logger.error(error_msg)
             logger.error(f"Raw LLM response: {llm_text}")
-            raise ValueError(error_msg)
+            raise ValueError(error_msg) from e
 
-        except Exception as e:
-            error_msg = f"Failed to validate structured response: {str(e)}"
+        except (ValueError, KeyError, TypeError) as e:
+            error_msg = f"Failed to validate structured response: {e!s}"
             logger.error(error_msg)
             logger.error(f"Raw LLM response: {llm_text}")
-            raise ValueError(error_msg)
+            raise ValueError(error_msg) from e
 
     def get_analyst_recommendation(self, ticker: str) -> AnalystRecommendation:
         """
@@ -219,54 +222,44 @@ class AnalystAgent:
             ai_output = self._get_llm_recommendation(ticker, dcf_analysis, stock_data)
 
             # 4. Build comprehensive recommendation
-            recommendation = self._build_recommendation(
-                ticker, dcf_analysis, stock_data, ai_output
-            )
+            recommendation = self._build_recommendation(ticker, dcf_analysis, stock_data, ai_output)
 
-            logger.info(
-                f"Generated {recommendation.recommendation} recommendation for {ticker}"
-            )
+            logger.info(f"Generated {recommendation.recommendation} recommendation for {ticker}")
             return recommendation
 
         except ValueError as e:
             # For structured response errors, propagate the error with context
-            logger.error(f"Structured response error for {ticker}: {str(e)}")
+            logger.error(f"Structured response error for {ticker}: {e!s}")
             raise ValueError(
-                f"Failed to generate structured analyst recommendation for {ticker}: {str(e)}"
-            )
-        except Exception as e:
+                f"Failed to generate structured analyst recommendation for {ticker}: {e!s}"
+            ) from e
+        except (KeyError, OSError, TypeError) as e:
             # For other errors, log and propagate
-            logger.error(
-                f"Unexpected error generating analyst recommendation for {ticker}: {str(e)}"
-            )
+            logger.error(f"Unexpected error generating analyst recommendation for {ticker}: {e!s}")
             raise ValueError(
-                f"Unexpected error generating analyst recommendation for {ticker}: {str(e)}"
-            )
+                f"Unexpected error generating analyst recommendation for {ticker}: {e!s}"
+            ) from e
 
     def _get_dcf_analysis_from_service(self, ticker: str) -> Dict[str, Any]:
         """Get DCF analysis using the DCF service directly."""
         try:
-            from app.services.dcf_service import DCFService
-
             dcf_service = DCFService()
-            return dcf_service.get_DCF_analysis(ticker)
-        except Exception as e:
-            logger.error(f"Error getting DCF analysis for {ticker}: {str(e)}")
-            raise ValueError(f"Failed to get DCF analysis for {ticker}: {str(e)}")
+            return dcf_service.get_dcf_analysis(ticker)
+        except (ValueError, KeyError, OSError) as e:
+            logger.error(f"Error getting DCF analysis for {ticker}: {e!s}")
+            raise ValueError(f"Failed to get DCF analysis for {ticker}: {e!s}") from e
 
     def _get_stock_data_from_service(self, ticker: str) -> Dict[str, Any]:
         """Get stock data using the Yahoo Finance service directly."""
         try:
-            from app.services.yahoo_finance_service import YahooFinanceService
-
             yahoo_service = YahooFinanceService()
             raw_data = yahoo_service.get_comprehensive_data(ticker)
             if not raw_data:
                 raise ValueError(f"No stock data available for {ticker}")
             return yahoo_service.build_stock_data_response(raw_data, "1d")
-        except Exception as e:
-            logger.error(f"Error getting stock data for {ticker}: {str(e)}")
-            raise ValueError(f"Failed to get stock data for {ticker}: {str(e)}")
+        except (ValueError, KeyError, OSError, TypeError) as e:
+            logger.error(f"Error getting stock data for {ticker}: {e!s}")
+            raise ValueError(f"Failed to get stock data for {ticker}: {e!s}") from e
 
     def _build_recommendation(
         self,
@@ -279,16 +272,12 @@ class AnalystAgent:
         base_results = dcf_analysis.get("base_results", {})
         current_price = stock_data.get("current_price", 0)
         intrinsic_value = base_results.get("intrinsic_value", 0)
-        price_to_intrinsic = (
-            current_price / intrinsic_value if intrinsic_value > 0 else 0
-        )
+        price_to_intrinsic = current_price / intrinsic_value if intrinsic_value > 0 else 0
 
         # Calculate upside potential
         target_price = ai_output["target_price"]
         upside_potential = (
-            ((target_price - current_price) / current_price) * 100
-            if current_price > 0
-            else 0
+            ((target_price - current_price) / current_price) * 100 if current_price > 0 else 0
         )
 
         # Extract key metrics for display

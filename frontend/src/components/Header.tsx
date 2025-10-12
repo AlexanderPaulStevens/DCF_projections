@@ -50,10 +50,10 @@ const Header: React.FC = () => {
     const query = event.target.value;
     setSearchQuery(query);
 
-    // Debounce search
+    // Debounce search (reduced to 150ms since we're using cached data)
     const timeoutId = setTimeout(() => {
       handleSearch(query);
-    }, 300);
+    }, 150);
 
     return () => clearTimeout(timeoutId);
   };
@@ -141,7 +141,7 @@ const Header: React.FC = () => {
         >
           <TextField
             fullWidth
-            placeholder="Search companies, tickers, or sectors..."
+            placeholder="Search by company name (e.g., Apple, Microsoft)"
             value={searchQuery}
             onChange={handleSearchChange}
             InputProps={{

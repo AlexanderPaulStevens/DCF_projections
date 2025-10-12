@@ -4,7 +4,7 @@ Simple Yahoo Finance service tests.
 
 from unittest.mock import Mock, patch
 
-import pytest
+from app.services.yahoo_finance_service import YahooFinanceService
 
 
 class TestYahooFinanceService:
@@ -13,7 +13,6 @@ class TestYahooFinanceService:
     @patch("app.services.yahoo_finance_service.yf.Ticker")
     def test_get_stock_info(self, mock_ticker):
         """Test getting stock info."""
-        from app.services.yahoo_finance_service import YahooFinanceService
 
         mock_ticker_instance = Mock()
         mock_ticker_instance.info = {
@@ -33,7 +32,6 @@ class TestYahooFinanceService:
     @patch("app.services.yahoo_finance_service.yf.Ticker")
     def test_get_stock_info_with_price(self, mock_ticker):
         """Test getting stock info with price data."""
-        from app.services.yahoo_finance_service import YahooFinanceService
 
         mock_ticker_instance = Mock()
         mock_ticker_instance.info = {
@@ -53,7 +51,6 @@ class TestYahooFinanceService:
     @patch("app.services.yahoo_finance_service.yf.Ticker")
     def test_get_financial_statements(self, mock_ticker):
         """Test getting financial statements."""
-        from app.services.yahoo_finance_service import YahooFinanceService
 
         mock_ticker_instance = Mock()
         mock_financials = Mock()

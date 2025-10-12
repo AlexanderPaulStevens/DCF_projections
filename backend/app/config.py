@@ -2,9 +2,6 @@
 Application configuration settings using Pydantic Settings.
 """
 
-import os
-from typing import Any, Dict
-
 from pydantic_settings import BaseSettings
 
 
@@ -35,7 +32,7 @@ class Settings(BaseSettings):
 
     # Backend Configuration
     BACKEND_SERVICE_NAME: str = "backend"
-    BACKEND_HOST: str = "0.0.0.0"
+    BACKEND_HOST: str = "0.0.0.0"  # nosec B104 - Required for Docker container networking
     BACKEND_PORT: int = 8001
 
     # Frontend Configuration
@@ -51,9 +48,7 @@ class Settings(BaseSettings):
     PRODUCTION_FRONTEND_URL: str = "https://frontend-dot-horizon-gcloud-eu.appspot.com"
 
     # Frontend Environment Variables
-    REACT_APP_PRODUCTION_API_URL: str = (
-        "https://backend-dot-horizon-gcloud-eu.appspot.com"
-    )
+    REACT_APP_PRODUCTION_API_URL: str = "https://backend-dot-horizon-gcloud-eu.appspot.com"
     REACT_APP_API_HOST: str = "backend-dot-horizon-gcloud-eu.appspot.com"
     REACT_APP_API_PORT: int = 443
 

@@ -6,11 +6,11 @@ based on DCF analysis and current stock price data.
 """
 
 import logging
-from typing import Optional
+
+from fastapi import APIRouter, HTTPException
 
 from app.core.agents.analyst_agent import analyst_agent
 from app.schemas.analyst_recommendations import AnalystRecommendation
-from fastapi import APIRouter, HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -46,20 +46,22 @@ async def get_analyst_recommendation(ticker: str):
         # Get recommendation from analyst agent
         recommendation = analyst_agent.get_analyst_recommendation(ticker.upper())
 
-        logger.info(
-            f"Generated {recommendation.recommendation} recommendation for {ticker}"
-        )
+        logger.info(f"Generated {recommendation.recommendation} recommendation for {ticker}")
         return recommendation
 
     except ValueError as e:
-        logger.warning(f"No data available for {ticker}: {str(e)}")
+        logger.warning(f"No data available for {ticker}: {e!s}")
+        detail_msg = (
+            f"No financial data available for {ticker}. "
+            "Please ensure the company has DCF analysis and stock data available."
+        )
         raise HTTPException(
             status_code=404,
-            detail=f"No financial data available for {ticker}. Please ensure the company has DCF analysis and stock data available.",
-        )
-    except Exception as e:
-        logger.error(f"Error generating analyst recommendation for {ticker}: {str(e)}")
+            detail=detail_msg,
+        ) from e
+    except (KeyError, AttributeError) as e:
+        logger.error(f"Error generating analyst recommendation for {ticker}: {e!s}")
         raise HTTPException(
             status_code=500,
-            detail=f"Error generating analyst recommendation for {ticker}: {str(e)}",
-        )
+            detail=f"Error generating analyst recommendation for {ticker}: {e!s}",
+        ) from e

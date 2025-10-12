@@ -30,9 +30,7 @@ def get_logger(name: str, level: Optional[int] = None) -> logging.Logger:
         handler.setLevel(logging.INFO)
 
         # Create formatter
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         handler.setFormatter(formatter)
 
         # Add handler to logger

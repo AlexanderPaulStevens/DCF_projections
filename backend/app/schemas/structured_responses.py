@@ -6,7 +6,7 @@ ensuring consistent and parseable output from AI agents.
 """
 
 from enum import Enum
-from typing import List, Optional
+from typing import List
 
 from pydantic import BaseModel, Field
 
@@ -37,13 +37,9 @@ class AnalystResponse(BaseModel):
         description="Investment recommendation: STRONG_BUY, BUY, HOLD, SELL, or STRONG_SELL"
     )
 
-    confidence_score: int = Field(
-        ge=0, le=100, description="Confidence level from 0-100%"
-    )
+    confidence_score: int = Field(ge=0, le=100, description="Confidence level from 0-100%")
 
-    risk_level: RiskLevel = Field(
-        description="Risk assessment: LOW, MEDIUM, HIGH, or VERY_HIGH"
-    )
+    risk_level: RiskLevel = Field(description="Risk assessment: LOW, MEDIUM, HIGH, or VERY_HIGH")
 
     target_price: float = Field(gt=0, description="Target price for the stock")
 
@@ -53,9 +49,7 @@ class AnalystResponse(BaseModel):
 
     analyst_notes: str = Field(description="Detailed analysis and commentary")
 
-    key_risks: List[str] = Field(
-        default_factory=list, description="List of key risks identified"
-    )
+    key_risks: List[str] = Field(default_factory=list, description="List of key risks identified")
 
     key_opportunities: List[str] = Field(
         default_factory=list, description="List of key opportunities identified"

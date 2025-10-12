@@ -2,7 +2,6 @@
 Simplified pytest configuration and fixtures for testing core functionality.
 """
 
-from datetime import datetime
 from unittest.mock import Mock, patch
 
 import pytest
@@ -27,7 +26,6 @@ def client():
         patch("app.routers.companies_router.YahooFinanceService") as mock_yahoo,
         patch("app.routers.companies_router.CloudStorageService") as mock_cloud,
     ):
-
         # Configure basic mocks
         mock_yahoo.return_value = Mock()
         mock_cloud.return_value = Mock()

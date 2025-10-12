@@ -50,25 +50,26 @@ const FinancialRatios: React.FC = () => {
     }
   };
 
-  const getRatioColor = (value: number, metric: string) => {
-    // Mock logic for ratio coloring - in real app, this would be based on industry benchmarks
-    if (metric.includes("P/E") || metric.includes("Price")) {
-      return value < 20 ? "success" : value < 30 ? "warning" : "error";
+  const getRatioIcon = (iconName: string) => {
+    switch (iconName) {
+      case "trending_up":
+        return <TrendingUp />;
+      case "trending_down":
+        return <TrendingDown />;
+      default:
+        return <TrendingFlat />;
     }
-    if (metric.includes("Yield") || metric.includes("Return")) {
-      return value > 0.05 ? "success" : value > 0.02 ? "warning" : "error";
-    }
-    if (metric.includes("Debt") || metric.includes("Leverage")) {
-      return value < 0.5 ? "success" : value < 0.7 ? "warning" : "error";
-    }
-    return "default";
   };
 
-  const getRatioIcon = (value: number, metric: string) => {
-    const color = getRatioColor(value, metric);
-    if (color === "success") return <TrendingUp />;
-    if (color === "error") return <TrendingDown />;
-    return <TrendingFlat />;
+  const getEvaluationLabel = (evaluation: string) => {
+    switch (evaluation) {
+      case "good":
+        return "Good";
+      case "poor":
+        return "Poor";
+      default:
+        return "Unknown";
+    }
   };
 
   const formatRatio = (value: any) => {
@@ -191,7 +192,7 @@ const FinancialRatios: React.FC = () => {
               </TableHead>
               <TableBody>
                 {(() => {
-                  const flatRatios: Array<[string, number, string]> = [];
+                  const flatRatios: Array<[string, any, string]> = [];
                   if (ratios.ratios) {
                     Object.entries(ratios.ratios).forEach(
                       ([category, categoryRatios]) => {
@@ -200,9 +201,13 @@ const FinancialRatios: React.FC = () => {
                           categoryRatios !== null
                         ) {
                           Object.entries(categoryRatios).forEach(
-                            ([key, value]) => {
-                              if (typeof value === "number") {
-                                flatRatios.push([key, value, category]);
+                            ([key, ratioData]) => {
+                              if (
+                                ratioData &&
+                                typeof ratioData === "object" &&
+                                ratioData.value !== null
+                              ) {
+                                flatRatios.push([key, ratioData, category]);
                               }
                             },
                           );
@@ -210,7 +215,7 @@ const FinancialRatios: React.FC = () => {
                       },
                     );
                   }
-                  return flatRatios.map(([key, value, category]) => (
+                  return flatRatios.map(([key, ratioData, category]) => (
                     <TableRow
                       key={key}
                       hover
@@ -224,20 +229,14 @@ const FinancialRatios: React.FC = () => {
                         {key}
                       </TableCell>
                       <TableCell sx={{ fontWeight: 600, color: "#ffffff" }}>
-                        {formatRatio(value)}
+                        {formatRatio(ratioData.value)}
                       </TableCell>
                       <TableCell>
                         <Chip
-                          icon={getRatioIcon(value, key)}
-                          label={
-                            getRatioColor(value, key) === "success"
-                              ? "Good"
-                              : getRatioColor(value, key) === "warning"
-                                ? "Fair"
-                                : "Poor"
-                          }
+                          icon={getRatioIcon(ratioData.icon)}
+                          label={getEvaluationLabel(ratioData.evaluation)}
                           size="small"
-                          color={getRatioColor(value, key) as any}
+                          color={ratioData.color as any}
                           sx={{ fontWeight: 500 }}
                         />
                       </TableCell>

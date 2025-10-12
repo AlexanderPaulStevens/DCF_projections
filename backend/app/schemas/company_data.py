@@ -71,6 +71,6 @@ class CompanySearchResult(BaseModel):
 
 __all__ = [
     "CompanyInfo",
-    "StockData",
     "CompanySearchResult",
+    "StockData",
 ]

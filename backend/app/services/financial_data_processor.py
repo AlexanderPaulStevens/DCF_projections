@@ -6,9 +6,10 @@ Extracts and processes financial metrics from Yahoo Finance for DCF analysis.
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 from app.services.cloud_storage_service import CloudStorageService
+from app.services.yahoo_finance_service import YahooFinanceService
 
 logger = logging.getLogger(__name__)
 
@@ -36,16 +37,12 @@ class FinancialDataProcessor:
             logger.info(f"Processing financial data for {ticker} using Yahoo Finance")
 
             # Use Yahoo Finance service to get financial statements
-            from app.services.yahoo_finance_service import YahooFinanceService
-
             yahoo_service = YahooFinanceService()
 
             financial_data = yahoo_service.get_financial_statements(ticker.upper())
 
             if not financial_data:
-                raise ValueError(
-                    f"Could not fetch financial data from Yahoo Finance for {ticker}"
-                )
+                raise ValueError(f"Could not fetch financial data from Yahoo Finance for {ticker}")
 
             # Upload financial data to cloud storage for each year
             for year, year_data in financial_data.items():
@@ -60,9 +57,9 @@ class FinancialDataProcessor:
                     # Upload to cloud storage
                     self._upload_financial_analysis(ticker, year, financial_analysis)
 
-                except Exception as e:
+                except (OSError, ValueError, TypeError) as e:
                     logger.warning(
-                        f"Error uploading financial data for {ticker} year {year}: {str(e)}"
+                        f"Error uploading financial data for {ticker} year {year}: {e!s}"
                     )
                     continue
 
@@ -72,7 +69,7 @@ class FinancialDataProcessor:
             return financial_data
 
         except Exception as e:
-            logger.error(f"Error processing financial data for {ticker}: {str(e)}")
+            logger.error(f"Error processing financial data for {ticker}: {e!s}")
             raise
 
     def _upload_financial_analysis(
@@ -97,7 +94,5 @@ class FinancialDataProcessor:
             logger.info(f"Uploaded financial analysis for {ticker} year {year}")
 
         except Exception as e:
-            logger.error(
-                f"Error uploading financial analysis for {ticker} year {year}: {str(e)}"
-            )
+            logger.error(f"Error uploading financial analysis for {ticker} year {year}: {e!s}")
             raise

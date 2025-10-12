@@ -61,3 +61,96 @@ testpaths = ["backend/tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+
+[tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+    "*.ipynb",
+    "*/scripts/*",
+    "*/prompts/",
+    "company_data/",
+]
+
+# Increase line length to 100 (from Black's default of 88)
+line-length = 100
+
+# Using Python 3.11
+target-version = "py311"
+
+[tool.ruff.lint]
+# Enable comprehensive linting rules
+select = [
+    "E",    # pycodestyle errors
+    "F",    # Pyflakes
+    "W",    # pycodestyle warnings
+    "I",    # isort - import ordering
+    "N",    # pep8-naming
+    "BLE",  # flake8-blind-except
+    "A",    # flake8-builtins
+    "G",    # flake8-logging-format
+    "C4",   # flake8-comprehensions
+    "Q",    # flake8-quotes
+    "ANN",  # flake8-annotations
+    "PIE",  # flake8-pie
+    "PYI",  # flake8-pyi
+    "ARG",  # flake8-unused-arguments
+    "PL",   # Pylint
+    "TID",  # flake8-tidy-imports
+    "ERA",  # eradicate
+    "NPY",  # NumPy-specific rules
+    "RUF",  # Ruff-specific rules
+]
+
+ignore = [
+    "ANN001",   # Missing type annotation for function argument
+    "ANN002",   # Missing type annotation for *args
+    "ANN003",   # Missing type annotation for **kwargs
+    "ANN101",   # Missing type annotation for self in method
+    "ANN102",   # Missing type annotation for cls in classmethod
+    "ANN201",   # Missing return type annotation for public function
+    "ANN202",   # Missing return type annotation for private function
+    "ANN204",   # Missing return type annotation for special method
+    "ANN206",   # Missing return type annotation for classmethod
+    "ANN401",   # Dynamically typed expressions (Any) are allowed
+    "G004",     # Logging statement uses f-string (common practice)
+    "Q000",     # Single quotes found but double quotes preferred
+    "PLR2004",  # Magic value used in comparison
+    "PLW1510",  # subprocess.run without explicit check
+    "RUF013",   # PEP 484 prohibits implicit Optional
+    "ERA001",   # Found commented-out code
+    "PLW2901",  # Outer loop variable overwritten by inner assignment
+    "PLR5501",  # Use `elif` instead of `else` then `if`
+]
+
+# Allow autofix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+per-file-ignores = {}
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.lint.pylint]
+max-args = 10

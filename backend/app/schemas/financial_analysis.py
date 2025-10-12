@@ -2,9 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from pydantic import BaseModel
+
+
+class RatioEvaluationData(BaseModel):
+    """Individual ratio evaluation data."""
+
+    value: Optional[float] = None
+    evaluation: str  # "good", "poor", "unknown"
+    color: str  # "success", "error", "default"
+    icon: str  # "trending_up", "trending_down", "trending_flat"
 
 
 class ProfitabilityRatios(BaseModel):
@@ -57,13 +66,12 @@ class ValuationAnalysis(BaseModel):
 
 
 class FinancialRatios(BaseModel):
-    """Financial ratios analysis data with structured categories."""
+    """Financial ratios analysis data with structured categories and evaluation."""
 
     ticker: str
     ratios: Dict[
         str, Any
-    ]  # Contains profitability, leverage, efficiency, valuation groups
-    raw_data: Dict[str, Any]
+    ]  # Contains profitability, leverage, efficiency, valuation groups with evaluation data
 
 
 class FinancialRatiosStructured(BaseModel):
@@ -71,7 +79,6 @@ class FinancialRatiosStructured(BaseModel):
 
     ticker: str
     ratios: Dict[str, Dict[str, Optional[float]]]  # Structured categories
-    raw_data: Dict[str, Any]
 
 
 class DCFAnalysis(BaseModel):
@@ -85,12 +92,13 @@ class DCFAnalysis(BaseModel):
 
 
 __all__ = [
-    "ProfitabilityRatios",
-    "LeverageRatios",
+    "DCFAnalysis",
     "EfficiencyRatios",
-    "ValuationRatios",
-    "ValuationAnalysis",
     "FinancialRatios",
     "FinancialRatiosStructured",
-    "DCFAnalysis",
+    "LeverageRatios",
+    "ProfitabilityRatios",
+    "RatioEvaluationData",
+    "ValuationAnalysis",
+    "ValuationRatios",
 ]

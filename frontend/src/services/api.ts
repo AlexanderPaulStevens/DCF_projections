@@ -169,19 +169,69 @@ export class APIService {
     }
   }
 
+  // Cache for companies list to avoid repeated API calls
+  private static companiesCache: any[] | null = null;
+  private static companiesCachePromise: Promise<any[]> | null = null;
+
+  private static async getCompaniesList(): Promise<any[]> {
+    // Return cached data if available
+    if (this.companiesCache) {
+      return this.companiesCache;
+    }
+
+    // If a fetch is already in progress, wait for it
+    if (this.companiesCachePromise) {
+      return this.companiesCachePromise;
+    }
+
+    // Fetch and cache the companies list
+    const fetchPromise: Promise<any[]> = api
+      .get("/companies/list")
+      .then((response) => {
+        const data = response.data || [];
+        this.companiesCache = data;
+        this.companiesCachePromise = null;
+        console.log(`Loaded and cached ${data.length} companies`);
+        return data;
+      })
+      .catch((error) => {
+        this.companiesCachePromise = null;
+        console.error("Failed to load companies list:", error);
+        return [] as any[];
+      });
+
+    this.companiesCachePromise = fetchPromise;
+    return fetchPromise;
+  }
+
   static async searchCompanies(query: string): Promise<any[]> {
     try {
-      const response = await api.get("/companies/list");
-      const companies = response.data.companies || [];
+      if (!query || query.trim().length === 0) {
+        return [];
+      }
 
-      // Filter companies based on query (case-insensitive)
-      const filteredCompanies = companies.filter(
-        (company: any) =>
-          company.ticker.toLowerCase().includes(query.toLowerCase()) ||
-          company.name.toLowerCase().includes(query.toLowerCase()) ||
-          (company.sector &&
-            company.sector.toLowerCase().includes(query.toLowerCase())),
+      const searchTerm = query.toLowerCase().trim();
+
+      // Get cached companies list (fast)
+      const companies = await this.getCompaniesList();
+
+      // Filter companies by NAME ONLY (case-insensitive)
+      const filteredCompanies = companies.filter((company: any) =>
+        company.name.toLowerCase().includes(searchTerm),
       );
+
+      // Sort results: prioritize matches at the start of the name
+      filteredCompanies.sort((a: any, b: any) => {
+        const aNameStarts = a.name.toLowerCase().startsWith(searchTerm);
+        const bNameStarts = b.name.toLowerCase().startsWith(searchTerm);
+
+        // Prioritize name matches that start with search term
+        if (aNameStarts && !bNameStarts) return -1;
+        if (!aNameStarts && bNameStarts) return 1;
+
+        // Sort alphabetically by name
+        return a.name.localeCompare(b.name);
+      });
 
       return filteredCompanies;
     } catch (error) {
@@ -271,36 +321,42 @@ export interface CompanyOverview {
   yield: number;
 }
 
+export interface RatioEvaluationData {
+  value: number | null;
+  evaluation: "good" | "poor" | "unknown";
+  color: "success" | "error" | "default";
+  icon: "trending_up" | "trending_down" | "trending_flat";
+}
+
 export interface FinancialRatios {
   ticker: string;
   ratios: {
     profitability?: {
-      ROE?: number;
-      ROA?: number;
-      ROIC?: number;
-      operating_margin?: number;
-      net_margin?: number;
-      revenue_growth_ebit?: number;
-      operating_income_growth?: number;
-      earnings_quality_ratio?: number; // FCF/net income
+      ROE?: RatioEvaluationData;
+      ROA?: RatioEvaluationData;
+      ROIC?: RatioEvaluationData;
+      operating_margin?: RatioEvaluationData;
+      net_margin?: RatioEvaluationData;
+      revenue_growth_ebit?: RatioEvaluationData;
+      operating_income_growth?: RatioEvaluationData;
+      earnings_quality_ratio?: RatioEvaluationData; // FCF/net income
     };
     leverage?: {
-      debt_to_equity?: number;
-      debt_to_assets?: number;
-      debt_to_free_cash_ratio?: number;
-      interest_coverage_ratio?: number;
+      debt_to_equity?: RatioEvaluationData;
+      debt_to_assets?: RatioEvaluationData;
+      debt_to_free_cash_ratio?: RatioEvaluationData;
+      interest_coverage_ratio?: RatioEvaluationData;
     };
     efficiency?: {
-      asset_turnover?: number;
+      asset_turnover?: RatioEvaluationData;
     };
     valuation?: {
-      pe_ratio?: number;
-      pb_ratio?: number;
-      ps_ratio?: number;
-      peg_ratio?: number;
+      pe_ratio?: RatioEvaluationData;
+      pb_ratio?: RatioEvaluationData;
+      ps_ratio?: RatioEvaluationData;
+      peg_ratio?: RatioEvaluationData;
     };
   };
-  raw_data: any;
 }
 
 export interface ValuationAnalysis {
@@ -541,3 +597,5 @@ export interface AnnualEBITData {
     total_years: number;
   };
 }
+
+// Note: Companies list is cached after first search for instant subsequent searches

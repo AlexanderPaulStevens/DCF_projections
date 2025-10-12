@@ -2,8 +2,6 @@
 Simple health endpoint test.
 """
 
-import pytest
-
 
 class TestHealth:
     """Simple test for health endpoint."""

@@ -81,10 +81,10 @@ const CompanySearch: React.FC = () => {
     const query = event.target.value;
     setSearchQuery(query);
 
-    // Debounce search
+    // Debounce search (reduced to 150ms since we're using cached data)
     const timeoutId = setTimeout(() => {
       handleSearch(query);
-    }, 300);
+    }, 150);
 
     return () => clearTimeout(timeoutId);
   };
@@ -318,7 +318,7 @@ const CompanySearch: React.FC = () => {
             >
               <TextField
                 fullWidth
-                placeholder="Search for a company (e.g., AAPL, Apple, Microsoft)"
+                placeholder="Search by company name (e.g., Apple, Microsoft, Tesla)"
                 value={searchQuery}
                 onChange={handleSearchChange}
                 InputProps={{
@@ -472,7 +472,7 @@ const CompanySearch: React.FC = () => {
                     fontSize: "0.9rem",
                   }}
                 >
-                  Popular searches:
+                  Popular companies:
                 </Typography>
                 <Box
                   sx={{
@@ -482,7 +482,13 @@ const CompanySearch: React.FC = () => {
                     justifyContent: "center",
                   }}
                 >
-                  {["AAPL", "META", "NVDA", "MSFT", "TSLA"].map((ticker) => (
+                  {[
+                    { name: "Apple", ticker: "AAPL" },
+                    { name: "Microsoft", ticker: "MSFT" },
+                    { name: "Nvidia", ticker: "NVDA" },
+                    { name: "Tesla", ticker: "TSLA" },
+                    { name: "Meta", ticker: "META" },
+                  ].map(({ name, ticker }) => (
                     <Button
                       key={ticker}
                       variant="outlined"
@@ -503,7 +509,7 @@ const CompanySearch: React.FC = () => {
                         },
                       }}
                     >
-                      {ticker}
+                      {name}
                     </Button>
                   ))}
                 </Box>

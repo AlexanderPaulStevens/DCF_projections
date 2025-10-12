@@ -35,7 +35,7 @@ class PromptManager:
         self.prompts_dir = Path(prompts_dir)
         self.env = Environment(
             loader=FileSystemLoader(self.prompts_dir),
-            autoescape=False,  # We don't need HTML escaping for prompts
+            autoescape=False,  # nosec B701 - Generating AI prompts, not HTML (no XSS risk)
             trim_blocks=True,
             lstrip_blocks=True,
         )

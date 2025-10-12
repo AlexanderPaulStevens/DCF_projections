@@ -4,6 +4,7 @@ Uses REST API directly to avoid hanging issues with the Python client library.
 """
 
 import fnmatch
+import json
 import logging
 import os
 import shutil
@@ -13,6 +14,14 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
+try:
+    from google.cloud import storage as gcs_storage
+
+    GCS_AVAILABLE = True
+except ImportError:
+    GCS_AVAILABLE = False
+    gcs_storage = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -21,13 +30,9 @@ class CloudStorageService:
 
     def __init__(self):
         """Initialize the Cloud Storage service."""
-        self.bucket_name = os.getenv(
-            "CLOUD_STORAGE_BUCKET", "horizon-gcloud-eu-company-data"
-        )
+        self.bucket_name = os.getenv("CLOUD_STORAGE_BUCKET", "horizon-gcloud-eu-company-data")
         self.project_id = os.getenv("GCP_PROJECT_ID", "horizon-gcloud-eu")
-        self.base_url = (
-            f"https://storage.googleapis.com/storage/v1/b/{self.bucket_name}"
-        )
+        self.base_url = f"https://storage.googleapis.com/storage/v1/b/{self.bucket_name}"
         self.download_url = f"https://storage.googleapis.com/{self.bucket_name}"
         self._access_token = None
         self._token_expires = None
@@ -50,11 +55,7 @@ class CloudStorageService:
 
     def _get_access_token(self) -> str:
         """Get access token for App Engine service account."""
-        if (
-            self._access_token
-            and self._token_expires
-            and datetime.now() < self._token_expires
-        ):
+        if self._access_token and self._token_expires and datetime.now() < self._token_expires:
             return self._access_token
 
         try:
@@ -63,9 +64,7 @@ class CloudStorageService:
             headers = {"Metadata-Flavor": "Google"}
 
             logger.info("Attempting to get access token from metadata service...")
-            response = requests.get(
-                metadata_url, headers=headers, timeout=5
-            )  # Reduced timeout
+            response = requests.get(metadata_url, headers=headers, timeout=5)  # Reduced timeout
             response.raise_for_status()
 
             token_data = response.json()
@@ -120,7 +119,7 @@ class CloudStorageService:
             except subprocess.TimeoutExpired:
                 logger.error("Timeout getting local access token from gcloud")
                 return {}
-            except Exception as e:
+            except (OSError, ValueError) as e:
                 logger.error(f"Error getting local access token: {e}")
                 return {}
 
@@ -130,8 +129,9 @@ class CloudStorageService:
 
         # Check if we're running on Cloud Run or App Engine
         if os.getenv("K_SERVICE") is not None or os.getenv("GAE_ENV") is not None:
+            is_token_available = self._access_token is not None
             logger.info(
-                f"Running on Cloud Run/App Engine - checking access token: {self._access_token is not None}"
+                f"Running on Cloud Run/App Engine - checking access token: {is_token_available}"
             )
             if self._access_token is None:
                 logger.warning("No access token available - attempting to get one")
@@ -139,7 +139,7 @@ class CloudStorageService:
                     self._get_access_token()
                     logger.info("Successfully obtained access token")
                     return True
-                except Exception as e:
+                except (OSError, ValueError) as e:
                     logger.error(f"Failed to get access token: {e}")
                     return False
             return True
@@ -152,7 +152,7 @@ class CloudStorageService:
         """Get the blob path for a company file."""
         return f"{ticker}/{filename}"
 
-    def read_file(
+    def read_file(  # noqa: PLR0911
         self, ticker: str, filename: str, file_type: str = "text"
     ) -> Optional[Any]:
         """
@@ -191,12 +191,10 @@ class CloudStorageService:
                 else:  # text
                     return response.text
             else:
-                logger.error(
-                    f"Error reading file {blob_path}: HTTP {response.status_code}"
-                )
+                logger.error(f"Error reading file {blob_path}: HTTP {response.status_code}")
                 return None
 
-        except Exception as e:
+        except (OSError, ValueError, KeyError) as e:
             logger.error(f"Error reading {file_type} file {blob_path}: {e}")
             return None
 
@@ -253,9 +251,7 @@ class CloudStorageService:
             response = requests.get(url, params=params, headers=headers, timeout=30)
 
             if response.status_code != 200:
-                logger.error(
-                    f"Error listing files for {ticker}: HTTP {response.status_code}"
-                )
+                logger.error(f"Error listing files for {ticker}: HTTP {response.status_code}")
                 return []
 
             data = response.json()
@@ -272,7 +268,7 @@ class CloudStorageService:
             logger.debug(f"Found {len(files)} files matching pattern {pattern}")
             return files
 
-        except Exception as e:
+        except (OSError, ValueError, KeyError) as e:
             logger.error(f"Error listing files for {ticker}: {e}")
             return []
 
@@ -303,10 +299,8 @@ class CloudStorageService:
             files.sort(reverse=True)
             return files[0]
 
-        except Exception as e:
-            logger.error(
-                f"Error getting latest file for {ticker} with pattern {pattern}: {e}"
-            )
+        except (OSError, ValueError, IndexError) as e:
+            logger.error(f"Error getting latest file for {ticker} with pattern {pattern}: {e}")
             return None
 
     def write_file(
@@ -339,8 +333,6 @@ class CloudStorageService:
         try:
             # Convert content based on file type
             if file_type == "json" and isinstance(content, dict):
-                import json
-
                 content_str = json.dumps(content, indent=2, default=str)
             elif file_type == "binary" and isinstance(content, bytes):
                 content_str = content
@@ -348,10 +340,12 @@ class CloudStorageService:
                 content_str = str(content)
 
             # Use Google Cloud Storage client library
-            from google.cloud import storage
+            if not GCS_AVAILABLE or gcs_storage is None:
+                logger.error("Google Cloud Storage client library not available")
+                return False
 
             # Create client
-            client = storage.Client(project=self.project_id)
+            client = gcs_storage.Client(project=self.project_id)
             bucket = client.bucket(self.bucket_name)
 
             # Create blob path
@@ -367,10 +361,7 @@ class CloudStorageService:
             logger.info(f"Successfully uploaded {file_type} file: {blob_path}")
             return True
 
-        except ImportError:
-            logger.error("Google Cloud Storage client library not available")
-            return False
-        except Exception as e:
+        except (OSError, ValueError, TypeError) as e:
             logger.error(f"Error uploading {file_type} file {blob_path}: {e}")
             return False
 
@@ -408,7 +399,8 @@ class CloudStorageService:
 
         Args:
             ticker: Company ticker symbol
-            data_type: Type of data being saved (e.g., 'revenue', 'dcf', 'financial_analysis', 'raw_data')
+            data_type: Type of data being saved
+                (e.g., 'revenue', 'dcf', 'financial_analysis', 'raw_data')
             data: The data to save (will be JSON serialized)
             filename: Optional custom filename (defaults to {data_type}_cache.json)
             metadata: Optional metadata to include with the data
@@ -455,7 +447,7 @@ class CloudStorageService:
 
             return success
 
-        except Exception as e:
+        except (OSError, ValueError, TypeError) as e:
             logger.error(f"Error saving {data_type} data for {ticker}: {e}")
             return False
 
@@ -467,7 +459,8 @@ class CloudStorageService:
 
         Args:
             ticker: Company ticker symbol
-            data_type: Type of data to load (e.g., 'revenue', 'dcf', 'financial_analysis', 'raw_data')
+            data_type: Type of data to load
+                (e.g., 'revenue', 'dcf', 'financial_analysis', 'raw_data')
             filename: Optional custom filename (defaults to {data_type}_cache.json)
 
         Returns:
@@ -494,7 +487,7 @@ class CloudStorageService:
             logger.info(f"Successfully loaded {data_type} data for {ticker.upper()}")
             return data
 
-        except Exception as e:
+        except (OSError, ValueError, KeyError) as e:
             logger.error(f"Error loading {data_type} data for {ticker}: {e}")
             return None
 

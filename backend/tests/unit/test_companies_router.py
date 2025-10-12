@@ -4,8 +4,6 @@ Simplified companies router tests - focused on core functionality.
 
 from unittest.mock import Mock, patch
 
-import pytest
-
 
 class TestCompaniesRouter:
     """Simplified test cases for companies router endpoints."""
@@ -13,9 +11,7 @@ class TestCompaniesRouter:
     def test_companies_list_endpoint(self, client):
         """Test the companies list endpoint."""
         with (
-            patch(
-                "app.routers.companies_router.CloudStorageService"
-            ) as mock_service_class,
+            patch("app.routers.companies_router.CloudStorageService") as mock_service_class,
             patch("app.routers.companies_router.requests.get") as mock_get,
         ):
             mock_service = Mock()
@@ -40,9 +36,7 @@ class TestCompaniesRouter:
 
     def test_company_info_endpoint(self, client):
         """Test company info endpoint."""
-        with patch(
-            "app.routers.companies_router.YahooFinanceService"
-        ) as mock_service_class:
+        with patch("app.routers.companies_router.YahooFinanceService") as mock_service_class:
             mock_service = Mock()
             mock_service_class.return_value = mock_service
             mock_service.get_stock_info.return_value = {
@@ -56,7 +50,8 @@ class TestCompaniesRouter:
                 "sector": "Technology",
                 "industry": "Consumer Electronics",
                 "website": "https://www.apple.com",
-                "description": "Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide.",
+                "description": """Apple Inc. designs, manufactures, and markets smartphones,
+                personal computers, tablets, wearables, and accessories worldwide.""",
                 "employees": 164000,
                 "city": "Cupertino",
                 "state": "California",
@@ -74,12 +69,8 @@ class TestCompaniesRouter:
     def test_stock_data_endpoint(self, client):
         """Test stock data endpoint."""
         with (
-            patch(
-                "app.routers.companies_router.YahooFinanceService"
-            ) as mock_service_class,
-            patch(
-                "app.routers.companies_router.CloudStorageService"
-            ) as mock_cloud_service_class,
+            patch("app.routers.companies_router.YahooFinanceService") as mock_service_class,
+            patch("app.routers.companies_router.CloudStorageService") as mock_cloud_service_class,
         ):
             mock_service = Mock()
             mock_service_class.return_value = mock_service
@@ -126,14 +117,12 @@ class TestCompaniesRouter:
 
     def test_financial_ratios_endpoint(self, client):
         """Test financial ratios endpoint."""
-        with patch(
-            "app.routers.companies_router.FinancialRatiosService"
-        ) as mock_service_class:
+        with patch("app.routers.companies_router.FinancialRatiosService") as mock_service_class:
             mock_service = Mock()
             mock_service_class.return_value = mock_service
 
             # Mock the async method properly
-            async def mock_calculate_financial_ratios(ticker):
+            async def mock_calculate_financial_ratios(_ticker):
                 return {
                     "ticker": "AAPL",
                     "ratios": {"pe_ratio": 25.0, "pb_ratio": 5.0},
@@ -150,9 +139,7 @@ class TestCompaniesRouter:
 
     def test_invalid_ticker_returns_404(self, client):
         """Test invalid ticker returns 404."""
-        with patch(
-            "app.routers.companies_router.YahooFinanceService"
-        ) as mock_service_class:
+        with patch("app.routers.companies_router.YahooFinanceService") as mock_service_class:
             mock_service = Mock()
             mock_service_class.return_value = mock_service
             mock_service.get_stock_info.return_value = None
