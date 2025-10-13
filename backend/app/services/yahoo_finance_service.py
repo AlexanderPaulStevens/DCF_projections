@@ -528,7 +528,7 @@ class YahooFinanceService:
             logger.error(f"Error calculating derived metrics: {e!s}")
             return year_data
 
-    def _safe_get_value(self, data, key: str, default: float = 0) -> float:
+    def _safe_get_value(self, data: Any, key: str, default: float = 0) -> float:
         """
         Safely get a value from pandas Series, handling NaN and infinity.
 
@@ -663,7 +663,7 @@ class YahooFinanceService:
             logger.error(f"Error fetching comprehensive data for {ticker}: {e!s}")
             return None
 
-    def _process_historical_data(self, hist_data) -> List[Dict[str, Any]]:
+    def _process_historical_data(self, hist_data: Any) -> List[Dict[str, Any]]:
         """
         Process historical data DataFrame into list of dictionaries.
 
@@ -813,7 +813,7 @@ class YahooFinanceService:
         """Clear all cached data."""
         self.cache.clear()
 
-    def _convert_timestamp(self, timestamp) -> Optional[str]:
+    def _convert_timestamp(self, timestamp: Any) -> Optional[str]:
         """Convert timestamp to ISO string format."""
         if timestamp is None:
             return None

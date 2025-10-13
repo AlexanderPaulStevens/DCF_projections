@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
 from app.core.dcf_calculations import DCFCalculator
+from app.schemas.dcf_inputs import DCFFinancialData, DCFMarketData, DCFRatioData
 from app.services.cloud_storage_service import CloudStorageService
 from app.services.financial_data_processor import FinancialDataProcessor
 from app.services.yahoo_finance_service import YahooFinanceService
@@ -26,135 +27,132 @@ class DCFService:
         self.cloud_storage_service = CloudStorageService()
         self._current_scraping_status = None
         self.yahoo_service = YahooFinanceService()
+        self.financial_processor = FinancialDataProcessor()
 
-    def get_dcf_analysis(self, ticker: str) -> Dict[str, Any]:
+    def _get_company_default_config(self) -> dict:
         """
-        Get complete DCF analysis for a company using cached data or real-time calculation.
-        Orchestrates the overall DCF analysis flow.
+        Get company-specific DCF parameters.
+
+        Different companies have different characteristics that affect DCF assumptions:
+        - Growth rates (mature vs growth companies)
+        - Terminal growth rates
+        - Market assumptions (risk-free rate, MRP)
+        - Operating ratios (CapEx, D&A, NWC as % of revenue)
+
+        For now, we are using a default config for all companies.
+
+        Returns:
+            Dict with company-specific parameters
+        """
+
+        # Default configuration for most companies
+        default_config = {
+            "growth_rate": 0.20,  # 20% - Higher growth assumption
+            "terminal_growth_rate": 0.035,  # 3.5% - Long-term GDP growth
+            "risk_free_rate": 0.035,  # 3.5% - 10-year Treasury
+            "market_risk_premium": 0.050,  # 5.0%
+            "capex_to_revenue": 0.035,  # 3.5% - Moderate capital intensity
+            "da_to_revenue": 0.035,  # 3.5% - Depreciation & Amortization ratio
+            "wc_to_revenue": 0.05,  # 5% - Net Working Capital ratio
+        }
+
+        return default_config
+
+    def _load_financial_files_from_cloud(self, ticker: str) -> list[str]:
+        """
+        List available financial analysis files from cloud storage.
 
         Args:
             ticker: Company ticker symbol
 
         Returns:
-            Complete DCF analysis results with cache status
+            List of financial analysis filenames
         """
-        # Try to get cached analysis first
-        cached_result = self._try_get_cached_analysis(ticker)
-        if cached_result:
-            return cached_result
+        return self.cloud_storage_service.list_files(ticker.upper(), "financial_analysis_*.json")
 
-        # No cache - calculate fresh DCF
-        dcf_analysis = self._calculate_fresh_dcf(ticker)
-
-        # Cache the results for future use
-        self._cache_dcf_analysis(ticker, dcf_analysis)
-
-        return dcf_analysis
-
-    def _try_get_cached_analysis(self, ticker: str) -> Optional[Dict[str, Any]]:
+    def _parse_year_from_filename(self, filename: str) -> Optional[int]:
         """
-        Try to retrieve and validate cached DCF analysis.
+        Extract year from financial analysis filename.
 
         Args:
-            ticker: Company ticker symbol
+            filename: Financial analysis filename (e.g., "financial_analysis_2024.json")
 
         Returns:
-            Validated cached analysis or None if not available
+            Year as integer, or None if parsing fails
         """
-        try:
-            cached_dcf = self._get_cached_dcf_analysis(ticker)
-            if not cached_dcf:
-                return None
-
-            logger.info(f"Using cached DCF analysis for {ticker}")
-            cached_dcf["cache_status"] = "cached"
-            cached_dcf["cache_warning"] = False
-            cached_dcf["analysis_warning"] = None
-
-            # Validate cached intrinsic value
-            intrinsic_value = cached_dcf.get("base_results", {}).get("intrinsic_value", 0)
-            if intrinsic_value == 0:
-                logger.warning(f"Cached DCF analysis for {ticker} has zero intrinsic value")
-                cached_dcf["analysis_warning"] = (
-                    "Cached DCF analysis shows zero intrinsic value. "
-                    "Consider using the overwrite endpoint to re-scrape and recalculate."
-                )
-
-            return cached_dcf
-
-        except ValueError as cache_error:
-            logger.warning(f"Cache retrieval failed for {ticker}: {cache_error!s}")
+        if "financial_analysis_" not in filename:
             return None
 
-    def _calculate_fresh_dcf(self, ticker: str) -> Dict[str, Any]:
+        year_str = filename.replace("financial_analysis_", "").replace(".json", "")
+
+        # Handle different year formats (e.g., "2024" or "2024-12-31")
+        if "-" in year_str:
+            year_str = year_str.split("-")[0]
+
+        try:
+            return int(year_str)
+        except ValueError:
+            return None
+
+    def _enrich_with_market_data(self, ticker: str, financial_metrics: dict) -> dict:
         """
-        Calculate fresh DCF analysis from financial data.
+        Enrich financial data with market data (shares, beta, debt, cash).
 
         Args:
             ticker: Company ticker symbol
+            financial_metrics: Base financial metrics
 
         Returns:
-            Complete DCF analysis results
+            Enriched financial data with market metrics added
         """
-        logger.info(f"No cached DCF found for {ticker}, performing real-time calculation")
+        enriched = financial_metrics.copy()
 
-        # Fetch financial data from cloud storage
-        financial_data = self._fetch_financial_data(ticker)
-        if not financial_data:
-            raise ValueError(f"No financial data found for {ticker}")
+        # Get stock info (shares, beta)
+        stock_info = self.yahoo_service.get_stock_info(ticker.upper())
+        if stock_info:
+            # Add shares outstanding (convert to millions)
+            if stock_info.get("shares_outstanding"):
+                enriched["Shares Outstanding"] = stock_info["shares_outstanding"] / 1_000_000
 
-        # Create DCF calculator and run analysis
-        self.create_dcf_calculator(ticker, financial_data)
-        dcf_results = self.run_dcf_analysis()
+            # Add beta
+            if stock_info.get("beta"):
+                enriched["Beta"] = stock_info["beta"]
 
-        # Get current stock price for comparison
-        current_price = self._get_current_stock_price(ticker)
+        # Add debt and cash if missing
+        if not enriched.get("Total Debt") or not enriched.get("Cash and Cash Equivalents"):
+            try:
+                dcf_market_data = self.yahoo_service.get_dcf_market_data(ticker.upper())
 
-        # Build and finalize response
-        dcf_analysis = self._build_dcf_response(ticker, dcf_results, current_price)
-        dcf_analysis = self._finalize_dcf_response(
-            ticker,
-            dcf_analysis,
-            warning="Analysis completed - data was recalculated (no cached data available).",
-        )
+                if not enriched.get("Total Debt") and dcf_market_data.get("total_debt"):
+                    enriched["Total Debt"] = dcf_market_data["total_debt"] / 1_000_000
 
-        return dcf_analysis
+                if not enriched.get("Cash and Cash Equivalents") and dcf_market_data.get(
+                    "total_cash"
+                ):
+                    enriched["Cash and Cash Equivalents"] = (
+                        dcf_market_data["total_cash"] / 1_000_000
+                    )
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"Could not fetch DCF market data: {e}")
 
-    def _finalize_dcf_response(
-        self, ticker: str, dcf_analysis: Dict[str, Any], warning: str
-    ) -> Dict[str, Any]:
-        """
-        Finalize DCF response with metadata and validation.
+        # Calculate cost of debt
+        interest_expense = enriched.get("Interest and other income (expense), net", 0)
+        total_debt = enriched.get("Total Debt", 0)
 
-        Args:
-            ticker: Company ticker symbol
-            dcf_analysis: DCF analysis data
-            warning: Warning message to display
-
-        Returns:
-            Finalized DCF analysis with metadata
-        """
-        dcf_analysis["cache_status"] = "calculated"
-        dcf_analysis["cache_warning"] = True
-        dcf_analysis["scraping_status"] = self._current_scraping_status or "completed"
-
-        # Validate intrinsic value
-        intrinsic_value = dcf_analysis.get("base_results", {}).get("intrinsic_value", 0)
-        if intrinsic_value == 0:
-            logger.warning(f"DCF analysis for {ticker} resulted in zero intrinsic value")
-            dcf_analysis["analysis_warning"] = (
-                "DCF analysis resulted in zero intrinsic value. "
-                "This may indicate issues with financial data extraction "
-                "or calculation parameters. "
-                "Consider using the overwrite endpoint to re-scrape data."
-            )
+        if total_debt > 0:
+            cost_of_debt = abs(interest_expense) / total_debt
+            # Sanity check: 0% to 20%
+            if 0 <= cost_of_debt <= 0.20:
+                enriched["Cost of Debt"] = cost_of_debt
+            else:
+                enriched["Cost of Debt"] = 0.055  # Fallback
         else:
-            dcf_analysis["analysis_warning"] = warning
+            enriched["Cost of Debt"] = 0.055  # Fallback for debt-free companies
 
-        return dcf_analysis
+        return enriched
 
-    def _fetch_financial_data(  # noqa: PLR0912, PLR0915
-        self, ticker: str
+    def _fetch_financial_data(
+        self, ticker: str, force_rescrape: bool = False
     ) -> Optional[Dict[int, Dict[str, Any]]]:
         """
         Fetch financial data from cloud storage for multiple years.
@@ -162,136 +160,44 @@ class DCFService:
 
         Args:
             ticker: Company ticker symbol
+            force_rescrape: If True, bypass cloud storage and force re-scrape
 
         Returns:
             Financial data organized by year
         """
         try:
-            # List available financial analysis files
-            files = self.cloud_storage_service.list_files(
-                ticker.upper(), "financial_analysis_*.json"
-            )
+            # Force rescrape if requested
+            if force_rescrape:
+                logger.info(f"Force re-scraping financial data for {ticker}")
+                return self.financial_processor._scrape_financial_data(ticker)
 
+            # Load available files from cloud storage
+            files = self._load_financial_files_from_cloud(ticker)
             if not files:
-                logger.warning(
-                    f"No financial analysis files found for {ticker}, attempting to scrape data..."
-                )
+                logger.warning(f"No financial files found for {ticker}, attempting to scrape...")
+                return self.financial_processor._scrape_financial_data(ticker)
 
-                # Try to scrape and process financial data automatically
-                try:
-                    processor = FinancialDataProcessor()
-
-                    # Set scraping status for frontend
-                    self._current_scraping_status = (
-                        f"Scraping financial data for {ticker} from Yahoo Finance..."
-                    )
-
-                    financial_data = processor.process_company_financial_data(ticker.upper())
-
-                    if financial_data:
-                        logger.info(
-                            f"Successfully scraped and processed financial data for {ticker}"
-                        )
-                        self._current_scraping_status = (
-                            f"Successfully scraped financial data for {ticker}"
-                        )
-                        return financial_data
-                    else:
-                        logger.warning(f"Could not scrape financial data for {ticker}")
-                        self._current_scraping_status = (
-                            f"Failed to scrape financial data for {ticker}"
-                        )
-                        return None
-
-                except (ValueError, OSError, KeyError) as scrape_error:
-                    logger.error(f"Error scraping financial data for {ticker}: {scrape_error!s}")
-                    self._current_scraping_status = (
-                        f"Error scraping financial data for {ticker}: {scrape_error!s}"
-                    )
-                    return None
-
+            # Process each year's file
             financial_data = {}
-
-            # Process each year's financial data
             for filename in files:
                 try:
-                    # Extract year from filename (e.g., "financial_analysis_2024.json" -> 2024)
-                    if "financial_analysis_" in filename:
-                        year_str = filename.replace("financial_analysis_", "").replace(".json", "")
+                    # Extract year from filename
+                    year = self._parse_year_from_filename(filename)
+                    if year is None:
+                        continue
 
-                        # Handle different year formats
-                        if "-" in year_str:
-                            year_str = year_str.split("-")[0]  # Take first part if date format
+                    # Read file data
+                    year_data = self.cloud_storage_service.read_json_file(ticker.upper(), filename)
+                    if not year_data or "financial_metrics" not in year_data:
+                        continue
 
-                        try:
-                            year = int(year_str)
-                        except ValueError:
-                            continue
+                    # Map and enrich financial data
+                    mapped_data = self.yahoo_service._map_financial_fields(
+                        year_data["financial_metrics"]
+                    )
+                    enriched_data = self._enrich_with_market_data(ticker, mapped_data)
 
-                        # Read financial data for this year
-                        year_data = self.cloud_storage_service.read_json_file(
-                            ticker.upper(), filename
-                        )
-
-                        if year_data and "financial_metrics" in year_data:
-                            # Apply field mapping to cached data
-                            yahoo_service = self.yahoo_service
-                            mapped_data = yahoo_service._map_financial_fields(
-                                year_data["financial_metrics"]
-                            )
-
-                            # Add shares outstanding and other market data
-                            stock_info = yahoo_service.get_stock_info(ticker.upper())
-                            if stock_info:
-                                # Add shares outstanding (convert to millions)
-                                if stock_info.get("shares_outstanding"):
-                                    shares_outstanding = stock_info["shares_outstanding"]
-                                    mapped_data["Shares Outstanding"] = (
-                                        shares_outstanding / 1_000_000
-                                    )
-
-                                # Add real beta
-                                if stock_info.get("beta"):
-                                    mapped_data["Beta"] = stock_info["beta"]
-
-                                # Add total debt and cash from market data if missing
-                                if not mapped_data.get("Total Debt"):
-                                    # Get from balance sheet via DCF market data
-                                    dcf_market_data = yahoo_service.get_dcf_market_data(
-                                        ticker.upper()
-                                    )
-                                    if dcf_market_data and dcf_market_data.get("total_debt"):
-                                        # Convert from dollars to millions
-                                        mapped_data["Total Debt"] = (
-                                            dcf_market_data["total_debt"] / 1_000_000
-                                        )
-
-                                    if dcf_market_data and dcf_market_data.get("total_cash"):
-                                        # Convert from dollars to millions
-                                        if not mapped_data.get("Cash and Cash Equivalents"):
-                                            mapped_data["Cash and Cash Equivalents"] = (
-                                                dcf_market_data["total_cash"] / 1_000_000
-                                            )
-
-                            # Add cost of debt calculation with fallback
-                            interest_expense = mapped_data.get(
-                                "Interest and other income (expense), net", 0
-                            )
-                            # Use "Total Debt" (consistent with field mapping)
-                            total_debt = mapped_data.get("Total Debt", 0)
-                            if total_debt > 0:
-                                cost_of_debt = abs(interest_expense) / total_debt
-                                # Sanity check: cost of debt should be reasonable (0% to 20%)
-                                if 0 <= cost_of_debt <= 0.20:
-                                    mapped_data["Cost of Debt"] = cost_of_debt
-                                else:
-                                    # Use fallback for unreasonable cost of debt
-                                    mapped_data["Cost of Debt"] = 0.055  # 5.5% fallback
-                            else:
-                                # For debt-free companies, use risk-free rate + premium
-                                mapped_data["Cost of Debt"] = 0.055  # 5.5% fallback
-
-                            financial_data[year] = mapped_data
+                    financial_data[year] = enriched_data
 
                 except (ValueError, KeyError, OSError, TypeError) as e:
                     logger.warning(f"Error processing file {filename}: {e!s}")
@@ -301,8 +207,7 @@ class DCFService:
                 logger.warning(f"No valid financial data found for {ticker}")
                 return None
 
-            years_list = list(financial_data.keys())
-            logger.info(f"Successfully loaded financial data for {ticker} for years: {years_list}")
+            logger.info(f"Loaded financial data for {ticker}: years {list(financial_data.keys())}")
             return financial_data
 
         except (ValueError, KeyError, OSError, TypeError) as e:
@@ -328,23 +233,23 @@ class DCFService:
             logger.warning(f"Could not get current stock price for {ticker}: {e!s}")
             return None
 
-    def _build_dcf_response(
-        self, ticker: str, dcf_results: Dict[str, Any], current_price: Optional[float]
+    def _format_response(
+        self, ticker: str, valuation: Dict[str, Any], current_price: Optional[float]
     ) -> Dict[str, Any]:
         """
-        Build comprehensive DCF response with scenarios.
+        Format DCF valuation into API response structure.
 
         Args:
             ticker: Company ticker symbol
-            dcf_results: DCF calculation results
-            current_price: Current stock price
+            valuation: DCF valuation results
+            current_price: Current stock price for comparison
 
         Returns:
-            Complete DCF analysis response
+            Formatted DCF analysis response
         """
-        per_share_value = dcf_results.get("per_share_value", 0)
-        enterprise_value = dcf_results.get("enterprise_value", 0)
-        equity_value = dcf_results.get("equity_value", 0)
+        per_share_value = valuation.get("per_share_value", 0)
+        enterprise_value = valuation.get("enterprise_value", 0)
+        equity_value = valuation.get("equity_value", 0)
         current_price = current_price or 0
 
         # Calculate upside/downside
@@ -378,170 +283,152 @@ class DCFService:
             "analysis_warning": None,
         }
 
-    def create_dcf_calculator(
-        self,
-        ticker: str,
-        financial_data: Dict[Any, Dict[str, Any]],
-        base_year: Optional[Any] = None,
-    ) -> DCFCalculator:
+    def _find_field_value(self, data: Dict[str, Any], field_names: list[str]) -> tuple[Any, bool]:
         """
-        Create and configure a DCF calculator instance.
+        Helper to find first matching field from a list of possible names.
 
         Args:
-            ticker: Company ticker symbol
-            financial_data: Historical financial data by year (can have string or int keys)
-            base_year: Base year for projections (can be string or int)
+            data: Dictionary to search
+            field_names: List of possible field names to try
 
         Returns:
-            Configured DCFCalculator instance
+            Tuple of (value, found) where found is True if value was found
         """
-        # Convert string keys to integers if needed for compatibility
-        if financial_data and isinstance(next(iter(financial_data.keys())), str):
-            converted_financial_data = {}
-            for key, value in financial_data.items():
-                try:
-                    converted_key = int(key)
-                    converted_financial_data[converted_key] = value
-                except (ValueError, TypeError):
-                    # If we can't convert to int, keep the original key
-                    converted_financial_data[key] = value
+        for field in field_names:
+            if data.get(field):
+                return data[field], True
+        return None, False
 
-            # Convert base_year if it's a string
-            if base_year and isinstance(base_year, str):
-                try:
-                    base_year = int(base_year)
-                except (ValueError, TypeError):
-                    pass
-
-            financial_data = converted_financial_data
-
-        # Fetch market data from Yahoo Finance service (separation of concerns)
-        try:
-            market_data = self.yahoo_service.get_dcf_market_data(ticker)
-            logger.info(f"Fetched market data for DCF: {market_data}")
-        except (ValueError, KeyError, OSError, TypeError) as e:
-            logger.warning(f"Could not fetch market data for {ticker}: {e}. Using defaults.")
-            market_data = {
-                "beta": 1.0,
-                "tax_rate": 0.24,
-                "market_cap": 0,
-                "total_cash": 0,
-                "shares_outstanding": 0,
-            }
-
-        # Get the latest financial data (DCFCalculator expects a single year's data)
-        if base_year is None:
-            base_year = max(financial_data.keys())
-
-        # Store base_year for reference
-        self.base_year = base_year
-
-        latest_financial_data = financial_data.get(base_year, {})
-
-        # Create DCF calculator with all required data
-        self.dcf_calculator = DCFCalculator(
-            ticker=ticker,
-            financial_data=latest_financial_data,
-            beta=market_data["beta"],
-            tax_rate=market_data["tax_rate"],
-            market_cap=market_data["market_cap"],
-            total_cash=market_data["total_cash"],
-            shares_outstanding=market_data["shares_outstanding"],
-        )
-
-        # Store base_year in the calculator for test access
-        self.dcf_calculator.base_year = base_year
-
-        # Apply Apple-specific parameters if ticker is AAPL
-        if ticker.upper() == "AAPL":
-            self.dcf_calculator.wacc = 0.09  # 9% WACC for Apple
-            self.dcf_calculator.terminal_growth_rate = 0.035  # 3.5% terminal growth
-            self.dcf_calculator.tax_rate = 0.24  # Apple's effective tax rate
-
-        return self.dcf_calculator
-
-    def run_dcf_analysis(
-        self, earnings_growth_rate: float = None, years: int = 5
+    def _prepare_financial_data_for_dcf(
+        self, financial_data: Dict[str, Any], market_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Run complete DCF analysis.
+        Prepare and standardize financial data for DCF calculator.
+
+        This method handles:
+        - Converting raw values to millions
+        - Standardizing field names
+        - Ensuring all required fields are present
 
         Args:
-            earnings_growth_rate: Expected earnings growth rate
-                (if None, uses company-specific default)
-            years: Number of years to project
+            financial_data: Raw financial data (may have flexible field names)
+            market_data: Market data from Yahoo Finance (raw values)
 
         Returns:
-            DCF analysis results
+            Standardized financial data with all values in millions
         """
-        if not self.dcf_calculator:
-            raise ValueError("DCF calculator not initialized. Call create_dcf_calculator first.")
+        prepared_data = {}
 
-        # Use company-specific growth rate if not provided
-        if earnings_growth_rate is None:
-            if self.dcf_calculator.ticker.upper() == "AAPL":
-                earnings_growth_rate = 0.06  # 6% growth for Apple
-            else:
-                earnings_growth_rate = 0.15  # Default 15% growth
-
-        projections = self.dcf_calculator.project_financials(
-            growth_rate=earnings_growth_rate, years=years
+        # Standardize Revenue
+        revenue, _ = self._find_field_value(
+            financial_data, ["Total net sales", "Revenue", "Net sales", "Total revenue"]
         )
+        if revenue:
+            prepared_data["Revenue"] = revenue
 
-        enterprise_value = self.dcf_calculator.calculate_enterprise_value(projections)
-        equity_value = self.dcf_calculator.calculate_equity_value(enterprise_value)
+        # Standardize EBIT
+        ebit, _ = self._find_field_value(
+            financial_data,
+            [
+                "EBIT (Operating Income + Other Income/Expense)",
+                "EBIT",
+                "Operating income",
+                "Operating Income",
+            ],
+        )
+        if ebit:
+            prepared_data["EBIT"] = ebit
 
-        # Calculate per share value using DCF calculator's internal shares outstanding
-        per_share_value = self.dcf_calculator.calculate_per_share_value(equity_value)
+        # Standardize Cash
+        cash, cash_found = self._find_field_value(
+            financial_data, ["Cash and Cash Equivalents", "Cash", "Cash and cash equivalents"]
+        )
+        if cash_found:
+            prepared_data["Cash and Cash Equivalents"] = cash
+        elif market_data.get("total_cash"):
+            prepared_data["Cash and Cash Equivalents"] = market_data["total_cash"] / 1_000_000
 
-        return {
-            "projections": projections,
-            "enterprise_value": enterprise_value,
-            "equity_value": equity_value,
-            "per_share_value": per_share_value,
-            "growth_rate": earnings_growth_rate,
-        }
+        # Standardize Shares Outstanding
+        shares, shares_found = self._find_field_value(
+            financial_data, ["Shares Outstanding", "Diluted", "Basic", "shares_outstanding"]
+        )
+        if shares_found:
+            prepared_data["Shares Outstanding"] = shares
+        elif market_data.get("shares_outstanding"):
+            prepared_data["Shares Outstanding"] = market_data["shares_outstanding"] / 1_000_000
 
-    def _get_cached_dcf_analysis(self, ticker: str) -> Optional[Dict[str, Any]]:
+        # Standardize Total Debt
+        if "Total Debt" in financial_data:
+            prepared_data["Total Debt"] = financial_data["Total Debt"]
+        elif market_data.get("total_debt"):
+            prepared_data["Total Debt"] = market_data["total_debt"] / 1_000_000
+        else:
+            prepared_data["Total Debt"] = 0
+
+        # Pass through optional fields
+        if "Cost of Debt" in financial_data:
+            prepared_data["Cost of Debt"] = financial_data["Cost of Debt"]
+
+        if "Interest and other income (expense), net" in financial_data:
+            prepared_data["Interest and other income (expense), net"] = financial_data[
+                "Interest and other income (expense), net"
+            ]
+
+        return prepared_data
+
+    def _get_from_cache(self, ticker: str) -> Optional[Dict[str, Any]]:
         """
-        Get cached DCF analysis from cloud storage.
+        Retrieve and validate cached DCF analysis.
 
         Args:
             ticker: Company ticker symbol
 
         Returns:
-            Cached DCF analysis data or None if not found/expired
+            Cached DCF analysis with metadata, or None if unavailable/expired
         """
         try:
             cached_data = self.cloud_storage_service.load_company_data(ticker.upper(), "dcf")
 
-            if cached_data and "data" in cached_data:
-                dcf_data = cached_data["data"]
+            if not cached_data or "data" not in cached_data:
+                return None
 
-                # Check if cache is still valid (24 hours)
-                cache_timestamp = dcf_data.get("cache_timestamp")
-                if cache_timestamp:
-                    cache_time = datetime.fromisoformat(cache_timestamp)
-                    if datetime.now() - cache_time < timedelta(hours=24):
-                        logger.info(f"Found valid cached DCF analysis for {ticker}")
-                        return dcf_data
-                    else:
-                        logger.info(f"Cached DCF analysis for {ticker} has expired")
-                        return None
+            dcf_data = cached_data["data"]
+
+            # Check if cache is still valid (24 hours)
+            cache_timestamp = dcf_data.get("cache_timestamp")
+            if cache_timestamp:
+                cache_time = datetime.fromisoformat(cache_timestamp)
+                if datetime.now() - cache_time < timedelta(hours=24):
+                    logger.info(f"Using valid cached DCF analysis for {ticker}")
                 else:
-                    logger.info(f"Using cached DCF analysis for {ticker} (no timestamp)")
-                    return dcf_data
+                    logger.info(f"Cached DCF analysis for {ticker} has expired")
+                    return None
+            else:
+                logger.info(f"Using cached DCF analysis for {ticker} (no timestamp)")
 
-            return None
+            # Add cache metadata
+            dcf_data["cache_status"] = "cached"
+            dcf_data["cache_warning"] = False
+            dcf_data["analysis_warning"] = None
+
+            # Validate cached intrinsic value
+            intrinsic_value = dcf_data.get("base_results", {}).get("intrinsic_value", 0)
+            if intrinsic_value == 0:
+                logger.warning(f"Cached DCF analysis for {ticker} has zero intrinsic value")
+                dcf_data["analysis_warning"] = (
+                    "Cached DCF analysis shows zero intrinsic value. "
+                    "Consider using force_rescrape=true to re-scrape and recalculate."
+                )
+
+            return dcf_data
 
         except (ValueError, KeyError, OSError, TypeError) as e:
-            logger.error(f"Error retrieving cached DCF analysis for {ticker}: {e!s}")
-            # Re-raise the exception so the calling method can handle it appropriately
-            raise ValueError(f"Failed to retrieve cached data for {ticker}: {e!s}") from e
+            logger.warning(f"Cache retrieval failed for {ticker}: {e!s}")
+            return None
 
-    def _cache_dcf_analysis(self, ticker: str, dcf_analysis: Dict[str, Any]) -> None:
+    def _save_to_cache(self, ticker: str, dcf_analysis: Dict[str, Any]) -> None:
         """
-        Cache DCF analysis results to cloud storage.
+        Save DCF analysis to cloud storage cache.
 
         Args:
             ticker: Company ticker symbol
@@ -570,3 +457,175 @@ class DCFService:
         except (ValueError, KeyError, OSError, TypeError) as e:
             logger.error(f"Error caching DCF analysis for {ticker}: {e!s}")
             # Don't raise exception - caching failure shouldn't break the main flow
+
+    def get_dcf_analysis(self, ticker: str, force_rescrape: bool = False) -> Dict[str, Any]:
+        """
+        Main entry point: Get DCF analysis with automatic caching.
+
+        Flow: Check cache → If miss/force: compute → Cache result → Return
+
+        Args:
+            ticker: Company ticker symbol
+            force_rescrape: If True, bypass cache and re-scrape financial data
+
+        Returns:
+            Complete DCF analysis with cache status
+        """
+        # Try cache first (unless forcing rescrape)
+        if not force_rescrape:
+            cached = self._get_from_cache(ticker)
+            if cached:
+                return cached
+
+        # Cache miss or forced rescrape: compute fresh DCF
+        logger.info(f"Computing fresh DCF for {ticker} (force_rescrape={force_rescrape})")
+        dcf_result = self._compute_dcf(ticker, force_rescrape)
+
+        # Cache the result
+        self._save_to_cache(ticker, dcf_result)
+
+        return dcf_result
+
+    def _compute_dcf(self, ticker: str, force_rescrape: bool) -> Dict[str, Any]:
+        """
+        Compute DCF analysis from scratch.
+
+        Flow: Fetch data → Prepare calculator → Calculate valuation → Format response
+
+        Args:
+            ticker: Company ticker symbol
+            force_rescrape: Whether to re-scrape financial data
+
+        Returns:
+            Complete DCF analysis result
+        """
+        # Step 1: Fetch financial data
+        financial_data = self._fetch_financial_data(ticker, force_rescrape=force_rescrape)
+
+        # Step 2: Prepare calculator with data
+        calculator = self._prepare_calculator(ticker, financial_data)
+
+        # Step 3: Calculate valuation
+        valuation = self._calculate_valuation(calculator)
+
+        # Step 4: Get current price for comparison
+        current_price = self._get_current_stock_price(ticker)
+
+        # Step 5: Format final response
+        result = self._format_response(ticker, valuation, current_price)
+
+        # Add cache status
+        result["cache_status"] = "overwritten" if force_rescrape else "calculated"
+
+        return result
+
+    def _prepare_calculator(self, ticker: str, financial_data: dict) -> DCFCalculator:
+        """
+        Prepare data and instantiate DCF calculator.
+
+        Flow: Get base year → Fetch market data → Standardize fields → Validate → Create calculator
+
+        Args:
+            ticker: Company ticker symbol
+            financial_data: Historical financial data by year
+
+        Returns:
+            Configured DCFCalculator instance ready for calculations
+        """
+
+        base_year = max(financial_data.keys())  # most recent year
+        latest_data = financial_data[base_year]
+
+        # Fetch market data (beta, tax rate, market cap)
+        try:
+            market_data = self.yahoo_service.get_dcf_market_data(ticker)
+            logger.info(
+                f"Fetched market data: beta={market_data['beta']}, "
+                f"tax_rate={market_data['tax_rate']}"
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"Using default market data for {ticker}: {e}")
+            market_data = {
+                "beta": 1.0,
+                "tax_rate": 0.24,
+                "market_cap": 0,
+                "total_cash": 0,
+                "shares_outstanding": 0,
+            }
+
+        # Get company-specific config
+        config = self._get_company_default_config()
+
+        # Standardize financial data field names and units
+        prepared_financial = self._prepare_financial_data_for_dcf(latest_data, market_data)
+
+        # Prepare market data with DCF assumptions (convert to millions for consistency)
+        prepared_market = {
+            "beta": market_data["beta"],
+            "tax_rate": market_data["tax_rate"],
+            "market_cap": market_data["market_cap"] / 1_000_000,
+            "terminal_growth_rate": config["terminal_growth_rate"],
+            "market_risk_premium": config["market_risk_premium"],
+            "risk_free_rate": config["risk_free_rate"],
+        }
+
+        # Prepare ratio data
+        prepared_ratios = {
+            "wc_to_revenue_ratio": config["wc_to_revenue"],
+            "capex_to_revenue_ratio": config["capex_to_revenue"],
+            "da_to_revenue_ratio": config["da_to_revenue"],
+        }
+
+        # Validate with Pydantic schemas
+        validated_financial = DCFFinancialData(**prepared_financial)
+        validated_market = DCFMarketData(**prepared_market)
+        validated_ratios = DCFRatioData(**prepared_ratios)
+
+        # Instantiate calculator
+        calculator = DCFCalculator(
+            ticker=ticker,
+            financial_data=validated_financial,
+            market_data=validated_market,
+            ratio_data=validated_ratios,
+        )
+        calculator.base_year = base_year
+
+        return calculator
+
+    def _calculate_valuation(
+        self, calculator: DCFCalculator, growth_rate: Optional[float] = None, years: int = 5
+    ) -> dict:
+        """
+        Execute DCF calculation to determine valuation.
+
+        Flow: Project financials → Calculate enterprise value
+        → Calculate equity value → Per-share value
+
+        Args:
+            calculator: Configured DCF calculator
+            growth_rate: Constant annual revenue growth rate
+            years: Number of years in explicit forecast period
+
+        Returns:
+            Valuation results (enterprise value, equity value, per-share value, projections)
+        """
+        # Use company-specific growth rate if not provided
+        if growth_rate is None:
+            config = self._get_company_default_config()
+            growth_rate = config["growth_rate"]
+
+        # Project future financials with constant growth rate
+        projections = calculator.project_financials(years=years, annual_growth_rate=growth_rate)
+
+        # Calculate values
+        enterprise_value = calculator.calculate_enterprise_value(projections)
+        equity_value = calculator.calculate_equity_value(enterprise_value)
+        intrinsic_value_per_share = calculator.calculate_per_share_value(equity_value)
+
+        return {
+            "projections": projections,
+            "enterprise_value": enterprise_value,
+            "equity_value": equity_value,
+            "per_share_value": intrinsic_value_per_share,
+            "growth_rate": growth_rate,
+        }

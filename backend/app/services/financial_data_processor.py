@@ -6,7 +6,7 @@ Extracts and processes financial metrics from Yahoo Finance for DCF analysis.
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Optional
 
 from app.services.cloud_storage_service import CloudStorageService
 from app.services.yahoo_finance_service import YahooFinanceService
@@ -23,7 +23,7 @@ class FinancialDataProcessor:
     def __init__(self):
         self.cloud_storage_service = CloudStorageService()
 
-    def process_company_financial_data(self, ticker: str) -> Dict[int, Dict[str, Any]]:
+    def process_company_financial_data(self, ticker: str) -> dict[int, dict[str, Any]]:
         """
         Process financial data for a company using Yahoo Finance API.
 
@@ -73,7 +73,7 @@ class FinancialDataProcessor:
             raise
 
     def _upload_financial_analysis(
-        self, ticker: str, year: int, financial_analysis: Dict[str, Any]
+        self, ticker: str, year: int, financial_analysis: dict[str, Any]
     ) -> None:
         """
         Upload financial analysis data to cloud storage.
@@ -96,3 +96,30 @@ class FinancialDataProcessor:
         except Exception as e:
             logger.error(f"Error uploading financial analysis for {ticker} year {year}: {e!s}")
             raise
+
+    def _scrape_financial_data(self, ticker: str) -> Optional[dict[int, dict[str, Any]]]:
+        """
+        Scrape financial data from Yahoo Finance/SEC filings.
+
+        Args:
+            ticker: Company ticker symbol
+
+        Returns:
+            Financial data organized by year, or None if scraping fails
+        """
+
+        # Set scraping status for frontend
+        self._current_scraping_status = (
+            f"Scraping financial data for {ticker} from Yahoo Finance..."
+        )
+
+        financial_data = self.process_company_financial_data(ticker.upper())
+
+        if financial_data:
+            logger.info(f"Successfully scraped and processed financial data for {ticker}")
+            self._current_scraping_status = f"Successfully scraped financial data for {ticker}"
+            return financial_data
+        else:
+            logger.warning(f"Could not scrape financial data for {ticker}")
+            self._current_scraping_status = f"Failed to scrape financial data for {ticker}"
+            return None

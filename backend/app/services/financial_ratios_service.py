@@ -68,12 +68,15 @@ class FinancialRatiosService:
                     logger.warning(f"Error caching raw data for financial ratios {ticker}: {e!s}")
                     # Don't fail the request if caching fails
 
-            # Calculate ratios using core business logic with evaluation
-            ratios = self.ratios_calculator.calculate_ratios_with_evaluation(raw_data)
+            # Calculate ratios
+            ratios = self.ratios_calculator.calculate_ratios(raw_data)
+
+            # Format with evaluations for frontend
+            formatted_ratios = self.ratios_calculator.format_ratios_with_evaluation(ratios)
 
             return {
                 "ticker": ticker.upper(),
-                "ratios": ratios,
+                "ratios": formatted_ratios,
             }
 
         except HTTPException:

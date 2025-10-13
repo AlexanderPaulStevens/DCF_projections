@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel
+
+from app.core.financial_ratios import RatioEvaluation
 
 
 class RatioEvaluationData(BaseModel):
     """Individual ratio evaluation data."""
 
-    value: Optional[float] = None
-    evaluation: str  # "good", "poor", "unknown"
-    color: str  # "success", "error", "default"
-    icon: str  # "trending_up", "trending_down", "trending_flat"
+    value: float
+    evaluation: RatioEvaluation
 
 
 class ProfitabilityRatios(BaseModel):
@@ -58,8 +58,8 @@ class ValuationAnalysis(BaseModel):
 
     ticker: str
     ratios: Optional[ValuationRatios] = None
-    dcf_analysis: Optional[Dict[str, Any]] = None
-    forecasts: Optional[Dict[str, Any]] = None
+    dcf_analysis: Optional[dict[str, Any]] = None
+    forecasts: Optional[dict[str, Any]] = None
     analysis_warning: Optional[str] = None
     cache_status: Optional[str] = None
     cache_warning: Optional[bool] = None
@@ -69,7 +69,7 @@ class FinancialRatios(BaseModel):
     """Financial ratios analysis data with structured categories and evaluation."""
 
     ticker: str
-    ratios: Dict[
+    ratios: dict[
         str, Any
     ]  # Contains profitability, leverage, efficiency, valuation groups with evaluation data
 
@@ -78,14 +78,14 @@ class FinancialRatiosStructured(BaseModel):
     """Structured financial ratios matching frontend expectations."""
 
     ticker: str
-    ratios: Dict[str, Dict[str, Optional[float]]]  # Structured categories
+    ratios: dict[str, dict[str, Optional[float]]]  # Structured categories
 
 
 class DCFAnalysis(BaseModel):
     """Discounted Cash Flow analysis results."""
 
     ticker: str
-    base_results: Dict[str, Any]
+    base_results: dict[str, Any]
     analysis_warning: Optional[str] = None
     cache_status: Optional[str] = None
     cache_warning: Optional[bool] = None

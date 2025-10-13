@@ -2,12 +2,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   Container,
-  Typography,
   Box,
   Tabs,
   Tab,
   Skeleton,
-  Chip,
 } from "@mui/material";
 import { StockHeader } from "./StockHeader";
 import { useCompanyData, useLazyData } from "../hooks/useDataHooks";

@@ -29,6 +29,7 @@ from .analyst_recommendations import (
 
 # Import all schemas for easy access
 from .company_data import CompanyInfo, CompanySearchResult, StockData
+from .dcf_inputs import DCFFinancialData, DCFMarketData, DCFRatioData
 from .financial_analysis import DCFAnalysis, FinancialRatios
 
 __all__ = [
@@ -36,6 +37,9 @@ __all__ = [
     "CompanyInfo",
     "CompanySearchResult",
     "DCFAnalysis",
+    "DCFFinancialData",
+    "DCFMarketData",
+    "DCFRatioData",
     "FinancialRatios",
     "RecommendationType",
     "RiskLevel",

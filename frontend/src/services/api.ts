@@ -323,9 +323,7 @@ export interface CompanyOverview {
 
 export interface RatioEvaluationData {
   value: number | null;
-  evaluation: "good" | "poor" | "unknown";
-  color: "success" | "error" | "default";
-  icon: "trending_up" | "trending_down" | "trending_flat";
+  evaluation: "good" | "bad" | "unknown";
 }
 
 export interface FinancialRatios {

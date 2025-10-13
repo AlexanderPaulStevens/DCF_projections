@@ -50,11 +50,11 @@ const FinancialRatios: React.FC = () => {
     }
   };
 
-  const getRatioIcon = (iconName: string) => {
-    switch (iconName) {
-      case "trending_up":
+  const getEvaluationIcon = (evaluation: string) => {
+    switch (evaluation) {
+      case "good":
         return <TrendingUp />;
-      case "trending_down":
+      case "bad":
         return <TrendingDown />;
       default:
         return <TrendingFlat />;
@@ -65,10 +65,21 @@ const FinancialRatios: React.FC = () => {
     switch (evaluation) {
       case "good":
         return "Good";
-      case "poor":
+      case "bad":
         return "Poor";
       default:
         return "Unknown";
+    }
+  };
+
+  const getEvaluationColor = (evaluation: string): "success" | "error" | "default" => {
+    switch (evaluation) {
+      case "good":
+        return "success";
+      case "bad":
+        return "error";
+      default:
+        return "default";
     }
   };
 
@@ -233,10 +244,10 @@ const FinancialRatios: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          icon={getRatioIcon(ratioData.icon)}
+                          icon={getEvaluationIcon(ratioData.evaluation)}
                           label={getEvaluationLabel(ratioData.evaluation)}
                           size="small"
-                          color={ratioData.color as any}
+                          color={getEvaluationColor(ratioData.evaluation)}
                           sx={{ fontWeight: 500 }}
                         />
                       </TableCell>
