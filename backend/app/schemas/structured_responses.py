@@ -41,7 +41,9 @@ class AnalystResponse(BaseModel):
 
     risk_level: RiskLevel = Field(description="Risk assessment: LOW, MEDIUM, HIGH, or VERY_HIGH")
 
-    target_price: float = Field(gt=0, description="Target price for the stock")
+    target_price: float = Field(
+        ge=0, description="Target price for the stock (0 allowed for STRONG_SELL)"
+    )
 
     reasoning: List[str] = Field(
         description="List of key reasoning points supporting the recommendation"

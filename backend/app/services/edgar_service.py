@@ -52,11 +52,10 @@ class EdgarService:
             ebit_data = self._fetch_ebit_data_from_edgar(ticker)
 
             if not ebit_data:
-                detail_msg = (
-                    f"No EBIT data found for {ticker}. "
-                    "Company may not have sufficient 10-K filings."
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No EBIT data found for {ticker}. Company may not have sufficient 10-K filings.",
                 )
-                raise HTTPException(status_code=404, detail=detail_msg)
 
             # Calculate CAGR
             cagr_percentage = self._calculate_cagr(ebit_data)
@@ -87,7 +86,7 @@ class EdgarService:
 
         except HTTPException:
             raise
-        except (ValueError, KeyError, OSError, TypeError) as e:
+        except Exception as e:
             logger.error(f"Error getting EBIT data for {ticker}: {e!s}")
             raise HTTPException(
                 status_code=500,
@@ -119,11 +118,9 @@ class EdgarService:
                         else:
                             logger.info(f"Cached EBIT data for {ticker.upper()} has expired")
                     except ValueError:
-                        msg = (
-                            f"Invalid cache timestamp for {ticker.upper()}, "
-                            "using cached data anyway"
+                        logger.warning(
+                            f"Invalid cache timestamp for {ticker.upper()}, using cached data anyway"
                         )
-                        logger.warning(msg)
                         return cached_data["data"]
                 else:
                     logger.info(f"Using cached EBIT data for {ticker.upper()} (no timestamp)")
@@ -131,7 +128,7 @@ class EdgarService:
 
             return None
 
-        except (ValueError, KeyError, OSError, TypeError) as e:
+        except Exception as e:
             logger.debug(f"No cached EBIT data found for {ticker}: {e!s}")
             return None
 
@@ -174,8 +171,9 @@ class EdgarService:
                     continue
 
                 logger.info(f"Financials object type: {type(financials)}")
-                methods = [method for method in dir(financials) if not method.startswith("_")]
-                logger.info(f"Financials available methods: {methods}")
+                logger.info(
+                    f"Financials available methods: {[method for method in dir(financials) if not method.startswith('_')]}"
+                )
 
                 try:
                     logger.info(f"Attempting to extract income statement from {filing.filing_date}")
@@ -184,40 +182,49 @@ class EdgarService:
                     logger.info(f"Income statement shape: {income_statement.shape}")
                     logger.info(f"Income statement columns: {list(income_statement.columns)}")
                     logger.info(f"Income statement index: {list(income_statement.index)}")
-                except (ValueError, KeyError, AttributeError) as e:
-                    msg = (
-                        f"No income statement found in filing "
-                        f"{filing.filing_date} for {ticker}: {e}"
+                except Exception as e:
+                    logger.warning(
+                        f"No income statement found in filing {filing.filing_date} for {ticker}: {e}"
                     )
-                    logger.warning(msg)
                     logger.info(f"Exception type: {type(e)}")
                     logger.info(f"Financials object type: {type(financials)}")
-                    methods = [method for method in dir(financials) if not method.startswith("_")]
-                    logger.info(f"Financials available methods: {methods}")
+                    logger.info(
+                        f"Financials available methods: {[method for method in dir(financials) if not method.startswith('_')]}"
+                    )
                     continue
 
                 # Extract EBIT/Operating Income
-                ebit_value = self._extract_ebit_from_income_statement(income_statement)
+                ebit_result = self._extract_ebit_from_income_statement(income_statement)
 
-                if ebit_value is not None and ebit_value != 0:
-                    filing_year = filing.filing_date.year
-                    all_ebit_data[filing_year] = {
-                        "year": filing_year,
-                        "ebit": ebit_value,
-                        "ebit_formatted": f"${ebit_value:,.0f}M",
-                        "filing_date": filing.filing_date.isoformat(),
-                    }
-                    msg = (
-                        f"Successfully extracted EBIT for {ticker} "
-                        f"in {filing_year}: ${ebit_value:,.0f}M"
-                    )
-                    logger.info(msg)
+                if ebit_result is not None:
+                    ebit_value, scale = ebit_result
+                    if ebit_value != 0:
+                        filing_year = filing.filing_date.year
+                        # Convert to millions for consistent storage
+                        if scale == "dollars":
+                            ebit_millions = ebit_value / 1_000_000
+                        elif scale == "thousands":
+                            ebit_millions = ebit_value / 1_000
+                        else:  # scale == "millions"
+                            ebit_millions = ebit_value
+
+                        all_ebit_data[filing_year] = {
+                            "year": filing_year,
+                            "ebit": ebit_millions,
+                            "ebit_raw": ebit_value,
+                            "ebit_scale": scale,
+                            "ebit_formatted": f"${ebit_millions:,.0f}M",
+                            "filing_date": filing.filing_date.isoformat(),
+                        }
+                        logger.info(
+                            f"Successfully extracted EBIT for {ticker} in {filing_year}: ${ebit_millions:,.0f}M (raw: {ebit_value} {scale})"
+                        )
                 else:
                     logger.warning(
                         f"No EBIT value found in filing {filing.filing_date} for {ticker}"
                     )
 
-            except (ValueError, KeyError, AttributeError, TypeError) as e:
+            except Exception as e:
                 logger.warning(f"Error processing filing {filing.filing_date} for {ticker}: {e}")
                 continue
 
@@ -229,9 +236,9 @@ class EdgarService:
         # Limit to 10 years of data
         return ebit_data[:10]
 
-    def _extract_ebit_from_income_statement(  # noqa: PLR0911, PLR0912, PLR0915
+    def _extract_ebit_from_income_statement(
         self, income_statement: pd.DataFrame
-    ) -> Optional[float]:
+    ) -> Optional[tuple[float, str]]:
         """
         Extract EBIT value from income statement DataFrame.
 
@@ -239,7 +246,8 @@ class EdgarService:
             income_statement: Income statement DataFrame
 
         Returns:
-            EBIT value in millions, or None if not found
+            Tuple of (EBIT value, scale) where scale is "thousands" or "millions",
+            or None if not found
         """
         # Comprehensive list of EBIT/Operating Income field names
         ebit_fields = [
@@ -250,6 +258,7 @@ class EdgarService:
             "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
             "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsAndCumulativeEffectOfChangeInAccountingPrinciple",
             "IncomeLossFromContinuingOperationsBeforeIncomeTaxes",
+            "IncomeLossBeforeIncomeTaxes",
             "OperatingIncomeLossBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
             "OperatingIncomeLossBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
             "OperatingIncomeLossBeforeIncomeTaxesExtraordinaryItemsAndCumulativeEffectOfChangeInAccountingPrinciple",
@@ -300,15 +309,26 @@ class EdgarService:
                         value = income_statement.iloc[row_idx][value_cols[0]]
                         logger.info(f"Found EBIT field '{field}' with value: {value}")
                         if pd.notna(value) and value != 0:
-                            # Convert to millions if needed
-                            if abs(value) > 1000:  # Assume it's in thousands, convert to millions
-                                converted = value / 1000
-                                logger.info(
-                                    f"Converting {value} from thousands to millions: {converted}"
-                                )
-                                return value / 1000
-                            logger.info(f"Using EBIT value as-is: {value}")
-                            return value
+                            # Convert to numeric if it's a string
+                            try:
+                                numeric_value = float(value) if isinstance(value, str) else value
+                            except (ValueError, TypeError):
+                                logger.warning(f"Could not convert value '{value}' to numeric")
+                                continue
+
+                            # Determine the scale based on the value magnitude
+                            # EDGAR data varies: actual dollars, thousands, or millions
+                            # Heuristic: >10M likely dollars, >100K likely thousands, else millions
+                            if abs(numeric_value) > 10_000_000:
+                                scale = "dollars"
+                                logger.info(f"Found EBIT value {numeric_value} (scale: {scale})")
+                            elif abs(numeric_value) > 100_000:
+                                scale = "thousands"
+                                logger.info(f"Found EBIT value {numeric_value} (scale: {scale})")
+                            else:
+                                scale = "millions"
+                                logger.info(f"Found EBIT value {numeric_value} (scale: {scale})")
+                            return (numeric_value, scale)
 
             # Try partial concept matches
             logger.info("No exact EBIT field match found, trying partial matches")
@@ -340,17 +360,32 @@ class EdgarService:
                             value = income_statement.iloc[i][value_cols[0]]
                             logger.info(f"Partial match concept '{concept}' with value: {value}")
                             if pd.notna(value) and value != 0:
-                                # Convert to millions if needed
-                                if abs(value) > 1000:
-                                    converted = value / 1000
-                                    msg = (
-                                        f"Converting {value} from thousands to "
-                                        f"millions: {converted}"
+                                # Convert to numeric if it's a string
+                                try:
+                                    numeric_value = (
+                                        float(value) if isinstance(value, str) else value
                                     )
-                                    logger.info(msg)
-                                    return value / 1000
-                                logger.info(f"Using partial match value as-is: {value}")
-                                return value
+                                except (ValueError, TypeError):
+                                    logger.warning(f"Could not convert value '{value}' to numeric")
+                                    continue
+
+                                # Determine the scale based on the value magnitude
+                                if abs(numeric_value) > 10_000_000:
+                                    scale = "dollars"
+                                    logger.info(
+                                        f"Found EBIT value {numeric_value} (scale: {scale})"
+                                    )
+                                elif abs(numeric_value) > 100_000:
+                                    scale = "thousands"
+                                    logger.info(
+                                        f"Found EBIT value {numeric_value} (scale: {scale})"
+                                    )
+                                else:
+                                    scale = "millions"
+                                    logger.info(
+                                        f"Found EBIT value {numeric_value} (scale: {scale})"
+                                    )
+                                return (numeric_value, scale)
         else:
             # Old format - field names as index
             logger.info("Using index-based field matching")
@@ -362,15 +397,21 @@ class EdgarService:
                     value = income_statement.loc[field].iloc[0]
                     logger.info(f"Found EBIT field '{field}' with value: {value}")
                     if pd.notna(value) and value != 0:
-                        # Convert to millions if needed
-                        if abs(value) > 1000:  # Assume it's in thousands, convert to millions
-                            converted = value / 1000
-                            logger.info(
-                                f"Converting {value} from thousands to millions: {converted}"
-                            )
-                            return value / 1000
-                        logger.info(f"Using EBIT value as-is: {value}")
-                        return value
+                        # Convert to numeric if it's a string
+                        try:
+                            numeric_value = float(value) if isinstance(value, str) else value
+                        except (ValueError, TypeError):
+                            logger.warning(f"Could not convert value '{value}' to numeric")
+                            continue
+
+                        # Determine the scale based on the value magnitude
+                        if abs(numeric_value) > 100_000:
+                            scale = "thousands"
+                            logger.info(f"Found EBIT value {numeric_value} (scale: {scale})")
+                        else:
+                            scale = "millions"
+                            logger.info(f"Found EBIT value {numeric_value} (scale: {scale})")
+                        return (numeric_value, scale)
 
             # If no exact match, try partial matches with more comprehensive keywords
             logger.info("No exact EBIT field match found, trying partial matches")
@@ -382,15 +423,21 @@ class EdgarService:
                     value = income_statement.loc[field].iloc[0]
                     logger.info(f"Partial match field '{field}' with value: {value}")
                     if pd.notna(value) and value != 0:
-                        # Convert to millions if needed
-                        if abs(value) > 1000:
-                            converted = value / 1000
-                            logger.info(
-                                f"Converting {value} from thousands to millions: {converted}"
-                            )
-                            return value / 1000
-                        logger.info(f"Using partial match value as-is: {value}")
-                        return value
+                        # Convert to numeric if it's a string
+                        try:
+                            numeric_value = float(value) if isinstance(value, str) else value
+                        except (ValueError, TypeError):
+                            logger.warning(f"Could not convert value '{value}' to numeric")
+                            continue
+
+                        # Determine the scale based on the value magnitude
+                        if abs(numeric_value) > 100_000:
+                            scale = "thousands"
+                            logger.info(f"Found EBIT value {numeric_value} (scale: {scale})")
+                        else:
+                            scale = "millions"
+                            logger.info(f"Found EBIT value {numeric_value} (scale: {scale})")
+                        return (numeric_value, scale)
 
         logger.warning("No EBIT/Operating Income field found in income statement")
         return None
@@ -434,6 +481,6 @@ class EdgarService:
                 metadata=data.get("metadata", {}),
             )
             logger.info(f"Cached EBIT data for {ticker.upper()}")
-        except (ValueError, KeyError, OSError, TypeError) as cache_error:
+        except Exception as cache_error:
             logger.warning(f"Failed to cache EBIT data for {ticker.upper()}: {cache_error}")
             # Don't fail the request if caching fails

@@ -150,6 +150,9 @@ class CloudStorageService:
 
     def _get_blob_path(self, ticker: str, filename: str) -> str:
         """Get the blob path for a company file."""
+        if not ticker:
+            # For root-level files (like S&P 500 companies list)
+            return filename
         return f"{ticker}/{filename}"
 
     def read_file(  # noqa: PLR0911

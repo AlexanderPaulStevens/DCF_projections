@@ -1,14 +1,14 @@
 """
-Financial Ratios Calculator - Core business logic for calculating financial ratios.
+Financial Ratios Core Module
 
-This module contains the core business logic for calculating various financial ratios
-from raw financial data. It follows the principle that all business logic belongs in
-the core layer, not in services.
+This module contains the core business logic for financial ratio calculations.
+All ratio calculations should be performed here to ensure consistency across the platform.
 """
 
 import logging
+from decimal import Decimal
 from enum import Enum
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -31,319 +31,405 @@ class RatioEvaluationData:
 
 class FinancialRatiosCalculator:
     """
-    Core business logic for calculating financial ratios from raw data.
+    Core business logic for calculating financial ratios.
 
-    This class contains all the calculation logic and business rules for
-    computing various financial ratios used in investment analysis.
+    This class contains all the calculation methods for financial ratios,
+    ensuring consistency and accuracy across the platform.
     """
 
-    def __init__(self):
-        """Initialize the financial ratios calculator."""
-
-    def calculate_ratios(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
+    @staticmethod
+    def calculate_all_ratios(financial_statements: Any) -> Dict[str, Any]:
         """
-        Calculate comprehensive financial ratios from raw financial data.
+        Calculate all financial ratios from a FinancialStatements object.
+
+        This is a convenience method that orchestrates all ratio calculations
+        and returns them in a structured format.
 
         Args:
-            raw_data: Raw financial data containing metrics like price, earnings, etc.
+            financial_statements: FinancialStatements Pydantic model
 
         Returns:
-            Dictionary of calculated financial ratios organized by category
+            Dictionary with categorized ratios:
+            {
+                "profitability": {...},
+                "leverage": {...},
+                "efficiency": {...},
+                "valuation": {...},
+                "liquidity": {...}
+            }
         """
         try:
-            # Extract financial metrics
-            financial_metrics = self._extract_financial_metrics(raw_data)
+            income = financial_statements.income_statement
+            balance = financial_statements.balance_sheet
+            cash_flow = financial_statements.cash_flow_statement
+            market = financial_statements.market_data
 
-            # Calculate ratios by category
-            ratios = {}
-
-            profitability = self._calculate_profitability_ratios(financial_metrics)
-            if profitability:
-                ratios["profitability"] = profitability
-
-            leverage = self._calculate_leverage_ratios(financial_metrics)
-            if leverage:
-                ratios["leverage"] = leverage
-
-            efficiency = self._calculate_efficiency_ratios(financial_metrics)
-            if efficiency:
-                ratios["efficiency"] = efficiency
-
-            valuation = self._calculate_valuation_ratios(financial_metrics)
-            if valuation:
-                ratios["valuation"] = valuation
-
-            return ratios
-
-        except (ValueError, KeyError, TypeError, ZeroDivisionError) as e:
-            logger.error(f"Error calculating financial ratios: {e!s}")
-            return {}
-
-    def _extract_financial_metrics(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Extract and validate financial metrics from raw data.
-
-        Args:
-            raw_data: Raw financial data
-
-        Returns:
-            Dictionary of validated financial metrics
-        """
-        metrics = {
-            "current_price": raw_data.get("current_price", 0),
-            "eps": raw_data.get("eps", 0),
-            "book_value": raw_data.get("book_value", 0),
-            "earnings_growth": raw_data.get("earnings_growth", 0),
-            "free_cashflow": raw_data.get("free_cashflow", 0),
-            "shares_outstanding": raw_data.get("shares_outstanding", 0),
-            "market_cap": raw_data.get("market_cap", 0),
-            "total_debt": raw_data.get("total_debt", 0),
-            "total_cash": raw_data.get("total_cash", 0),
-            "revenue": raw_data.get("revenue", 0),
-            "net_income": raw_data.get("net_income", 0),
-        }
-
-        # Calculate derived metrics
-        metrics["equity"] = self._calculate_equity(metrics)
-
-        return metrics
-
-    def _calculate_equity(self, metrics: Dict[str, Any]) -> float:
-        """
-        Calculate shareholders' equity from available metrics.
-
-        Args:
-            metrics: Financial metrics dictionary
-
-        Returns:
-            Calculated equity value
-        """
-        market_cap = metrics.get("market_cap", 0)
-        total_debt = metrics.get("total_debt", 0)
-        total_cash = metrics.get("total_cash", 0)
-
-        if market_cap and total_debt and total_cash:
-            return market_cap - total_debt + total_cash
-        return 0
-
-    def _calculate_profitability_ratios(self, metrics: Dict[str, Any]) -> Dict[str, float]:
-        """
-        Calculate profitability ratios - measures of company's ability to generate profits.
-
-        Args:
-            metrics: Financial metrics dictionary
-
-        Returns:
-            Dictionary of profitability ratios
-        """
-        profitability = {}
-
-        net_income = metrics.get("net_income", 0)
-        equity = metrics.get("equity", 0)
-        market_cap = metrics.get("market_cap", 0)
-        revenue = metrics.get("revenue", 0)
-        earnings_growth = metrics.get("earnings_growth", 0)
-        free_cashflow = metrics.get("free_cashflow", 0)
-        total_debt = metrics.get("total_debt", 0)
-        total_cash = metrics.get("total_cash", 0)
-
-        # ROE: Return on Equity = Net Income / Shareholders' Equity
-        if net_income and equity and equity != 0:
-            profitability["ROE"] = net_income / equity
-
-        # ROA: Return on Assets = Net Income / Total Assets (using market cap as proxy)
-        if net_income and market_cap and market_cap != 0:
-            profitability["ROA"] = net_income / market_cap
-
-        # ROIC: Return on Invested Capital = Net Income / Invested Capital
-        if net_income and market_cap and market_cap != 0:
-            if total_debt and total_debt > 0:
-                # Invested Capital = Total Debt + Total Equity - Cash
-                invested_capital = (
-                    total_debt + equity - total_cash if total_cash else total_debt + equity
+            # Profitability ratios
+            profitability = {}
+            if income.net_margin is not None:
+                profitability["net_margin"] = float(income.net_margin)
+            if income.operating_margin is not None:
+                profitability["operating_margin"] = float(income.operating_margin)
+            if income.gross_margin is not None:
+                profitability["gross_margin"] = float(income.gross_margin)
+            if financial_statements.roe is not None:
+                profitability["roe"] = float(financial_statements.roe)
+            if income.net_income and balance.total_assets and balance.total_assets > 0:
+                profitability["roa"] = float((income.net_income / balance.total_assets) * 100)
+            if financial_statements.roic is not None:
+                profitability["roic"] = float(financial_statements.roic)
+            if (
+                financial_statements.cash_flow_statement.free_cash_flow
+                and income.net_income
+                and income.net_income > 0
+            ):
+                profitability["earnings_quality_ratio"] = float(
+                    financial_statements.cash_flow_statement.free_cash_flow / income.net_income
                 )
-                profitability["ROIC"] = (
-                    net_income / invested_capital if invested_capital != 0 else 0
+
+            # Leverage ratios
+            leverage = {}
+            if financial_statements.debt_to_equity is not None:
+                leverage["debt_to_equity"] = float(financial_statements.debt_to_equity)
+            if balance.total_debt and balance.total_assets and balance.total_assets > 0:
+                leverage["debt_to_assets"] = float(balance.total_debt / balance.total_assets)
+            if balance.total_equity and balance.total_assets and balance.total_assets > 0:
+                leverage["equity_ratio"] = float(balance.total_equity / balance.total_assets)
+            if financial_statements.interest_coverage is not None:
+                leverage["interest_coverage"] = float(financial_statements.interest_coverage)
+            if financial_statements.net_debt_to_ebitda is not None:
+                leverage["net_debt_to_ebitda"] = float(financial_statements.net_debt_to_ebitda)
+
+            # Efficiency ratios
+            efficiency = {}
+            if income.total_revenue and balance.total_assets and balance.total_assets > 0:
+                efficiency["asset_turnover"] = float(income.total_revenue / balance.total_assets)
+            if income.cost_of_revenue and balance.inventory and balance.inventory > 0:
+                efficiency["inventory_turnover"] = float(income.cost_of_revenue / balance.inventory)
+            if (
+                income.total_revenue
+                and balance.accounts_receivable
+                and balance.accounts_receivable > 0
+            ):
+                efficiency["receivables_turnover"] = float(
+                    income.total_revenue / balance.accounts_receivable
                 )
-            else:
-                # No debt company - ROIC ≈ ROA for debt-free companies
-                profitability["ROIC"] = net_income / market_cap
+            if balance.net_working_capital is not None and balance.net_working_capital != 0:
+                efficiency["working_capital_turnover"] = float(
+                    income.total_revenue / abs(balance.net_working_capital)
+                )
 
-        # Operating Margin = Operating Income / Revenue (using net income as proxy)
-        if net_income and revenue and revenue != 0:
-            profitability["operating_margin"] = net_income / revenue
+            # Valuation ratios
+            valuation = {}
+            if market.pe_ratio is not None:
+                valuation["pe_ratio"] = float(market.pe_ratio)
+            if market.pb_ratio is not None:
+                valuation["pb_ratio"] = float(market.pb_ratio)
+            if market.ps_ratio is not None:
+                valuation["ps_ratio"] = float(market.ps_ratio)
+            if financial_statements.ebitda and financial_statements.ebitda > 0:
+                enterprise_value = (
+                    (market.market_cap or 0)
+                    + (balance.total_debt or 0)
+                    - (balance.cash_and_equivalents or 0)
+                )
+                valuation["ev_to_ebitda"] = float(enterprise_value / financial_statements.ebitda)
+            if financial_statements.free_cash_flow_yield is not None:
+                valuation["free_cash_flow_yield"] = float(financial_statements.free_cash_flow_yield)
 
-        # Net Margin = Net Income / Revenue
-        if net_income and revenue and revenue != 0:
-            profitability["net_margin"] = net_income / revenue
+            # Liquidity ratios
+            liquidity = {}
+            if (
+                balance.current_assets
+                and balance.current_liabilities
+                and balance.current_liabilities > 0
+            ):
+                liquidity["current_ratio"] = float(
+                    balance.current_assets / balance.current_liabilities
+                )
+            if (
+                balance.current_assets
+                and balance.inventory
+                and balance.current_liabilities
+                and balance.current_liabilities > 0
+            ):
+                quick_assets = balance.current_assets - balance.inventory
+                liquidity["quick_ratio"] = float(quick_assets / balance.current_liabilities)
+            if (
+                balance.cash_and_equivalents
+                and balance.current_liabilities
+                and balance.current_liabilities > 0
+            ):
+                liquidity["cash_ratio"] = float(
+                    balance.cash_and_equivalents / balance.current_liabilities
+                )
+            if (
+                cash_flow.operating_cash_flow
+                and balance.current_liabilities
+                and balance.current_liabilities > 0
+            ):
+                liquidity["operating_cash_flow_ratio"] = float(
+                    cash_flow.operating_cash_flow / balance.current_liabilities
+                )
 
-        # Revenue Growth (EBIT) - using earnings growth as proxy for EBIT growth
-        if earnings_growth:
-            profitability["revenue_growth_ebit"] = earnings_growth
+            return {
+                "profitability": profitability if profitability else None,
+                "leverage": leverage if leverage else None,
+                "efficiency": efficiency if efficiency else None,
+                "valuation": valuation if valuation else None,
+                "liquidity": liquidity if liquidity else None,
+            }
 
-        # Operating Income Growth - using earnings growth as proxy
-        if earnings_growth:
-            profitability["operating_income_growth"] = earnings_growth
+        except Exception as e:
+            logger.error(f"Error calculating all ratios: {e}")
+            return {
+                "profitability": None,
+                "leverage": None,
+                "efficiency": None,
+                "valuation": None,
+                "liquidity": None,
+            }
 
-        # Earnings Quality Ratio = Free Cash Flow / Net Income
-        if free_cashflow and net_income and net_income != 0:
-            profitability["earnings_quality_ratio"] = free_cashflow / net_income
+    @staticmethod
+    def calculate_roe(
+        net_income: Optional[Decimal], total_equity: Optional[Decimal]
+    ) -> Optional[Decimal]:
+        """Calculate Return on Equity (ROE)."""
+        if net_income and total_equity and total_equity > 0:
+            return (net_income / total_equity) * 100
+        return None
 
-        return profitability
+    @staticmethod
+    def calculate_roa(
+        net_income: Optional[Decimal], total_assets: Optional[Decimal]
+    ) -> Optional[Decimal]:
+        """Calculate Return on Assets (ROA)."""
+        if net_income and total_assets and total_assets > 0:
+            return (net_income / total_assets) * 100
+        return None
 
-    def _calculate_leverage_ratios(self, metrics: Dict[str, Any]) -> Dict[str, float]:
-        """
-        Calculate leverage ratios - measures of company's debt levels and financial risk.
+    @staticmethod
+    def calculate_roic(
+        net_income: Optional[Decimal],
+        interest_expense: Optional[Decimal],
+        tax_rate: Optional[Decimal],
+        total_debt: Optional[Decimal],
+        total_equity: Optional[Decimal],
+    ) -> Optional[Decimal]:
+        """Calculate Return on Invested Capital (ROIC)."""
+        if not all([net_income, total_debt, total_equity]):
+            return None
 
-        Args:
-            metrics: Financial metrics dictionary
+        # Calculate NOPAT (Net Operating Profit After Tax)
+        if interest_expense and tax_rate:
+            nopat = net_income + (interest_expense * (1 - tax_rate))
+        else:
+            nopat = net_income
 
-        Returns:
-            Dictionary of leverage ratios
-        """
-        leverage = {}
+        invested_capital = total_debt + total_equity
+        if invested_capital > 0:
+            return (nopat / invested_capital) * 100
+        return None
 
-        total_debt = metrics.get("total_debt", 0)
-        equity = metrics.get("equity", 0)
-        market_cap = metrics.get("market_cap", 0)
-        free_cashflow = metrics.get("free_cashflow", 0)
-        net_income = metrics.get("net_income", 0)
+    @staticmethod
+    def calculate_operating_margin(
+        operating_income: Optional[Decimal], total_revenue: Optional[Decimal]
+    ) -> Optional[Decimal]:
+        """Calculate Operating Margin."""
+        if operating_income and total_revenue and total_revenue > 0:
+            return (operating_income / total_revenue) * 100
+        return None
 
-        # Debt-to-Equity = Total Debt / Shareholders' Equity
-        if total_debt and equity and equity != 0:
-            leverage["debt_to_equity"] = total_debt / equity
+    @staticmethod
+    def calculate_net_margin(
+        net_income: Optional[Decimal], total_revenue: Optional[Decimal]
+    ) -> Optional[Decimal]:
+        """Calculate Net Margin."""
+        if net_income and total_revenue and total_revenue > 0:
+            return (net_income / total_revenue) * 100
+        return None
 
-        # Debt-to-Assets = Total Debt / Total Assets (using market cap as proxy)
-        if total_debt and market_cap and market_cap != 0:
-            leverage["debt_to_assets"] = total_debt / market_cap
+    @staticmethod
+    def calculate_gross_margin(
+        gross_profit: Optional[Decimal], total_revenue: Optional[Decimal]
+    ) -> Optional[Decimal]:
+        """Calculate Gross Margin."""
+        if gross_profit and total_revenue and total_revenue > 0:
+            return (gross_profit / total_revenue) * 100
+        return None
 
-        # Debt to Free Cash Ratio = Total Debt / Free Cash Flow
-        if total_debt and free_cashflow and free_cashflow != 0:
-            leverage["debt_to_free_cash_ratio"] = total_debt / free_cashflow
+    @staticmethod
+    def calculate_debt_to_equity(
+        total_debt: Optional[Decimal], total_equity: Optional[Decimal]
+    ) -> Optional[Decimal]:
+        """Calculate Debt-to-Equity Ratio."""
+        if total_debt and total_equity and total_equity > 0:
+            return total_debt / total_equity
+        return None
 
-        # Interest Coverage Ratio = EBIT / Interest Expense
-        # Using net income as proxy for EBIT, and estimating interest expense from debt
-        if net_income and total_debt and total_debt > 0:
-            # Estimate interest expense as 5% of total debt (typical corporate rate)
-            estimated_interest_expense = total_debt * 0.05
-            if estimated_interest_expense != 0:
-                leverage["interest_coverage_ratio"] = net_income / estimated_interest_expense
+    @staticmethod
+    def calculate_debt_to_assets(
+        total_debt: Optional[Decimal], total_assets: Optional[Decimal]
+    ) -> Optional[Decimal]:
+        """Calculate Debt-to-Assets Ratio."""
+        if total_debt and total_assets and total_assets > 0:
+            return total_debt / total_assets
+        return None
 
-        return leverage
+    @staticmethod
+    def calculate_interest_coverage(
+        operating_income: Optional[Decimal], interest_expense: Optional[Decimal]
+    ) -> Optional[Decimal]:
+        """Calculate Interest Coverage Ratio."""
+        if operating_income and interest_expense is not None and interest_expense != 0:
+            # Only calculate if there's actual interest expense (positive value)
+            # Companies with interest income (negative) don't need interest coverage
+            if interest_expense > 0:
+                return operating_income / interest_expense
+        return None
 
-    def _calculate_efficiency_ratios(self, metrics: Dict[str, Any]) -> Dict[str, float]:
-        """
-        Calculate efficiency ratios - measures of how effectively company uses its assets.
+    @staticmethod
+    def calculate_equity_ratio(
+        total_equity: Optional[Decimal], total_assets: Optional[Decimal]
+    ) -> Optional[Decimal]:
+        """Calculate Equity Ratio."""
+        if total_equity and total_assets and total_assets > 0:
+            return total_equity / total_assets
+        return None
 
-        Args:
-            metrics: Financial metrics dictionary
+    @staticmethod
+    def calculate_current_ratio(
+        current_assets: Optional[Decimal], current_liabilities: Optional[Decimal]
+    ) -> Optional[Decimal]:
+        """Calculate Current Ratio."""
+        if current_assets and current_liabilities and current_liabilities > 0:
+            return current_assets / current_liabilities
+        return None
 
-        Returns:
-            Dictionary of efficiency ratios
-        """
-        efficiency = {}
+    @staticmethod
+    def calculate_quick_ratio(
+        current_assets: Optional[Decimal],
+        inventory: Optional[Decimal],
+        current_liabilities: Optional[Decimal],
+    ) -> Optional[Decimal]:
+        """Calculate Quick Ratio."""
+        if current_assets and current_liabilities and current_liabilities > 0:
+            quick_assets = current_assets - (inventory or 0)
+            return quick_assets / current_liabilities
+        return None
 
-        revenue = metrics.get("revenue", 0)
-        market_cap = metrics.get("market_cap", 0)
+    @staticmethod
+    def calculate_cash_ratio(
+        cash_and_equivalents: Optional[Decimal], current_liabilities: Optional[Decimal]
+    ) -> Optional[Decimal]:
+        """Calculate Cash Ratio."""
+        if cash_and_equivalents and current_liabilities and current_liabilities > 0:
+            return cash_and_equivalents / current_liabilities
+        return None
 
-        # Asset Turnover = Revenue / Total Assets (using market cap as proxy)
-        if revenue and market_cap and market_cap != 0:
-            efficiency["asset_turnover"] = revenue / market_cap
+    @staticmethod
+    def calculate_asset_turnover(
+        total_revenue: Optional[Decimal], total_assets: Optional[Decimal]
+    ) -> Optional[Decimal]:
+        """Calculate Asset Turnover Ratio."""
+        if total_revenue and total_assets and total_assets > 0:
+            return total_revenue / total_assets
+        return None
 
-        return efficiency
+    @staticmethod
+    def calculate_inventory_turnover(
+        cost_of_revenue: Optional[Decimal], inventory: Optional[Decimal]
+    ) -> Optional[Decimal]:
+        """Calculate Inventory Turnover Ratio."""
+        if cost_of_revenue and inventory and inventory > 0:
+            return cost_of_revenue / inventory
+        return None
 
-    def _calculate_valuation_ratios(self, metrics: Dict[str, Any]) -> Dict[str, float]:
-        """
-        Calculate valuation ratios - measures of company's market valuation
-        relative to fundamentals.
+    @staticmethod
+    def calculate_receivables_turnover(
+        total_revenue: Optional[Decimal], accounts_receivable: Optional[Decimal]
+    ) -> Optional[Decimal]:
+        """Calculate Receivables Turnover Ratio."""
+        if total_revenue and accounts_receivable and accounts_receivable > 0:
+            return total_revenue / accounts_receivable
+        return None
 
-        Args:
-            metrics: Financial metrics dictionary
+    @staticmethod
+    def calculate_working_capital_turnover(
+        total_revenue: Optional[Decimal], net_working_capital: Optional[Decimal]
+    ) -> Optional[Decimal]:
+        """Calculate Working Capital Turnover Ratio."""
+        if total_revenue and net_working_capital is not None and net_working_capital != 0:
+            return total_revenue / abs(net_working_capital)
+        return None
 
-        Returns:
-            Dictionary of valuation ratios
-        """
-        valuation = {}
+    @staticmethod
+    def calculate_pe_ratio(
+        current_price: Optional[Decimal],
+        shares_outstanding: Optional[Decimal],
+        net_income: Optional[Decimal],
+    ) -> Optional[Decimal]:
+        """Calculate Price-to-Earnings Ratio."""
+        if current_price and shares_outstanding and net_income and net_income > 0:
+            eps = net_income / shares_outstanding
+            return current_price / eps
+        return None
 
-        current_price = metrics.get("current_price", 0)
-        eps = metrics.get("eps", 0)
-        book_value = metrics.get("book_value", 0)
-        market_cap = metrics.get("market_cap", 0)
-        revenue = metrics.get("revenue", 0)
-        earnings_growth = metrics.get("earnings_growth", 0)
+    @staticmethod
+    def calculate_pb_ratio(
+        current_price: Optional[Decimal],
+        shares_outstanding: Optional[Decimal],
+        total_equity: Optional[Decimal],
+    ) -> Optional[Decimal]:
+        """Calculate Price-to-Book Ratio."""
+        if current_price and shares_outstanding and total_equity and total_equity > 0:
+            book_value_per_share = total_equity / shares_outstanding
+            return current_price / book_value_per_share
+        return None
 
-        # P/E Ratio = Stock Price / Earnings Per Share
-        if current_price and eps and eps != 0:
-            valuation["pe_ratio"] = current_price / eps
+    @staticmethod
+    def calculate_ps_ratio(
+        market_cap: Optional[Decimal], total_revenue: Optional[Decimal]
+    ) -> Optional[Decimal]:
+        """Calculate Price-to-Sales Ratio."""
+        if market_cap and total_revenue and total_revenue > 0:
+            return market_cap / total_revenue
+        return None
 
-        # P/B Ratio = Stock Price / Book Value Per Share
-        if current_price and book_value and book_value != 0:
-            valuation["pb_ratio"] = current_price / book_value
+    @staticmethod
+    def calculate_ev_to_ebitda(
+        market_cap: Optional[Decimal],
+        total_debt: Optional[Decimal],
+        cash_and_equivalents: Optional[Decimal],
+        ebitda: Optional[Decimal],
+    ) -> Optional[Decimal]:
+        """Calculate EV/EBITDA Ratio."""
+        if market_cap and ebitda and ebitda > 0:
+            enterprise_value = market_cap + (total_debt or 0) - (cash_and_equivalents or 0)
+            return enterprise_value / ebitda
+        return None
 
-        # P/S Ratio = Market Cap / Revenue
-        if market_cap and revenue and revenue != 0:
-            valuation["ps_ratio"] = market_cap / revenue
+    @staticmethod
+    def calculate_earnings_quality_ratio(
+        free_cash_flow: Optional[Decimal], net_income: Optional[Decimal]
+    ) -> Optional[Decimal]:
+        """Calculate Earnings Quality Ratio (FCF/Net Income)."""
+        if free_cash_flow and net_income and net_income > 0:
+            return free_cash_flow / net_income
+        return None
 
-        # PEG Ratio = P/E Ratio / Earnings Growth Rate
-        if current_price and eps and earnings_growth and eps != 0 and earnings_growth != 0:
-            valuation["peg_ratio"] = (current_price / eps) / earnings_growth
+    @staticmethod
+    def calculate_operating_cash_flow_ratio(
+        operating_cash_flow: Optional[Decimal], current_liabilities: Optional[Decimal]
+    ) -> Optional[Decimal]:
+        """Calculate Operating Cash Flow Ratio."""
+        if operating_cash_flow and current_liabilities and current_liabilities > 0:
+            return operating_cash_flow / current_liabilities
+        return None
 
-        return valuation
 
-    def get_ratio_evaluation(self, value: float, metric_name: str) -> RatioEvaluation:
-        """
-        Determine the evaluation level for a financial ratio based on specific criteria.
-        Green (GOOD) if meets criteria, Red (POOR) otherwise.
-
-        Args:
-            value: The ratio value
-            metric_name: The name of the metric
-
-        Returns:
-            RatioEvaluation enum value
-        """
-        metric_lower = metric_name.lower()
-
-        # Define evaluation criteria
-        criteria = {
-            "revenue_growth": (value >= 0.05, "Revenue growth > 5%"),
-            "operating_income_growth": (value > 0.07, "Operating income growth > 7%"),
-            "earnings_quality": (value > 0.80, "Earnings quality ratio (FCF/net income) > 80%"),
-            "roic": (value > 0.15, "ROIC > 15%"),
-            "debt_to_free_cash": (value < 5.0, "Debt to free cash ratio < 5%"),
-            "interest_coverage": (value > 5.0, "Interest coverage ratio > 5%"),
-        }
-
-        # Check each criterion
-        for key, (condition, _description) in criteria.items():
-            if key in metric_lower:
-                return RatioEvaluation.GOOD if condition else RatioEvaluation.BAD
-
-        # Default case - unknown evaluation
-        return RatioEvaluation.UNKNOWN
-
-    def format_ratios_with_evaluation(self, ratios: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Format ratios with evaluation data for API response.
-
-        Args:
-            ratios: Dictionary of calculated ratios organized by category
-
-        Returns:
-            Dictionary with ratios formatted as {value, evaluation} objects
-        """
-        formatted_ratios = {}
-
-        for category, category_ratios in ratios.items():
-            formatted_category = {}
-            for metric_name, value in category_ratios.items():
-                if value is not None:
-                    evaluation = self.get_ratio_evaluation(value, metric_name)
-                    formatted_category[metric_name] = {
-                        "value": value,
-                        "evaluation": evaluation.value,  # Convert enum to string
-                    }
-            if formatted_category:
-                formatted_ratios[category] = formatted_category
-
-        return formatted_ratios
+__all__ = [
+    "FinancialRatiosCalculator",
+    "RatioEvaluation",
+    "RatioEvaluationData",
+]

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React from "react";
+import { useParams } from "react-router-dom";
 import {
   Box,
   Card,
@@ -18,283 +18,285 @@ import {
   TableRow,
   Paper,
 } from "@mui/material";
-import { TrendingUp, TrendingDown, TrendingFlat } from "@mui/icons-material";
-import {
-  APIService,
-  FinancialRatios as FinancialRatiosType,
-} from "../services/api";
+import { useFinancialRatios } from "../hooks/queries";
+import type {
+  ProfitabilityRatios,
+  LeverageRatios,
+  EfficiencyRatios,
+  ValuationRatios,
+  LiquidityRatios,
+} from "../types/api";
 
 const FinancialRatios: React.FC = () => {
   const { ticker } = useParams<{ ticker: string }>();
-  const navigate = useNavigate();
-  const [ratios, setRatios] = useState<FinancialRatiosType | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (ticker) {
-      loadFinancialRatios(ticker);
-    }
-  }, [ticker]);
+  // Use React Query hooks
+  const {
+    data: ratios,
+    isLoading: ratiosLoading,
+    error: ratiosError,
+    refetch: refetchRatios,
+  } = useFinancialRatios(ticker || "");
 
-  const loadFinancialRatios = async (companyTicker: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await APIService.getFinancialRatios(companyTicker);
-      setRatios(data);
-    } catch (err) {
-      setError("Failed to load financial ratios. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+  // Combined loading and error states
+  const loading = ratiosLoading;
+  const error = ratiosError?.message || null;
+
+  // Refetch query
+  const handleRetry = () => {
+    refetchRatios();
   };
 
-  const getEvaluationIcon = (evaluation: string) => {
-    switch (evaluation) {
-      case "good":
-        return <TrendingUp />;
-      case "bad":
-        return <TrendingDown />;
-      default:
-        return <TrendingFlat />;
+  const formatRatio = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return "N/A";
+    if (typeof value === "number") {
+      if (value > 100) return `${value.toFixed(0)}%`;
+      if (value > 1) return value.toFixed(2);
+      return `${(value * 100).toFixed(1)}%`;
     }
+    return "N/A";
   };
 
-  const getEvaluationLabel = (evaluation: string) => {
-    switch (evaluation) {
-      case "good":
-        return "Good";
-      case "bad":
-        return "Poor";
-      default:
-        return "Unknown";
-    }
+  const formatRatioName = (key: string) => {
+    // Define mapping for common financial ratios that should be fully capitalized
+    const ratioMappings: { [key: string]: string } = {
+      'roe': 'ROE',
+      'roa': 'ROA',
+      'roic': 'ROIC',
+      'pe_ratio': 'P/E Ratio',
+      'forward_pe': 'Forward P/E',
+      'peg_ratio': 'PEG Ratio',
+      'pb_ratio': 'P/B Ratio',
+      'ps_ratio': 'P/S Ratio',
+      'ev_to_ebitda': 'EV/EBITDA',
+      'price_to_fcf': 'Price/FCF',
+      'debt_to_equity': 'Debt/Equity',
+      'debt_to_assets': 'Debt/Assets',
+      'net_debt_to_ebitda': 'Net Debt/EBITDA',
+      'interest_coverage': 'Interest Coverage',
+      'asset_turnover': 'Asset Turnover',
+      'inventory_turnover': 'Inventory Turnover',
+      'receivables_turnover': 'Receivables Turnover',
+      'working_capital_turnover': 'Working Capital Turnover',
+      'current_ratio': 'Current Ratio',
+      'quick_ratio': 'Quick Ratio',
+      'cash_ratio': 'Cash Ratio',
+      'operating_margin': 'Operating Margin',
+      'net_margin': 'Net Margin',
+      'gross_margin': 'Gross Margin',
+      'earnings_quality_ratio': 'Earnings Quality Ratio'
+    };
+
+    // Return mapped name if exists, otherwise capitalize first letter of each word
+    return ratioMappings[key] || key.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
   };
 
-  const getEvaluationColor = (evaluation: string): "success" | "error" | "default" => {
-    switch (evaluation) {
-      case "good":
-        return "success";
-      case "bad":
-        return "error";
+  const getRatioColor = (value: number | null | undefined, type: string) => {
+    if (value === null || value === undefined) return "default";
+
+    switch (type) {
+      case "profitability":
+        return value > 0.1 ? "success" : value > 0.05 ? "warning" : "error";
+      case "leverage":
+        return value < 0.3 ? "success" : value < 0.6 ? "warning" : "error";
+      case "efficiency":
+        return value > 1 ? "success" : value > 0.5 ? "warning" : "error";
+      case "valuation":
+        return value < 15 ? "success" : value < 25 ? "warning" : "error";
+      case "liquidity":
+        return value > 2 ? "success" : value > 1 ? "warning" : "error";
       default:
         return "default";
     }
   };
 
-  const formatRatio = (value: any) => {
-    if (typeof value === "number") {
-      if (value > 1000000) return `$${(value / 1000000).toFixed(2)}M`;
-      if (value > 1000) return `$${(value / 1000).toFixed(2)}K`;
-      if (value > 0 && value < 1) return `${(value * 100).toFixed(2)}%`;
-      return value.toFixed(2);
+
+  const renderRatioTable = (
+    title: string,
+    ratios: ProfitabilityRatios | LeverageRatios | EfficiencyRatios | ValuationRatios | LiquidityRatios | undefined,
+    type: string
+  ) => {
+    console.log(`renderRatioTable called for ${title}:`, ratios);
+
+    if (!ratios) {
+      console.log(`No ratios data for ${title}`);
+      return null;
     }
-    return value;
+
+    const ratioEntries = Object.entries(ratios).filter(([_, value]) => value !== null && value !== undefined);
+    console.log(`Filtered entries for ${title}:`, ratioEntries);
+
+    if (ratioEntries.length === 0) {
+      console.log(`No valid entries for ${title}`);
+      return null;
+    }
+
+    return (
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: "primary.main" }}>
+            {title}
+          </Typography>
+          <TableContainer component={Paper} variant="outlined">
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 600 }}>Metric</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600 }}>Value</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {ratioEntries.map(([key, value]) => (
+                  <TableRow key={key}>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {formatRatioName(key)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Chip
+                        label={formatRatio(value)}
+                        color={getRatioColor(value, type) as any}
+                        size="small"
+                        variant="outlined"
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
+    );
+  };
+
+
+  const renderSummaryMetrics = () => {
+    if (!ratios) return null;
+
+    return (
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: "primary.main" }}>
+            Financial Ratios Summary
+          </Typography>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
+            <Box sx={{ flex: 1, textAlign: 'center' }}>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                Latest Year: {ratios.latest_year}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Years Available: {ratios.years_available.join(', ')}
+              </Typography>
+            </Box>
+          </Box>
+        </CardContent>
+      </Card>
+    );
   };
 
   if (loading) {
     return (
-      <Container maxWidth="xl" sx={{ py: 4 }}>
-        <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-          <Box sx={{ textAlign: "center" }}>
-            <CircularProgress size={80} sx={{ mb: 3, color: "#00d4ff" }} />
-            <Typography variant="h5" sx={{ color: "#b0b0b0" }}>
-              Loading financial ratios...
-            </Typography>
-          </Box>
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+          <CircularProgress size={60} />
         </Box>
       </Container>
     );
   }
 
-  if (error || !ratios) {
+  if (error) {
     return (
-      <Container maxWidth="xl" sx={{ py: 4 }}>
-        <Alert
-          severity="error"
-          sx={{
-            mb: 3,
-            background: "rgba(17, 17, 17, 0.8)",
-            border: "1px solid #333333",
-          }}
-        >
-          {error || "Financial ratios not found"}
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+        <Box display="flex" justifyContent="center">
+          <Button variant="contained" onClick={handleRetry}>
+            Try Again
+          </Button>
+        </Box>
+      </Container>
+    );
+  }
+
+  if (!ratios) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Alert severity="info">
+          No financial ratios data available for {ticker}.
         </Alert>
       </Container>
     );
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
-      {/* Detailed Ratios Table */}
-      <Card
-        sx={{
-          mb: 4,
-          background: "rgba(17, 17, 17, 0.8)",
-          border: "1px solid #333333",
-          borderRadius: 2,
-        }}
-      >
-        <CardContent sx={{ p: 4 }}>
-          <Typography
-            variant="h4"
-            gutterBottom
-            sx={{
-              fontWeight: 600,
-              background: "linear-gradient(135deg, #00d4ff 0%, #4ddfff 100%)",
-              backgroundClip: "text",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              mb: 3,
-            }}
-          >
-            Comprehensive Financial Ratios
-          </Typography>
-
-          <TableContainer
-            component={Paper}
-            sx={{
-              boxShadow: "none",
-              background: "rgba(25, 25, 25, 0.6)",
-              border: "1px solid #444444",
-            }}
-          >
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell
-                    sx={{
-                      fontWeight: 600,
-                      color: "#b0b0b0",
-                      backgroundColor: "rgba(40, 40, 40, 0.8)",
-                    }}
-                  >
-                    Metric
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      fontWeight: 600,
-                      color: "#b0b0b0",
-                      backgroundColor: "rgba(40, 40, 40, 0.8)",
-                    }}
-                  >
-                    Value
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      fontWeight: 600,
-                      color: "#b0b0b0",
-                      backgroundColor: "rgba(40, 40, 40, 0.8)",
-                    }}
-                  >
-                    Status
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      fontWeight: 600,
-                      color: "#b0b0b0",
-                      backgroundColor: "rgba(40, 40, 40, 0.8)",
-                    }}
-                  >
-                    Category
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {(() => {
-                  const flatRatios: Array<[string, any, string]> = [];
-                  if (ratios.ratios) {
-                    Object.entries(ratios.ratios).forEach(
-                      ([category, categoryRatios]) => {
-                        if (
-                          typeof categoryRatios === "object" &&
-                          categoryRatios !== null
-                        ) {
-                          Object.entries(categoryRatios).forEach(
-                            ([key, ratioData]) => {
-                              if (
-                                ratioData &&
-                                typeof ratioData === "object" &&
-                                ratioData.value !== null
-                              ) {
-                                flatRatios.push([key, ratioData, category]);
-                              }
-                            },
-                          );
-                        }
-                      },
-                    );
-                  }
-                  return flatRatios.map(([key, ratioData, category]) => (
-                    <TableRow
-                      key={key}
-                      hover
-                      sx={{
-                        "&:hover": {
-                          backgroundColor: "rgba(0, 212, 255, 0.05)",
-                        },
-                      }}
-                    >
-                      <TableCell sx={{ fontWeight: 500, color: "#ffffff" }}>
-                        {key}
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: "#ffffff" }}>
-                        {formatRatio(ratioData.value)}
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          icon={getEvaluationIcon(ratioData.evaluation)}
-                          label={getEvaluationLabel(ratioData.evaluation)}
-                          size="small"
-                          color={getEvaluationColor(ratioData.evaluation)}
-                          sx={{ fontWeight: 500 }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={category}
-                          size="small"
-                          variant="outlined"
-                          sx={{
-                            borderColor: "#00d4ff",
-                            color: "#00d4ff",
-                            fontWeight: 500,
-                          }}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ));
-                })()}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
-
-      {/* Action Buttons */}
-      <Box sx={{ display: "flex", gap: 2, justifyContent: "center", mb: 4 }}>
-        <Button
-          variant="contained"
-          startIcon={<TrendingUp />}
-          onClick={() => navigate(`/company/${ticker}/dcf`)}
-          sx={{
-            py: 2,
-            px: 4,
-            fontSize: "1.1rem",
-            fontWeight: 600,
-            background: "linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)",
-            borderRadius: 2,
-            minWidth: 180,
-            "&:hover": {
-              background: "linear-gradient(135deg, #0099cc 0%, #006699 100%)",
-              transform: "translateY(-1px)",
-            },
-          }}
-        >
-          DCF Analysis
-        </Button>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      {/* Header */}
+      <Box sx={{ mb: 4, textAlign: "center" }}>
+        <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 700 }}>
+          Financial Ratios Analysis
+        </Typography>
+        <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
+          {ticker?.toUpperCase()}
+        </Typography>
+        {ratios.cache_status && (
+          <Chip
+            label={`Data Status: ${ratios.cache_status}`}
+            color={ratios.cache_warning ? "warning" : "success"}
+            size="small"
+            sx={{ mb: 2 }}
+          />
+        )}
       </Box>
+
+      {/* Summary Metrics */}
+      {renderSummaryMetrics()}
+
+      {/* Financial Ratios */}
+      {(() => {
+        if (!ratios || !ratios.ratios) {
+          console.log('No ratios data:', { ratios });
+          return <Typography>No financial ratios data available</Typography>;
+        }
+
+        const latestYearData = ratios.ratios[ratios.latest_year.toString()];
+        console.log('Debug - ratios object:', ratios);
+        console.log('Debug - latest year:', ratios.latest_year);
+        console.log('Debug - latest year data:', latestYearData);
+        console.log('Debug - available years:', Object.keys(ratios.ratios));
+
+        if (!latestYearData) {
+          console.log('No data for latest year:', ratios.latest_year);
+          return <Typography>No data available for year {ratios.latest_year}</Typography>;
+        }
+
+        return (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 3 }}>
+              <Box sx={{ flex: 1 }}>
+                {renderRatioTable("Profitability Ratios", latestYearData.profitability, "profitability")}
+                {renderRatioTable("Leverage Ratios", latestYearData.leverage, "leverage")}
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                {renderRatioTable("Efficiency Ratios", latestYearData.efficiency, "efficiency")}
+                {renderRatioTable("Valuation Ratios", latestYearData.valuation, "valuation")}
+              </Box>
+            </Box>
+            <Box>
+              {renderRatioTable("Liquidity Ratios", latestYearData.liquidity, "liquidity")}
+            </Box>
+          </Box>
+        );
+      })()}
+
+      {/* Analysis Warning */}
+      {ratios.analysis_warning && (
+        <Alert severity="warning" sx={{ mt: 3 }}>
+          {ratios.analysis_warning}
+        </Alert>
+      )}
     </Container>
   );
 };

@@ -12,37 +12,31 @@ import {
   IconButton,
   Tooltip,
 } from "@mui/material";
-import { PlayArrow, Refresh } from "@mui/icons-material";
+import { Refresh, Psychology } from "@mui/icons-material";
 import {
   APIService,
   AnalystRecommendation as AnalystRecommendationType,
 } from "../services/api";
+import { useAnalystRecommendation } from "../hooks/queries";
 
 const AnalystRecommendation: React.FC = () => {
   const { ticker } = useParams<{ ticker: string }>();
-  const [recommendation, setRecommendation] =
-    useState<AnalystRecommendationType | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [shouldFetch, setShouldFetch] = useState(false);
 
-  const runAnalysis = async () => {
-    if (!ticker) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await APIService.getAnalystRecommendation(ticker);
-      setRecommendation(data);
-    } catch (err) {
-      console.error("Error fetching analyst recommendation:", err);
-      setError("Failed to load analyst recommendation. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+  const {
+    data: recommendation,
+    isLoading: loading,
+    error,
+    refetch,
+  } = useAnalystRecommendation(ticker || "", shouldFetch);
+
+  const triggerAnalysis = () => {
+    setShouldFetch(true);
+    refetch();
   };
 
   const resetAnalysis = () => {
-    setRecommendation(null);
-    setError(null);
+    setShouldFetch(false);
   };
 
   const formatCurrency = (value: number) => {
@@ -114,43 +108,43 @@ const AnalystRecommendation: React.FC = () => {
         <Typography variant="h6" sx={{ color: "#b0b0b0", mb: 4 }}>
           Get AI-powered investment recommendations for {ticker}
         </Typography>
-
-        {/* Action Button */}
-        <Button
-          variant="contained"
-          size="large"
-          startIcon={
-            loading ? (
-              <CircularProgress size={20} sx={{ color: "#ffffff" }} />
-            ) : (
-              <PlayArrow />
-            )
-          }
-          onClick={runAnalysis}
-          disabled={loading}
-          sx={{
-            background: "linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)",
-            boxShadow: "0 12px 40px rgba(0, 212, 255, 0.3)",
-            borderRadius: 12,
-            px: 6,
-            py: 2,
-            fontSize: "1.1rem",
-            fontWeight: 700,
-            textTransform: "none",
-            "&:hover": {
-              background: "linear-gradient(135deg, #0099cc 0%, #006699 100%)",
-              boxShadow: "0 16px 50px rgba(0, 212, 255, 0.4)",
-              transform: "translateY(-2px)",
-            },
-            "&:disabled": {
-              background: "rgba(0, 212, 255, 0.3)",
-              color: "rgba(255, 255, 255, 0.5)",
-            },
-          }}
-        >
-          {loading ? "Analyzing..." : "Run AI Analysis"}
-        </Button>
       </Box>
+
+      {/* Trigger Analysis Button */}
+      {!recommendation && !loading && (
+        <Box sx={{ textAlign: "center", mb: 4 }}>
+          <Button
+            variant="contained"
+            size="large"
+            onClick={triggerAnalysis}
+            startIcon={<Psychology />}
+            sx={{
+              background: "linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)",
+              boxShadow: "0 8px 32px rgba(0, 212, 255, 0.25)",
+              fontSize: "1.1rem",
+              fontWeight: 700,
+              padding: "16px 32px",
+              borderRadius: 16,
+              textTransform: "none",
+              "&:hover": {
+                background: "linear-gradient(135deg, #0099cc 0%, #006699 100%)",
+                boxShadow: "0 12px 48px rgba(0, 212, 255, 0.35)",
+                transform: "translateY(-2px)",
+              },
+            }}
+          >
+            Get AI Analysis
+          </Button>
+          <Typography
+            variant="body1"
+            sx={{ color: "#b0b0b0", mt: 2, maxWidth: 600, mx: "auto" }}
+          >
+            Click the button above to get an AI-powered investment analysis for {ticker}.
+            Our advanced AI will analyze financial data, market trends, and provide
+            personalized recommendations.
+          </Typography>
+        </Box>
+      )}
 
       {/* Error Display */}
       {error && (
@@ -166,14 +160,14 @@ const AnalystRecommendation: React.FC = () => {
             <Button
               color="inherit"
               size="small"
-              onClick={resetAnalysis}
+              onClick={triggerAnalysis}
               sx={{ color: "#ef4444" }}
             >
               Try Again
             </Button>
           }
         >
-          {error}
+          {error?.message || "Failed to get AI analysis. Please try again."}
         </Alert>
       )}
 

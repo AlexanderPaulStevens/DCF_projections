@@ -23,7 +23,7 @@ python -m uvicorn backend.main:app --host 0.0.0.0 --port 8080 --reload
 - **Health Check**: `/health`
 - **API Documentation**: `/docs`
 - **Companies List**: `/api/companies/list`
-- **Company Data**: `/api/companies/{ticker}/stock-data`
+- **Company Data**: `/api/companies/{ticker}/raw-data`
 - **Historical Data**: `/api/companies/{ticker}/historical-data`
 - **DCF Analysis**: `/api/companies/{ticker}/dcf`
 - **Forecast**: `/api/companies/{ticker}/forecast`

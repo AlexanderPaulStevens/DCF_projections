@@ -10,12 +10,34 @@ import {
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { Box, Alert, AlertTitle } from "@mui/material";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import CompanySearch from "./components/CompanySearch";
 import CompanyAnalysis from "./components/CompanyAnalysis";
 import Header from "./components/Header";
 import MarketsPage from "./components/MarketsPage";
-import { DataProvider } from "./contexts/DataContext";
 import "./App.css";
+
+// Create React Query client with optimized defaults
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000, // 1 minute default - conservative
+      gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
+      retry: (failureCount, error: any) => {
+        // Don't retry on 404 or 4xx errors
+        if (error?.response?.status >= 400 && error?.response?.status < 500) {
+          return false;
+        }
+        // Retry once on 5xx or network errors
+        return failureCount < 1;
+      },
+      retryDelay: (attemptIndex) =>
+        Math.min(1000 * 2 ** attemptIndex, 5000), // Max 5s retry delay
+      refetchOnWindowFocus: true, // Refetch by default when user returns
+    },
+  },
+});
 
 // Redirect component for old routes
 const ValuationRedirect: React.FC = () => {
@@ -346,30 +368,10 @@ const CompanyRedirect = () => {
 // Component to conditionally render header
 const AppContent = () => {
   const showHeader = true; // Always show header with search functionality
-  const isNgrok = window.location.hostname.includes("ngrok");
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       {showHeader && <Header />}
-      {isNgrok && (
-        <Alert
-          severity="info"
-          sx={{
-            borderRadius: 0,
-            backgroundColor: "#e3f2fd",
-            borderBottom: "1px solid #2196f3",
-            "& .MuiAlert-message": {
-              width: "100%",
-            },
-          }}
-        >
-          <AlertTitle>Limited Access Mode</AlertTitle>
-          You're accessing this app through ngrok. Some features like company
-          analysis, DCF calculations, and financial data are not available. For
-          full functionality, please access the app locally at{" "}
-          <strong>http://localhost:3000</strong>
-        </Alert>
-      )}
       <Box
         sx={{
           flexGrow: 1,
@@ -418,6 +420,7 @@ const AppContent = () => {
             element={<CompanyAnalysis />}
           />
           <Route path="/company/:ticker/ebit" element={<CompanyAnalysis />} />
+          <Route path="/company/:ticker/fcf" element={<CompanyAnalysis />} />
         </Routes>
       </Box>
     </Box>
@@ -428,11 +431,15 @@ function App() {
   return (
     <ThemeProvider theme={professionalTheme}>
       <CssBaseline />
-      <DataProvider>
+      <QueryClientProvider client={queryClient}>
         <Router>
           <AppContent />
         </Router>
-      </DataProvider>
+        {/* React Query DevTools - only included in development */}
+        {process.env.NODE_ENV === "development" && (
+          <ReactQueryDevtools initialIsOpen={false} />
+        )}
+      </QueryClientProvider>
     </ThemeProvider>
   );
 }

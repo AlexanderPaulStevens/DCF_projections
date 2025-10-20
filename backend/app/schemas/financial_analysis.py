@@ -1,4 +1,9 @@
-"""Financial analysis schemas for API responses."""
+"""
+Financial Analysis Schemas for API Responses
+
+This module provides API response schemas for financial analysis endpoints.
+These schemas are designed to work with the new unified financial statement schemas.
+"""
 
 from __future__ import annotations
 
@@ -16,69 +21,16 @@ class RatioEvaluationData(BaseModel):
     evaluation: RatioEvaluation
 
 
-class ProfitabilityRatios(BaseModel):
-    """Profitability ratios."""
-
-    ROE: Optional[float] = None
-    ROA: Optional[float] = None
-    ROIC: Optional[float] = None
-    operating_margin: Optional[float] = None
-    net_margin: Optional[float] = None
-    revenue_growth_ebit: Optional[float] = None
-    operating_income_growth: Optional[float] = None
-    earnings_quality_ratio: Optional[float] = None  # FCF/net income
-
-
-class LeverageRatios(BaseModel):
-    """Leverage ratios."""
-
-    debt_to_equity: Optional[float] = None
-    debt_to_assets: Optional[float] = None
-    debt_to_free_cash_ratio: Optional[float] = None
-    interest_coverage_ratio: Optional[float] = None
-
-
-class EfficiencyRatios(BaseModel):
-    """Efficiency ratios."""
-
-    asset_turnover: Optional[float] = None
-
-
-class ValuationRatios(BaseModel):
-    """Traditional valuation ratios."""
-
-    pe_ratio: Optional[float] = None
-    pb_ratio: Optional[float] = None
-    ps_ratio: Optional[float] = None
-    peg_ratio: Optional[float] = None
-
-
 class ValuationAnalysis(BaseModel):
     """Comprehensive valuation analysis including ratios and DCF."""
 
     ticker: str
-    ratios: Optional[ValuationRatios] = None
+    ratios: Optional[dict[str, Any]] = None
     dcf_analysis: Optional[dict[str, Any]] = None
     forecasts: Optional[dict[str, Any]] = None
     analysis_warning: Optional[str] = None
     cache_status: Optional[str] = None
     cache_warning: Optional[bool] = None
-
-
-class FinancialRatios(BaseModel):
-    """Financial ratios analysis data with structured categories and evaluation."""
-
-    ticker: str
-    ratios: dict[
-        str, Any
-    ]  # Contains profitability, leverage, efficiency, valuation groups with evaluation data
-
-
-class FinancialRatiosStructured(BaseModel):
-    """Structured financial ratios matching frontend expectations."""
-
-    ticker: str
-    ratios: dict[str, dict[str, Optional[float]]]  # Structured categories
 
 
 class DCFAnalysis(BaseModel):
@@ -91,14 +43,20 @@ class DCFAnalysis(BaseModel):
     cache_warning: Optional[bool] = None
 
 
+class FCFPerShareData(BaseModel):
+    """Free Cash Flow per share analysis."""
+
+    ticker: str
+    free_cash_flow: Optional[float] = None  # Total FCF in millions
+    shares_outstanding: Optional[float] = None  # Shares in millions
+    fcf_per_share: Optional[float] = None  # FCF per share in dollars
+    year: Optional[str] = None  # Fiscal year of the data
+    cache_status: Optional[str] = None
+
+
 __all__ = [
     "DCFAnalysis",
-    "EfficiencyRatios",
-    "FinancialRatios",
-    "FinancialRatiosStructured",
-    "LeverageRatios",
-    "ProfitabilityRatios",
+    "FCFPerShareData",
     "RatioEvaluationData",
     "ValuationAnalysis",
-    "ValuationRatios",
 ]

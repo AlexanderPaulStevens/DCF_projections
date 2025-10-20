@@ -28,9 +28,9 @@ async def get_annual_ebit(
         return await edgar_service.get_annual_ebit(ticker)
     except HTTPException:
         raise
-    except (ValueError, KeyError, AttributeError) as e:
+    except Exception as e:
         logger.error(f"Unexpected error in EBIT endpoint for {ticker}: {e!s}")
         raise HTTPException(
             status_code=500,
             detail=f"Internal server error while fetching EBIT data for {ticker}",
-        ) from e
+        )

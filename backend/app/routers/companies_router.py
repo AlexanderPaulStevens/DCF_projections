@@ -1,16 +1,20 @@
 import logging
-from typing import Any, Dict, List
+from datetime import datetime
+from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.service_container import (
     get_company_data_service,
-    get_financial_ratios_service,
+    get_financial_data_service,
+    get_historical_data_service,
+    get_stock_price_service,
 )
-from app.schemas.company_data import CompanyInfo, StockData
-from app.schemas.financial_analysis import FinancialRatios
+from app.schemas.company_data import CompanyInfo
 from app.services.company_data_service import CompanyDataService
-from app.services.financial_ratios_service import FinancialRatiosService
+from app.services.financial_data_service import FinancialDataService
+from app.services.historical_data_service import HistoricalDataService
+from app.services.stock_price_service import StockPriceService
 
 logger = logging.getLogger(__name__)
 
@@ -20,12 +24,12 @@ router = APIRouter(prefix="/companies", tags=["companies"])
 @router.get("/list")
 async def get_companies_list(
     company_data_service: CompanyDataService = Depends(get_company_data_service),
-) -> List[Dict[str, Any]]:
+) -> Dict[str, Any]:
     """
     Get list of S&P 500 companies.
 
     Returns:
-        List of S&P 500 companies with their data
+        Dictionary of S&P 500 companies with ticker symbols as keys
     """
     try:
         return await company_data_service.get_companies_list()
@@ -94,57 +98,208 @@ async def get_raw_data(
         ) from e
 
 
-@router.get("/{ticker}/stock-data", response_model=StockData)
-async def get_stock_data(
+@router.get("/{ticker}/processed-financial-data")
+async def get_processed_financial_data(
     ticker: str,
-    period: str = "1d",
-    company_data_service: CompanyDataService = Depends(get_company_data_service),
-):
+    coordinator: FinancialDataService = Depends(get_financial_data_service),
+) -> Dict[str, Any]:
     """
-    Get stock data (current day + historical periods) for a company.
+    Get processed financial data including calculated ratios for a company.
 
     Args:
         ticker: Company ticker symbol
-        period: Time period for historical data
 
     Returns:
-        Stock data including current price and historical data
+        Processed financial data with ratios for all available years
     """
     try:
-        stock_data = await company_data_service.get_stock_data(ticker, period)
-        return StockData(**stock_data)
+        # Get cached processed data with ratios from FinancialDataProcessor
+        processed_data = await coordinator.get_cached_processed_financial_data(ticker.upper())
+
+        if not processed_data:
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    f"No processed financial data available for {ticker}. "
+                    "Please ensure the company has been scraped and processed."
+                ),
+            )
+
+        return processed_data
+
     except HTTPException:
         raise
-    except (ValueError, KeyError, AttributeError) as e:
-        logger.error(f"Unexpected error in stock data endpoint for {ticker}: {e!s}")
+    except Exception as e:
+        logger.error(f"Unexpected error in processed financial data endpoint for {ticker}: {e!s}")
         raise HTTPException(
             status_code=500,
-            detail=f"Internal server error while fetching stock data for {ticker}",
+            detail=f"Internal server error while fetching processed financial data for {ticker}",
         ) from e
 
 
-@router.get("/{ticker}/financial-ratios", response_model=FinancialRatios)
+@router.get("/{ticker}/financial-ratios")
 async def get_financial_ratios(
     ticker: str,
-    financial_ratios_service: FinancialRatiosService = Depends(get_financial_ratios_service),
-):
+    force_rescrape: bool = False,
+    coordinator: FinancialDataService = Depends(get_financial_data_service),
+) -> Dict[str, Any]:
     """
-    Get financial ratios calculated from Yahoo Finance data.
+    Get cached financial ratios for a company from Google Cloud Storage.
+
+    This endpoint efficiently retrieves pre-calculated financial ratios
+    that were computed during the data processing pipeline.
+
+    Args:
+        ticker: Company ticker symbol
+        force_rescrape: If True, bypass cache and force re-scraping of financial data
+
+    Returns:
+        Financial ratios for all available years
+    """
+    try:
+        if force_rescrape:
+            logger.info(f"Force re-scraping financial ratios for {ticker}")
+            # Scrape and process financial data independently of DCF
+            await coordinator.scrape_and_process_financial_data(ticker.upper())
+            # Get the freshly scraped data
+            processed_data = await coordinator.get_cached_processed_financial_data(ticker.upper())
+        else:
+            # Get cached processed data with ratios
+            processed_data = await coordinator.get_cached_processed_financial_data(ticker.upper())
+
+            # If no data is available, attempt to scrape
+            if not processed_data:
+                logger.info(
+                    f"No cached data found for {ticker}, attempting to scrape financial data"
+                )
+                try:
+                    await coordinator.scrape_and_process_financial_data(ticker.upper())
+                    # Try to get the data again after scraping
+                    processed_data = await coordinator.get_cached_processed_financial_data(
+                        ticker.upper()
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to scrape financial data for {ticker}: {e}")
+                    # Continue to return 404 below
+
+        if not processed_data:
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    f"No financial ratios available for {ticker}. "
+                    "The company may not have sufficient financial data or scraping failed."
+                ),
+            )
+
+        # Validate data quality and handle corrupted data
+        validated_data = await coordinator.validate_and_clean_financial_data(
+            ticker.upper(), processed_data
+        )
+
+        if not validated_data:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Financial data for {ticker} is corrupted or invalid. "
+                    "Use force_rescrape=true to regenerate clean data."
+                ),
+            )
+
+        # Extract only the financial ratios from the processed data
+        ratios_data = {
+            "ticker": ticker,
+            "years_available": validated_data["years_available"],
+            "latest_year": validated_data["latest_year"],
+            "ratios": {},
+        }
+
+        for year, year_data in validated_data["financial_statements"].items():
+            ratios_data["ratios"][year] = year_data["calculated_ratios"]
+
+        return ratios_data
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in financial ratios endpoint for {ticker}: {e!s}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error while fetching financial ratios for {ticker}",
+        ) from e
+
+
+@router.get("/{ticker}/stock-price")
+async def get_stock_price(
+    ticker: str,
+    stock_price_service: StockPriceService = Depends(get_stock_price_service),
+) -> Dict[str, Any]:
+    """
+    Get current stock price data (always fresh from Yahoo Finance).
+
+    This endpoint provides real-time stock price data. No backend caching -
+    frontend handles caching with appropriate stale times (e.g., 1 minute).
 
     Args:
         ticker: Company ticker symbol
 
     Returns:
-        Financial ratios data calculated from Yahoo Finance raw data
+        Current stock price data including price, change, volume, etc.
     """
     try:
-        result = await financial_ratios_service.calculate_financial_ratios(ticker)
-        return FinancialRatios(**result)
+        stock_price_data = stock_price_service.get_stock_price(ticker.upper())
+
+        if not stock_price_data:
+            raise HTTPException(status_code=404, detail=f"Stock price data not found for {ticker}")
+
+        return stock_price_data
+
     except HTTPException:
         raise
-    except (ValueError, KeyError, AttributeError) as e:
-        logger.error(f"Unexpected error in financial ratios endpoint for {ticker}: {e!s}")
+    except Exception as e:
+        logger.error(f"Unexpected error in stock price endpoint for {ticker}: {e!s}")
         raise HTTPException(
             status_code=500,
-            detail=f"Internal server error while calculating financial ratios for {ticker}",
+            detail=f"Internal server error while fetching stock price for {ticker}",
+        ) from e
+
+
+@router.get("/{ticker}/historical-data")
+async def get_historical_data(
+    ticker: str,
+    period: str = "6mo",
+    historical_data_service: HistoricalDataService = Depends(get_historical_data_service),
+) -> Dict[str, Any]:
+    """
+    Get historical stock price data for a specific time period.
+
+    Args:
+        ticker: Company ticker symbol
+        period: Time period (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max)
+
+    Returns:
+        Historical price data with date, open, high, low, close, volume
+    """
+    try:
+        historical_data = historical_data_service.get_historical_data(ticker.upper(), period)
+
+        if not historical_data:
+            raise HTTPException(
+                status_code=404, detail=f"Historical data not found for {ticker} ({period})"
+            )
+
+        return {
+            "ticker": ticker.upper(),
+            "period": period,
+            "data": historical_data,
+            "count": len(historical_data),
+            "last_updated": datetime.now().isoformat(),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in historical data endpoint for {ticker} ({period}): {e!s}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error while fetching historical data for {ticker} ({period})",
         ) from e

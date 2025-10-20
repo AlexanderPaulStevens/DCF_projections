@@ -11,13 +11,13 @@ import {
   Paper,
   Tooltip,
 } from "@mui/material";
-import { useEBITData } from "../hooks/useDataHooks";
+import { useEBITData } from "../hooks/queries";
 
 const EBITAnalysis: React.FC = () => {
   const { ticker } = useParams<{ ticker: string }>();
 
-  // Use centralized EBIT data management
-  const { data: ebitData, loading, error } = useEBITData(ticker || "");
+  // Use React Query for EBIT data
+  const { data: ebitData, isLoading: loading, error } = useEBITData(ticker || "");
 
   if (loading) {
     return (
@@ -38,7 +38,7 @@ const EBITAnalysis: React.FC = () => {
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
+          {error.message || "Failed to load EBIT data"}
         </Alert>
       </Container>
     );

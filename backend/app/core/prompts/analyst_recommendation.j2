@@ -9,8 +9,6 @@ MARKET DATA:
 DCF ANALYSIS:
 - Intrinsic Value: ${{ "%.2f"|format(intrinsic_value) }}
 - Price-to-Intrinsic Ratio: {{ "%.1f"|format((current_price / intrinsic_value * 100)) if intrinsic_value > 0 else 'N/A' }}%
-- Revenue Growth Rate: {{ "%.1f"|format(revenue_growth_rate * 100) }}%
-- Net Profit Margin: {{ "%.1f"|format(net_profit_margin * 100) }}%
 - WACC: {{ "%.1f"|format(wacc * 100) }}%
 
 Provide your analysis as a JSON object with the following structure:

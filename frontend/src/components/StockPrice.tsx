@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
+import { apiService } from "../services/api";
+import { useStockPrice, useCompanyInfo } from "../hooks/queries";
 import {
   Box,
   Typography,
@@ -10,8 +12,6 @@ import {
   Button,
   ButtonGroup,
 } from "@mui/material";
-import { useCompanyData } from "../hooks/useDataHooks";
-import { APIService } from "../services/api";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -43,13 +43,22 @@ ChartJS.register(
 const StockPrice: React.FC = () => {
   const { ticker } = useParams<{ ticker: string }>();
 
-  // Use centralized data management
+  // React Query automatically shares cached data from CompanyAnalysis!
   const {
-    companyData,
-    companyInfo,
-    loading: dataLoading,
-    error: dataError,
-  } = useCompanyData(ticker || "");
+    data: companyData,
+    isLoading: stockLoading,
+    error: stockError,
+  } = useStockPrice(ticker || "");
+
+  const {
+    data: companyInfo,
+    isLoading: infoLoading,
+    error: infoError,
+  } = useCompanyInfo(ticker || "");
+
+  // Combined loading and error states
+  const dataLoading = stockLoading || infoLoading;
+  const dataError = stockError?.message || infoError?.message || null;
 
   const [historicalData, setHistoricalData] = useState<any>(null);
   const [historicalLoading, setHistoricalLoading] = useState(false);
@@ -61,7 +70,7 @@ const StockPrice: React.FC = () => {
 
       try {
         setHistoricalLoading(true);
-        const data = await APIService.getHistoricalData(ticker, period);
+        const data = await apiService.getHistoricalData(ticker, period);
         setHistoricalData(data);
       } catch (err) {
         console.error("Error fetching historical data:", err);
@@ -571,7 +580,7 @@ const StockPrice: React.FC = () => {
                     variant="body2"
                     sx={{ color: "#ffffff", fontWeight: 600 }}
                   >
-                    {companyData.eps ? `$${companyData.eps.toFixed(2)}` : "N/A"}
+                    N/A
                   </Typography>
                 </Box>
               </Box>
@@ -644,9 +653,7 @@ const StockPrice: React.FC = () => {
                     variant="body2"
                     sx={{ color: "#ffffff", fontWeight: 600 }}
                   >
-                    {companyData.avg_volume
-                      ? `${(companyData.avg_volume / 1e6).toFixed(2)}M`
-                      : "N/A"}
+                    N/A
                   </Typography>
                 </Box>
                 <Box sx={{ display: "flex", justifyContent: "space-between" }}>

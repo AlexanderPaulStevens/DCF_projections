@@ -8,12 +8,13 @@ import {
   Skeleton,
 } from "@mui/material";
 import { StockHeader } from "./StockHeader";
-import { useCompanyData, useLazyData } from "../hooks/useDataHooks";
+import { useStockPrice, useCompanyInfo } from "../hooks/queries";
 import StockPrice from "./StockPrice";
 import ValuationAnalysis from "./ValuationAnalysis";
 import FinancialRatios from "./FinancialRatios";
 import AnalystRecommendation from "./AnalystRecommendation";
 import EBITAnalysis from "./RevenueAnalysis";
+import { FCFPerShare } from "./FCFPerShare";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -68,21 +69,26 @@ const CompanyAnalysis: React.FC = () => {
     if (path.includes("/ratios")) return 2;
     if (path.includes("/analyst")) return 3;
     if (path.includes("/ebit")) return 4;
+    if (path.includes("/fcf")) return 5;
     return 0; // default to stock price
   }, [location.pathname]);
 
   const [activeTab, setActiveTab] = useState(getInitialTab());
 
-  // Use centralized data management
+  // Use React Query hooks for data fetching
   const {
-    companyData,
-    companyInfo,
-    loading: headerLoading,
-  } = useCompanyData(ticker || "");
+    data: stockPriceData,
+    isLoading: stockPriceLoading,
+  } = useStockPrice(ticker || "");
 
-  // Lazy load analysis data when tabs are active
-  const dcfData = useLazyData(ticker || "", "dcf", activeTab === 1);
-  const forecastData = useLazyData(ticker || "", "forecast", activeTab === 1);
+  const {
+    data: companyInfo,
+    isLoading: companyInfoLoading,
+  } = useCompanyInfo(ticker || "");
+
+  // Determine overall loading state
+  const headerLoading = stockPriceLoading || companyInfoLoading;
+  const hasData = stockPriceData && companyInfo;
 
   // Moving lines animation (matching landing page)
   const [lines, setLines] = useState<
@@ -123,7 +129,7 @@ const CompanyAnalysis: React.FC = () => {
     setActiveTab(newValue);
 
     // Update URL without page reload
-    const tabRoutes = ["stock-price", "valuation", "ratios", "analyst", "ebit"];
+    const tabRoutes = ["stock-price", "valuation", "ratios", "analyst", "ebit", "fcf"];
     const newRoute = tabRoutes[newValue];
     navigate(`/company/${ticker}/${newRoute}`, { replace: true });
   };
@@ -132,13 +138,7 @@ const CompanyAnalysis: React.FC = () => {
     { label: "Stock Price", component: <StockPrice /> },
     {
       label: "Valuation",
-      component: (
-        <ValuationAnalysis
-          dcfData={dcfData.data}
-          forecastData={forecastData.data}
-          loading={dcfData.loading || forecastData.loading}
-        />
-      ),
+      component: <ValuationAnalysis />,
     },
     {
       label: "Financial Ratios",
@@ -146,6 +146,7 @@ const CompanyAnalysis: React.FC = () => {
     },
     { label: "AI Analyst", component: <AnalystRecommendation /> },
     { label: "EBIT Analysis", component: <EBITAnalysis /> },
+    { label: "FCF Per Share", component: <FCFPerShare ticker={ticker || ""} /> },
   ];
 
   return (
@@ -220,22 +221,22 @@ const CompanyAnalysis: React.FC = () => {
 
       <Container maxWidth="xl" sx={{ py: 4, position: "relative", zIndex: 1 }}>
         {/* Stock Header */}
-        {!headerLoading && companyData && companyInfo && (
+        {!headerLoading && hasData && (
           <StockHeader
             stockData={{
               symbol: ticker?.toUpperCase() || "",
               name: companyInfo.name || "",
-              price: companyData.current_price || 0,
-              change: companyData.price_change || 0,
-              changePercent: companyData.price_change_percent || 0,
-              lastUpdated: new Date().toLocaleTimeString(),
+              price: stockPriceData.current_price || 0,
+              change: stockPriceData.price_change || 0,
+              changePercent: stockPriceData.price_change_percent || 0,
+              lastUpdated: stockPriceData.last_updated || new Date().toLocaleTimeString(),
             }}
             companyData={companyInfo}
           />
         )}
 
-        {/* Loading Skeleton - Only show if no StockHeader */}
-        {(!companyData || !companyInfo) && (
+        {/* Loading Skeleton - Only show if no data yet */}
+        {!hasData && (
           <Box
             sx={{
               borderBottom: "1px solid rgba(0, 212, 255, 0.15)",

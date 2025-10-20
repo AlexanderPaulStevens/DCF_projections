@@ -149,8 +149,6 @@ class AnalystAgent:
             "beta": stock_data.get("beta"),
             "market_cap": stock_data.get("market_cap", 0),
             "intrinsic_value": base_results.get("intrinsic_value", 0),
-            "revenue_growth_rate": base_results.get("revenue_growth_rate", 0),
-            "net_profit_margin": base_results.get("net_profit_margin", 0),
             "wacc": base_results.get("wacc", 0),
         }
 
@@ -196,7 +194,7 @@ class AnalystAgent:
             logger.error(f"Raw LLM response: {llm_text}")
             raise ValueError(error_msg) from e
 
-    def get_analyst_recommendation(self, ticker: str) -> AnalystRecommendation:
+    async def get_analyst_recommendation(self, ticker: str) -> AnalystRecommendation:
         """
         Get comprehensive analyst recommendation for a company.
 
@@ -211,7 +209,7 @@ class AnalystAgent:
             logger.info(f"Generating analyst recommendation for {ticker}")
 
             # 1. Get DCF analysis using the service directly
-            dcf_analysis = self._get_dcf_analysis_from_service(ticker)
+            dcf_analysis = await self._get_dcf_analysis_from_service(ticker)
             if not dcf_analysis:
                 raise ValueError(f"No DCF analysis available for {ticker}")
 
@@ -240,11 +238,11 @@ class AnalystAgent:
                 f"Unexpected error generating analyst recommendation for {ticker}: {e!s}"
             ) from e
 
-    def _get_dcf_analysis_from_service(self, ticker: str) -> Dict[str, Any]:
+    async def _get_dcf_analysis_from_service(self, ticker: str) -> Dict[str, Any]:
         """Get DCF analysis using the DCF service directly."""
         try:
             dcf_service = DCFService()
-            return dcf_service.get_dcf_analysis(ticker)
+            return await dcf_service.get_dcf_analysis(ticker)
         except (ValueError, KeyError, OSError) as e:
             logger.error(f"Error getting DCF analysis for {ticker}: {e!s}")
             raise ValueError(f"Failed to get DCF analysis for {ticker}: {e!s}") from e
@@ -288,8 +286,6 @@ class AnalystAgent:
             "pe_ratio": stock_data.get("pe_ratio", 0),
             "beta": stock_data.get("beta", 1.0),
             "market_cap": stock_data.get("market_cap", 0),
-            "revenue_growth_rate": base_results.get("revenue_growth_rate", 0),
-            "net_profit_margin": base_results.get("net_profit_margin", 0),
             "wacc": base_results.get("wacc", 0.1),
         }
 

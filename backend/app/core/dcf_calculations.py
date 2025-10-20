@@ -1,7 +1,7 @@
 import datetime
+from typing import Any, Dict
 
 from app.core.helper_functions.calculations import calculate_cost_of_debt, calculate_wacc
-from app.schemas.dcf_inputs import DCFFinancialData, DCFMarketData, DCFRatioData
 
 
 class DCFCalculator:
@@ -41,45 +41,45 @@ class DCFCalculator:
     def __init__(
         self,
         ticker: str,
-        financial_data: DCFFinancialData,
-        market_data: DCFMarketData,
-        ratio_data: DCFRatioData,
+        financial_data: Dict[str, Any],
+        market_data: Dict[str, Any],
+        ratio_data: Dict[str, Any],
     ):
         """
-        Initialize DCF calculator with validated financial, market, and ratio data.
+        Initialize DCF calculator with raw financial, market, and ratio data.
 
         Args:
             ticker: Company ticker symbol (e.g., "AAPL", "MSFT")
-            financial_data: Validated financial data (revenue, EBIT, debt, cash, shares)
-            market_data: Validated market data (beta, tax rate, market cap, rates,
+            financial_data: Raw financial data (revenue, EBIT, debt, cash, shares)
+            market_data: Raw market data (beta, tax rate, market cap, rates,
                 and growth assumptions)
             ratio_data: Company-specific operating ratios (WC, CapEx, D&A as % of revenue)
         """
         self.ticker = ticker
 
         # Extract financial data
-        self.financial_data = financial_data.to_dict()
-        self.total_debt = financial_data.total_debt
-        self.cash = financial_data.cash_and_equivalents
-        self.shares_outstanding_mm = financial_data.shares_outstanding
+        self.financial_data = financial_data
+        self.total_debt = financial_data.get("Total Debt", 0)
+        self.cash = financial_data.get("Cash and Cash Equivalents", 0)
+        self.shares_outstanding_mm = financial_data.get("Shares Outstanding", 0)
 
         # Extract market data and DCF assumptions
-        self.beta = market_data.beta
-        self.tax_rate = market_data.tax_rate
-        self.market_cap = market_data.market_cap
-        self.terminal_growth_rate = market_data.terminal_growth_rate
-        self.market_risk_premium = market_data.market_risk_premium
-        self.risk_free_rate = market_data.risk_free_rate
+        self.beta = market_data.get("beta", 1.0)
+        self.tax_rate = market_data.get("tax_rate", 0.24)
+        self.market_cap = market_data.get("market_cap", 0)
+        self.terminal_growth_rate = market_data.get("terminal_growth_rate", 0.025)
+        self.market_risk_premium = market_data.get("market_risk_premium", 0.055)
+        self.risk_free_rate = market_data.get("risk_free_rate", 0.035)
 
         # Extract company-specific operating ratios
-        self.wc_to_revenue_ratio = ratio_data.wc_to_revenue_ratio
-        self.capex_to_revenue_ratio = ratio_data.capex_to_revenue_ratio
-        self.da_to_revenue_ratio = ratio_data.da_to_revenue_ratio
+        self.wc_to_revenue_ratio = ratio_data.get("wc_to_revenue_ratio", 0.05)
+        self.capex_to_revenue_ratio = ratio_data.get("capex_to_revenue_ratio", 0.035)
+        self.da_to_revenue_ratio = ratio_data.get("da_to_revenue_ratio", 0.035)
 
         # EBIT margin (will be calculated from historical data)
         self.ebit_margin = None
 
-        # Calculate derived values (validation already done by Pydantic)
+        # Calculate derived values
         self.cost_of_debt = calculate_cost_of_debt(self.risk_free_rate)
         self.cost_of_equity = self.risk_free_rate + (self.beta * self.market_risk_premium)
 

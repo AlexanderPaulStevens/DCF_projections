@@ -45,7 +45,6 @@ class StockData(BaseModel):
     market_cap: int
     beta: float
     pe_ratio: float
-    forward_pe: float
     eps: float
     forward_eps: float
     dividend_yield: float

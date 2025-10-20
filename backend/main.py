@@ -34,6 +34,6 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(companies_router)
 app.include_router(dcf_analysis_router)
+app.include_router(edgar_router)
 app.include_router(analyst_router)
 app.include_router(forecast_router)
-app.include_router(edgar_router)

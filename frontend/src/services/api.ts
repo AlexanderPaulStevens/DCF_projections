@@ -1,8 +1,26 @@
-// API Service for DCF Projections Frontend
-import axios from "axios";
+/**
+ * Simplified API Service - Thin Axios Wrapper
+ * All caching and deduplication handled by React Query
+ */
 
-// Base API configuration
-const getApiBaseUrl = () => {
+import axios, { AxiosError } from "axios";
+import type {
+  CompanyInfo,
+  StockPriceData,
+  StockData,
+  FinancialRatios,
+  DCFAnalysis,
+  AnnualEBITData,
+  AnalystRecommendation,
+  CompanySearchResult,
+  FCFPerShareData,
+} from "../types/api";
+
+// ============================================================================
+// Base API Configuration
+// ============================================================================
+
+const getApiBaseUrl = (): string => {
   // Check if we're running in production (App Engine)
   const isProduction = process.env.NODE_ENV === "production";
   const isAppEngine =
@@ -16,24 +34,6 @@ const getApiBaseUrl = () => {
       "https://dcf-backend-355089933221.europe-west1.run.app";
     console.log("🚀 Using production API URL:", productionApiUrl);
     return productionApiUrl;
-  } else if (window.location.hostname.includes("ngrok")) {
-    // When on ngrok, we need to get the API URL from the ngrok API
-    // This will be set by the run.sh script or we'll try to detect it
-    const ngrokApiUrl = process.env.REACT_APP_NGROK_API_URL;
-
-    if (ngrokApiUrl) {
-      console.log("🔍 Using ngrok API URL from env:", ngrokApiUrl);
-      return ngrokApiUrl;
-    } else {
-      // Try to detect the API URL automatically
-      console.log("🔍 Attempting to auto-detect ngrok API URL...");
-      // For now, use the known API URL from the terminal output
-      const detectedApiUrl =
-        process.env.REACT_APP_NGROK_API_URL ||
-        "https://your-ngrok-url.ngrok-free.app";
-      console.log("🔍 Using detected ngrok API URL:", detectedApiUrl);
-      return detectedApiUrl;
-    }
   } else {
     // When running locally, use the local network API from config
     const apiHost = process.env.REACT_APP_API_HOST || "localhost";
@@ -53,158 +53,151 @@ const api = axios.create({
   },
 });
 
-// API Service class
-export class APIService {
-  static async getCompanyInfo(ticker: string): Promise<CompanyInfo> {
-    try {
-      const response = await api.get(`/companies/${ticker}/company-info`);
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching company info:", error);
-      throw error;
+// ============================================================================
+// Global Response Interceptor - Centralized Error Handling
+// ============================================================================
+
+api.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    // Handle specific error codes
+    if (error.response?.status === 404) {
+      throw new Error("Resource not found");
     }
+    if (error.response?.status === 500) {
+      throw new Error("Server error - please try again later");
+    }
+    if (error.response?.status === 429) {
+      throw new Error("Too many requests - please slow down");
+    }
+    if (error.code === "ECONNABORTED") {
+      throw new Error("Request timeout - please try again");
+    }
+    // Re-throw the error for React Query to handle
+    throw error;
   }
+);
 
-  static async getStockData(ticker: string): Promise<StockData> {
-    try {
-      const response = await api.get(`/companies/${ticker}/stock-data`);
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching stock data:", error);
-      throw error;
-    }
-  }
+// ============================================================================
+// API Service - Clean, Simple Methods
+// ============================================================================
 
-  static async getFinancialRatios(ticker: string): Promise<FinancialRatios> {
-    try {
-      const response = await api.get(`/companies/${ticker}/financial-ratios`);
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching financial ratios:", error);
-      throw error;
-    }
-  }
+export const apiService = {
+  // ------------------------------------------------------------------------
+  // Stock Price Data
+  // ------------------------------------------------------------------------
 
-  static async getDCFAnalysis(ticker: string): Promise<DCFAnalysis> {
-    try {
-      const response = await api.get(`/companies/${ticker}/DCF`);
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching DCF analysis:", error);
-      throw error;
-    }
-  }
+  async getStockPrice(ticker: string): Promise<StockPriceData> {
+    const { data } = await api.get(`/companies/${ticker}/stock-price`);
+    return data;
+  },
 
-  static async getAnalystRecommendation(
-    ticker: string,
-  ): Promise<AnalystRecommendation> {
-    try {
-      const response = await api.get(
-        `/companies/${ticker}/analyst-recommendation`,
-      );
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching analyst recommendation:", error);
-      throw error;
-    }
-  }
+  // ------------------------------------------------------------------------
+  // Company Information
+  // ------------------------------------------------------------------------
 
-  static async getHistoricalData(
-    ticker: string,
-    period: string = "6mo",
-  ): Promise<any> {
-    try {
-      const response = await api.get(
-        `/companies/${ticker}/stock-data?period=${period}`,
-      );
-      return {
-        ticker: response.data.ticker,
-        period: response.data.period,
-        data: response.data.historical_data || [],
-        count: response.data.historical_data?.length || 0,
-      };
-    } catch (error) {
-      console.error("Error fetching historical data:", error);
-      throw error;
-    }
-  }
+  async getCompanyInfo(ticker: string): Promise<CompanyInfo> {
+    const { data } = await api.get(`/companies/${ticker}/company-info`);
+    return data;
+  },
 
-  static async getRiskAssessment(ticker: string): Promise<any> {
-    try {
-      const response = await api.get(`/companies/${ticker}/risk-assessment`);
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching risk assessment:", error);
-      throw error;
-    }
-  }
+  async getStockData(ticker: string): Promise<StockData> {
+    const { data } = await api.get(`/companies/${ticker}/raw-data`);
+    return data;
+  },
 
-  static async getGrowthOpportunities(ticker: string): Promise<any> {
-    try {
-      const response = await api.get(`/companies/${ticker}/opportunities`);
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching growth opportunities:", error);
-      throw error;
-    }
-  }
+  // ------------------------------------------------------------------------
+  // Financial Ratios
+  // ------------------------------------------------------------------------
 
-  static async getStockForecast(ticker: string): Promise<any> {
-    try {
-      const response = await api.get(`/companies/${ticker}/forecast`);
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching stock forecast:", error);
-      throw error;
-    }
-  }
+  async getFinancialRatios(ticker: string): Promise<FinancialRatios> {
+    const { data } = await api.get(`/companies/${ticker}/financial-ratios`);
 
-  static async getAnnualEBIT(ticker: string): Promise<AnnualEBITData> {
-    try {
-      const response = await api.get(`/edgar/ebit/${ticker}`);
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching annual EBIT:", error);
-      throw error;
-    }
-  }
-
-  // Cache for companies list to avoid repeated API calls
-  private static companiesCache: any[] | null = null;
-  private static companiesCachePromise: Promise<any[]> | null = null;
-
-  private static async getCompaniesList(): Promise<any[]> {
-    // Return cached data if available
-    if (this.companiesCache) {
-      return this.companiesCache;
+    if (!data) {
+      throw new Error("No financial ratios data available");
     }
 
-    // If a fetch is already in progress, wait for it
-    if (this.companiesCachePromise) {
-      return this.companiesCachePromise;
-    }
+    // Return the data as-is since backend now provides the correct structure
+    return data;
+  },
 
-    // Fetch and cache the companies list
-    const fetchPromise: Promise<any[]> = api
-      .get("/companies/list")
-      .then((response) => {
-        const data = response.data || [];
-        this.companiesCache = data;
-        this.companiesCachePromise = null;
-        console.log(`Loaded and cached ${data.length} companies`);
-        return data;
-      })
-      .catch((error) => {
-        this.companiesCachePromise = null;
-        console.error("Failed to load companies list:", error);
-        return [] as any[];
-      });
+  // ------------------------------------------------------------------------
+  // DCF Analysis
+  // ------------------------------------------------------------------------
 
-    this.companiesCachePromise = fetchPromise;
-    return fetchPromise;
-  }
+  async getDCFAnalysis(ticker: string): Promise<DCFAnalysis> {
+    const { data } = await api.get(`/companies/${ticker}/DCF`);
+    return data;
+  },
 
-  static async searchCompanies(query: string): Promise<any[]> {
+  // ------------------------------------------------------------------------
+  // EBIT Data
+  // ------------------------------------------------------------------------
+
+  async getAnnualEBIT(ticker: string): Promise<AnnualEBITData> {
+    const { data } = await api.get(`/edgar/ebit/${ticker}`);
+    return data;
+  },
+
+  // ------------------------------------------------------------------------
+  // Analyst Recommendation
+  // ------------------------------------------------------------------------
+
+  async getAnalystRecommendation(ticker: string): Promise<AnalystRecommendation> {
+    const { data } = await api.get(`/companies/${ticker}/analyst-recommendation`);
+    return data;
+  },
+
+  // ------------------------------------------------------------------------
+  // FCF Per Share
+  // ------------------------------------------------------------------------
+
+  async getFCFPerShare(ticker: string): Promise<FCFPerShareData> {
+    const { data } = await api.get(`/companies/${ticker}/fcf-per-share`);
+    return data;
+  },
+
+  // ------------------------------------------------------------------------
+  // Historical Data
+  // ------------------------------------------------------------------------
+
+  async getHistoricalData(ticker: string, period: string = "6mo"): Promise<any> {
+    const { data } = await api.get(`/companies/${ticker}/historical-data?period=${period}`);
+    return data;
+  },
+
+  // ------------------------------------------------------------------------
+  // Risk Assessment
+  // ------------------------------------------------------------------------
+
+  async getRiskAssessment(ticker: string): Promise<any> {
+    const { data } = await api.get(`/companies/${ticker}/risk-assessment`);
+    return data;
+  },
+
+  // ------------------------------------------------------------------------
+  // Growth Opportunities
+  // ------------------------------------------------------------------------
+
+  async getGrowthOpportunities(ticker: string): Promise<any> {
+    const { data } = await api.get(`/companies/${ticker}/opportunities`);
+    return data;
+  },
+
+  // ------------------------------------------------------------------------
+  // Stock Forecast
+  // ------------------------------------------------------------------------
+
+  async getStockForecast(ticker: string): Promise<any> {
+    const { data } = await api.get(`/companies/${ticker}/forecast`);
+    return data;
+  },
+
+  // ------------------------------------------------------------------------
+  // Company Search
+  // ------------------------------------------------------------------------
+
+  async searchCompanies(query: string): Promise<CompanySearchResult[]> {
     try {
       if (!query || query.trim().length === 0) {
         return [];
@@ -213,15 +206,15 @@ export class APIService {
       const searchTerm = query.toLowerCase().trim();
 
       // Get cached companies list (fast)
-      const companies = await this.getCompaniesList();
+      const companies = await companiesListCache.getCompaniesList();
 
       // Filter companies by NAME ONLY (case-insensitive)
-      const filteredCompanies = companies.filter((company: any) =>
-        company.name.toLowerCase().includes(searchTerm),
+      const filteredCompanies = companies.filter((company) =>
+        company.name.toLowerCase().includes(searchTerm)
       );
 
       // Sort results: prioritize matches at the start of the name
-      filteredCompanies.sort((a: any, b: any) => {
+      filteredCompanies.sort((a, b) => {
         const aNameStarts = a.name.toLowerCase().startsWith(searchTerm);
         const bNameStarts = b.name.toLowerCase().startsWith(searchTerm);
 
@@ -235,365 +228,84 @@ export class APIService {
 
       return filteredCompanies;
     } catch (error) {
-      console.error("Error searching companies:", error);
+      console.error("❌ Error searching companies:", error);
       throw error;
     }
-  }
-}
+  },
+};
 
-// Type definitions
-export interface CompanyInfo {
-  ticker: string;
-  name: string;
-  sector: string;
-  industry: string;
-  website: string;
-  description: string;
-  employees: number;
-  city: string;
-  state: string;
-  country: string;
-  exchange: string;
-  currency: string;
-  founded_year?: number;
-  ceo?: string;
-  headquarters?: string;
-  business_summary?: string;
-  last_updated: string;
-}
+// ============================================================================
+// Companies List Cache - Module-level cache for static data
+// ============================================================================
 
-export interface StockData {
-  ticker: string;
-  current_price: number;
-  previous_close: number;
-  open: number;
-  day_low: number;
-  day_high: number;
-  fifty_two_week_low: number;
-  fifty_two_week_high: number;
-  volume: number;
-  avg_volume: number;
-  market_cap: number;
-  beta: number;
-  pe_ratio: number;
-  forward_pe: number;
-  eps: number;
-  forward_eps: number;
-  dividend_yield: number;
-  ex_dividend_date?: string;
-  earnings_date?: string;
-  target_price: number;
-  recommendation: string;
-  price_change: number;
-  price_change_percent: number;
-  last_updated: string;
-}
+const companiesListCache = {
+  cache: null as CompanySearchResult[] | null,
+  cachePromise: null as Promise<CompanySearchResult[]> | null,
 
-export interface HistoricalData {
-  symbol: string;
-  data: Array<{
-    date: string;
-    open: number;
-    high: number;
-    low: number;
-    close: number;
-    volume: number;
-  }>;
-  forecast?: Array<{
-    date: string;
-    close: number;
-    confidence: number;
-  }>;
-}
+  async getCompaniesList(): Promise<CompanySearchResult[]> {
+    // Return cached data if available
+    if (this.cache) {
+      return this.cache;
+    }
 
-export interface CompanyOverview {
-  ticker: string;
-  name: string;
-  sector: string;
-  industry: string;
-  description: string;
-  website: string;
-  employees: number;
-  marketCap: number;
-  pe: number;
-  eps: number;
-  dividend: number;
-  yield: number;
-}
+    // If a fetch is already in progress, wait for it
+    if (this.cachePromise) {
+      return this.cachePromise;
+    }
 
-export interface RatioEvaluationData {
-  value: number | null;
-  evaluation: "good" | "bad" | "unknown";
-}
+    // Fetch and cache the companies list
+    const fetchPromise = api
+      .get<Record<string, { name: string }>>("/companies/list")
+      .then((response) => {
+        const companiesDict = response.data || {};
 
-export interface FinancialRatios {
-  ticker: string;
-  ratios: {
-    profitability?: {
-      ROE?: RatioEvaluationData;
-      ROA?: RatioEvaluationData;
-      ROIC?: RatioEvaluationData;
-      operating_margin?: RatioEvaluationData;
-      net_margin?: RatioEvaluationData;
-      revenue_growth_ebit?: RatioEvaluationData;
-      operating_income_growth?: RatioEvaluationData;
-      earnings_quality_ratio?: RatioEvaluationData; // FCF/net income
-    };
-    leverage?: {
-      debt_to_equity?: RatioEvaluationData;
-      debt_to_assets?: RatioEvaluationData;
-      debt_to_free_cash_ratio?: RatioEvaluationData;
-      interest_coverage_ratio?: RatioEvaluationData;
-    };
-    efficiency?: {
-      asset_turnover?: RatioEvaluationData;
-    };
-    valuation?: {
-      pe_ratio?: RatioEvaluationData;
-      pb_ratio?: RatioEvaluationData;
-      ps_ratio?: RatioEvaluationData;
-      peg_ratio?: RatioEvaluationData;
-    };
-  };
-}
+        // Transform dictionary to array format for search
+        const companiesArray: CompanySearchResult[] = Object.entries(companiesDict).map(
+          ([ticker, companyInfo]) => ({
+            ticker,
+            name: companyInfo.name
+          })
+        );
 
-export interface ValuationAnalysis {
-  ticker: string;
-  ratios?: {
-    pe_ratio?: number;
-    pb_ratio?: number;
-    ps_ratio?: number;
-    peg_ratio?: number;
-  };
-  dcf_analysis?: any;
-  forecasts?: any;
-  analysis_warning?: string;
-  cache_status?: string;
-  cache_warning?: boolean;
-}
+        this.cache = companiesArray;
+        this.cachePromise = null;
+        console.log(`✅ Loaded and cached ${companiesArray.length} companies`);
+        return companiesArray;
+      })
+      .catch((error) => {
+        this.cachePromise = null;
+        console.error("❌ Failed to load companies list:", error);
+        return [] as CompanySearchResult[];
+      });
 
-export interface DCFAnalysis {
-  ticker: string;
-  intrinsicValue: number;
-  currentPrice: number;
-  upside: number;
-  assumptions: {
-    wacc: number;
-    terminalGrowthRate: number;
-    projectionYears: number;
-  };
-  cashFlows: Array<{
-    year: number;
-    freeCashFlow: number;
-    presentValue: number;
-  }>;
-  terminalValue: number;
-  enterpriseValue: number;
-  equityValue: number;
-  sharesOutstanding: number;
-  base_results: {
-    [key: string]: any;
-  };
-  cache_status?: string;
-  cache_warning?: boolean;
-  analysis_warning?: string;
-  scraping_status?: string;
-}
+    this.cachePromise = fetchPromise;
+    return fetchPromise;
+  },
+};
 
-export interface CompetitiveAnalysis {
-  ticker: string;
-  competitors: Array<{
-    ticker: string;
-    name: string;
-    marketCap: number;
-    pe: number;
-    revenue: number;
-    margin: number;
-  }>;
-  marketPosition: {
-    rank: number;
-    totalCompetitors: number;
-    marketShare: number;
-  };
-  advantages: Array<{
-    type: string;
-    description: string;
-    strength: number;
-  }>;
-  risks: Array<{
-    type: string;
-    description: string;
-    impact: number;
-  }>;
-}
+// ============================================================================
+// Backward Compatibility - Export as APIService for legacy components
+// ============================================================================
 
-export interface TechnicalAnalysisRequest {
-  indicators: Array<{
-    name: string;
-    params: { [key: string]: any };
-    display: string;
-  }>;
-  period: string;
-  interval: string;
-  chart_type: string;
-  include_volume: boolean;
-  comparison_ticker: string | null;
-}
+export const APIService = apiService;
 
-export interface TechnicalAnalysisResponse {
-  ticker: string;
-  indicators: Array<{
-    name: string;
-    value: number;
-    signal: string;
-    description: string;
-    id: string;
-    label: string;
-    display: string;
-    color?: string;
-    series: Array<{
-      id: string;
-      label: string;
-      color: string;
-      name: string;
-      values: number[];
-    }>;
-  }>;
-  summary: {
-    overall: string;
-    trend: string;
-    strength: number;
-  };
-  meta: {
-    period: string;
-    interval: string;
-    last_updated: string;
-    active_config: {
-      period: string;
-      interval: string;
-      indicators: Array<{
-        name: string;
-        params: { [key: string]: any };
-        display: string;
-      }>;
-      chart_type: string;
-      include_volume: boolean;
-      comparison_ticker: string | null;
-    };
-    available_indicators: string[];
-    periods: string[];
-    chart_types: string[];
-  };
-  price: Array<{
-    date: string;
-    value: number;
-    close: number;
-  }>;
-  comparison: {
-    label: string;
-    series: Array<{
-      date: string;
-      value: number;
-    }>;
-  };
-  patterns: Array<{
-    name: string;
-    label: string;
-    occurrences: Array<{
-      date: string;
-      confidence: number;
-      value: number;
-    }>;
-  }>;
-}
+// Export the API instance for advanced use cases
+export { api };
 
-export interface TechnicalIndicatorResult {
-  name: string;
-  value: number;
-  signal: string;
-  description: string;
-  id: string;
-  label: string;
-  display: string;
-  series: Array<{
-    id: string;
-    label: string;
-    color: string;
-  }>;
-  metadata: {
-    params: any;
-    display: string;
-  };
-}
-
-export interface TechnicalIndicatorDefinition {
-  name: string;
-  params: any;
-  display: string;
-  default_params: any;
-  default_display: string;
-  label: string;
-  description: string;
-  supports_overlay: boolean;
-  supports_subchart: boolean;
-}
-
-export interface CompetitiveAdvantage {
-  type: string;
-  description: string;
-  strength: number;
-}
-
-export interface MarketRisk {
-  type: string;
-  description: string;
-  impact: number;
-}
-
-export interface AnalystRecommendation {
-  ticker: string;
-  recommendation: "STRONG_BUY" | "BUY" | "HOLD" | "SELL" | "STRONG_SELL";
-  target_price: number;
-  current_price: number;
-  upside_potential: number;
-  confidence_score: number;
-  risk_level: "LOW" | "MEDIUM" | "HIGH" | "VERY_HIGH";
-  reasoning: string[];
-  key_risks: string[];
-  key_opportunities: string[];
-  key_metrics: {
-    current_price: number;
-    intrinsic_value: number;
-    price_to_intrinsic_ratio: number;
-    pe_ratio: number;
-    beta: number;
-    market_cap: number;
-    revenue_growth_rate: number;
-    net_profit_margin: number;
-    wacc: number;
-  };
-  dcf_intrinsic_value: number;
-  price_to_intrinsic_ratio: number;
-  analysis_timestamp: string;
-  analyst_notes: string;
-}
-
-export interface AnnualEBITData {
-  ticker: string;
-  ebit_data: Array<{
-    year: number;
-    ebit: number;
-    ebit_formatted: string;
-    growth_rate?: number;
-  }>;
-  summary: {
-    latest_ebit: number;
-    latest_year: number;
-    oldest_ebit: number;
-    oldest_year: number;
-    average_growth_rate: number;
-    total_years: number;
-  };
-}
-
-// Note: Companies list is cached after first search for instant subsequent searches
+// Re-export types for convenience
+export type {
+  StockPriceData,
+  CompanyInfo,
+  FinancialRatios,
+  DCFAnalysis,
+  AnnualEBITData,
+  AnalystRecommendation,
+  FCFPerShareData,
+  ProfitabilityRatios,
+  LeverageRatios,
+  EfficiencyRatios,
+  ValuationRatios,
+  LiquidityRatios,
+  StockData,
+  CompanySearchResult,
+} from "../types/api";

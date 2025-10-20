@@ -44,7 +44,7 @@ async def get_analyst_recommendation(ticker: str):
         logger.info(f"Getting analyst recommendation for {ticker}")
 
         # Get recommendation from analyst agent
-        recommendation = analyst_agent.get_analyst_recommendation(ticker.upper())
+        recommendation = await analyst_agent.get_analyst_recommendation(ticker.upper())
 
         logger.info(f"Generated {recommendation.recommendation} recommendation for {ticker}")
         return recommendation

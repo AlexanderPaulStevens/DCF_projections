@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import {
   Box,
   Card,
@@ -19,7 +19,6 @@ import {
   Chip,
 } from "@mui/material";
 import {
-  Assessment,
   Calculate,
   TrendingUp,
   TrendingDown,
@@ -57,7 +56,6 @@ const ValuationAnalysis: React.FC<ValuationAnalysisProps> = ({
   loading: propLoading,
 }) => {
   const { ticker } = useParams<{ ticker: string }>();
-  const navigate = useNavigate();
   const [dcfData, setDcfData] = useState<DCFAnalysisType | null>(
     propDcfData || null,
   );
@@ -921,33 +919,6 @@ const ValuationAnalysis: React.FC<ValuationAnalysisProps> = ({
           </CardContent>
         </Card>
       )}
-
-      {/* Action Buttons */}
-      <Box sx={{ display: "flex", gap: 2, justifyContent: "center", mt: 4 }}>
-        <Button
-          variant="outlined"
-          startIcon={<Assessment />}
-          onClick={() => navigate(`/company/${ticker}/ratios`)}
-          sx={{
-            py: 2,
-            px: 4,
-            fontSize: "1.1rem",
-            fontWeight: 600,
-            borderRadius: 2,
-            minWidth: 180,
-            border: "2px solid",
-            borderColor: "#00d4ff",
-            color: "#00d4ff",
-            "&:hover": {
-              background: "rgba(0, 212, 255, 0.1)",
-              borderColor: "#0099cc",
-              transform: "translateY(-2px)",
-            },
-          }}
-        >
-          Financial Ratios
-        </Button>
-      </Box>
 
       {/* Important Disclaimer */}
       <Card
